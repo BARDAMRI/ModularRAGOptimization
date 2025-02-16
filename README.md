@@ -17,16 +17,15 @@ This project is a modular implementation of a file indexing and search system us
 
 ## Project Structure
 llama_index_project/
-├── config.py          # Configuration settings for the project
-├── main.py            # Main entry point for the application
-├── indexer/
-│   ├── init.py    # Package initializer for indexer module
-│   ├── file_manager.py  # Functions for file listing and reading
-│   ├── file_indexer.py  # Builds and manages the file index
-│   └── query_optimizer.py  # Contains query optimization and search functions
-└── utils/
-├── init.py    # Package initializer for utils module
-└── logger.py      # Logging configuration and helper functions
+├── config.py           # Configuration settings for the project
+├── main.py             # Main entry point for the application
+├── indexer/            # Modules related to file indexing and query optimization
+│   ├── file_manager.py # Functions for listing and reading files
+│   ├── file_indexer.py # Builds and manages the file index
+│   └── query_optimizer.py # Contains query optimization and search functions
+└── utils/              # Utility modules for the project
+    ├── __init__.py     # Package initializer for the utils module
+    └── logger.py       # Logging configuration and helper functions
 
 ## Requirements
 
