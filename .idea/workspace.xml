@@ -4,24 +4,24 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="Initiating">
-      <change afterPath="$PROJECT_DIR$/indexer.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modelHuggingFaceDownload.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/model_loader.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/Llama3.2-3B/checklist.chk" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/Llama3.2-3B/consolidated.00.pth" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/Llama3.2-3B/params.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/Llama3.2-3B/tokenizer.model" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/query.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/ModularRAGOptimization.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/ModularRAGOptimization.iml" afterDir="false" />
+    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="adding judge model. putting loop in main">
+      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/judge_llamaindex.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/Llama3.2-8B/config.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/Llama3.2-8B/generation_config.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/Llama3.2-8B/model-00001-of-00004.safetensors" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/Llama3.2-8B/model-00002-of-00004.safetensors" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/Llama3.2-8B/model-00003-of-00004.safetensors" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/Llama3.2-8B/model-00004-of-00004.safetensors" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/Llama3.2-8B/model.safetensors.index.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/Llama3.2-8B/special_tokens_map.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/Llama3.2-8B/tokenizer.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/Llama3.2-8B/tokenizer_config.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/indexer/file_indexer.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/indexer/file_manager.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/indexer/query_optimizer.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/logger.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model_loader.py" beforeDir="false" afterPath="$PROJECT_DIR$/model_loader.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/query.py" beforeDir="false" afterPath="$PROJECT_DIR$/query.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -53,6 +53,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ASKED_ADD_EXTERNAL_FILES": "true",
+    "Python.judge_llamaindex.executor": "Run",
     "Python.main.executor": "Run",
     "Python.query.executor": "Run",
     "Python.retrieve_answer.executor": "Run",
@@ -60,7 +61,29 @@
     "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
 }]]></component>
-  <component name="RunManager" selected="Python.query">
+  <component name="RunManager" selected="Python.judge_llamaindex">
+    <configuration name="judge_llamaindex" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="ModularRAGOptimization" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/judge_llamaindex.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
@@ -129,6 +152,7 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.judge_llamaindex" />
         <item itemvalue="Python.query" />
         <item itemvalue="Python.retrieve_answer" />
       </list>
@@ -166,12 +190,75 @@
       <option name="project" value="LOCAL" />
       <updated>1739740720824</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Creating the new code . Moving to llama and llama index so supporting RAG options">
+      <option name="closed" value="true" />
+      <created>1739990046169</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1739990046170</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Creating the new code . Moving to llama and llama index so supporting RAG options">
+      <option name="closed" value="true" />
+      <created>1739990272689</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1739990272689</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Creating the new code . Moving to llama and llama index so supporting RAG options">
+      <option name="closed" value="true" />
+      <created>1739990522114</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1739990522114</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Creating the new code . Moving to llama and llama index so supporting RAG options">
+      <option name="closed" value="true" />
+      <created>1739990740872</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1739990740872</updated>
+    </task>
+    <task id="LOCAL-00007" summary="moving the running to main and adding loop">
+      <option name="closed" value="true" />
+      <created>1739991387764</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1739991387764</updated>
+    </task>
+    <task id="LOCAL-00008" summary="adding judge model">
+      <option name="closed" value="true" />
+      <created>1739995113822</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1739995113822</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <MESSAGE value="Initiating" />
-    <option name="LAST_COMMIT_MESSAGE" value="Initiating" />
+    <MESSAGE value="Creating the new code . Moving to llama and llama index so supporting RAG options" />
+    <MESSAGE value="moving the running to main and adding loop" />
+    <MESSAGE value="adding judge model" />
+    <MESSAGE value="adding judge model. putting loop in main" />
+    <option name="LAST_COMMIT_MESSAGE" value="adding judge model. putting loop in main" />
   </component>
 </project>

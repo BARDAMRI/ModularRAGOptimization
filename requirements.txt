@@ -5,3 +5,5 @@ llama-index-core==0.12.19
 sentencepiece==0.2.0
 accelerate==1.4.0
 psutil==7.0.0
+langchain==0.3.19
+pydantic-settings==2.7.1

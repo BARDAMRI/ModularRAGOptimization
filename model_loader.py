@@ -1,14 +1,15 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from config import MODEL_PATH
-
-MODEL_PATH = "/Users/bardamri/PycharmProjects/ModularRAGOptimization/models/Llama3.2-8B"
+import torch
 
 
 def load_model():
     tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_PATH,
-        torch_dtype="auto",
-        device_map="auto"  # Auto-detect CPU or GPU
+        torch_dtype=torch.float16,
+        device_map="auto"
     )
+
+    model = torch.compile(model)  # Optimizes execution speed
     return tokenizer, model
