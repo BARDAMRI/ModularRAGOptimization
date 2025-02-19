@@ -1,0 +1,7 @@
+torch==2.6.0
+transformers==4.49.0
+llama-index==0.12.19
+llama-index-core==0.12.19
+sentencepiece==0.2.0
+accelerate==1.4.0
+psutil==7.0.0
