@@ -1,1 +1,1 @@
-*.safetensors
+ /models/Llama3.2-8B/*.safetensors
