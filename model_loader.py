@@ -1,3 +1,4 @@
+
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from config import MODEL_PATH
 import torch
@@ -13,3 +14,4 @@ def load_model():
 
     model = torch.compile(model)  # Optimizes execution speed
     return tokenizer, model
+
