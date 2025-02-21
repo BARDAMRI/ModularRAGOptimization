@@ -10,4 +10,4 @@ model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, torch_dtype="auto")
 model.save_pretrained("models/Llama3.2-8B")
 tokenizer.save_pretrained("models/Llama3.2-8B")
 
-print("✅ Model downloaded successfully!")
+print("> Model downloaded successfully!")

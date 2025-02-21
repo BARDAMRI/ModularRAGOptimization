@@ -16,4 +16,4 @@ def create_index():
 # Testing function.
 if __name__ == "__main__":
     index = create_index()
-    print("Index created with", len(index.docstore.docs), "documents.")
+    print(">Index created with", len(index.docstore.docs), "documents.")

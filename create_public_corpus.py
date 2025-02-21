@@ -15,4 +15,4 @@ for i, example in enumerate(dataset):
         with open(os.path.join(data_dir, f"doc_{i}.txt"), "w", encoding="utf-8") as f:
             f.write(text)
 
-    print(f"Saved {i + 1} documents to '{data_dir}'")
+    print(f">Saved {i + 1} documents to '{data_dir}'")

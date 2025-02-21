@@ -76,7 +76,7 @@ def judge_with_llm(original_query, original_answer, optimized_answer):
 
 def sanity_check(original_query, optimized_query):
     """Runs the LLM on both queries and compares the responses."""
-    print(f"\n🔍 Running sanity check for query optimization...")
+    print(f"\n> Running sanity check for query optimization...")
 
     # Run LLM on both queries
     orig_answer = run_llm_query(original_query)
