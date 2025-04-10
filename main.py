@@ -1,6 +1,7 @@
-from indexer import create_index
+
 # main.py
 from model_loader import load_model
+from indexer import create_index
 from query import query_model
 from index_builder import create_index
 import torch

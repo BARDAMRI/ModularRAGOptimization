@@ -4,13 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="changing the gitignore to block the data files of the llm. removing them also from the tracking by deleting cache">
+    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="Adding the user queries datasets">
+      <change afterPath="$PROJECT_DIR$/dir_tree_printer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/ModularRAGOptimization.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/ModularRAGOptimization.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/create_public_corpus.py" beforeDir="false" afterPath="$PROJECT_DIR$/create_public_corpus.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/index_builder.py" beforeDir="false" afterPath="$PROJECT_DIR$/index_builder.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/judge_llamaindex.py" beforeDir="false" afterPath="$PROJECT_DIR$/judge_llamaindex.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modelHuggingFaceDownload.py" beforeDir="false" afterPath="$PROJECT_DIR$/modelHuggingFaceDownload.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -25,6 +23,11 @@
     </option>
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
     <option name="ROOT_SYNC" value="SYNC" />
   </component>
@@ -48,10 +51,11 @@
     "Python.query.executor": "Run",
     "Python.retrieve_answer.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
 }]]></component>
-  <component name="RunManager" selected="Python.index_builder">
+  <component name="RunManager">
     <configuration name="index_builder" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
@@ -164,10 +168,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.index_builder" />
-        <item itemvalue="Python.judge_llamaindex" />
-        <item itemvalue="Python.query" />
         <item itemvalue="Python.retrieve_answer" />
+        <item itemvalue="Python.query" />
+        <item itemvalue="Python.judge_llamaindex" />
+        <item itemvalue="Python.index_builder" />
+        <item itemvalue="Python.index_builder" />
       </list>
     </recent_temporary>
   </component>
@@ -307,7 +312,15 @@
       <option name="project" value="LOCAL" />
       <updated>1740159480478</updated>
     </task>
-    <option name="localTasksCounter" value="16" />
+    <task id="LOCAL-00016" summary="Adding the user queries datasets">
+      <option name="closed" value="true" />
+      <created>1744292792064</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1744292792064</updated>
+    </task>
+    <option name="localTasksCounter" value="17" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -331,7 +344,8 @@
     <MESSAGE value="adding model-00001-of-00004.safetensors" />
     <MESSAGE value="adding public corpus &quot;all-MiniLM-L6-v2&quot;  fixing the judge algorithm, and also optimizing the query function to reduce model indexing and loading time for each query." />
     <MESSAGE value="changing the gitignore to block the data files of the llm. removing them also from the tracking by deleting cache" />
-    <option name="LAST_COMMIT_MESSAGE" value="changing the gitignore to block the data files of the llm. removing them also from the tracking by deleting cache" />
+    <MESSAGE value="Adding the user queries datasets" />
+    <option name="LAST_COMMIT_MESSAGE" value="Adding the user queries datasets" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -340,6 +354,11 @@
           <url>file://$PROJECT_DIR$/judge_llamaindex.py</url>
           <line>98</line>
           <option name="timeStamp" value="2" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/main.py</url>
+          <line>10</line>
+          <option name="timeStamp" value="4" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
