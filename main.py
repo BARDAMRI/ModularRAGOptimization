@@ -1,9 +1,8 @@
 
 # main.py
 from modules.model_loader import load_model
-from modules.indexer import create_index
 from modules.query import query_model
-from index_builder import create_index
+from modules.indexer import create_index
 import torch
 
 
