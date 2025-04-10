@@ -1,10 +1,19 @@
 from llama_index.core import GPTVectorStoreIndex
 from llama_index.core import SimpleDirectoryReader
 from config import DATA_PATH
+from llama_index.core import GPTVectorStoreIndex
+from llama_index.core import SimpleDirectoryReader
+from config import DATA_PATH
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 
 def create_index():
+    documents = SimpleDirectoryReader(DATA_PATH).load_data()
+    index = GPTVectorStoreIndex.from_documents(documents)
+    return index
+
+
+def hugging_face_index():
     documents = SimpleDirectoryReader(DATA_PATH).load_data()
     # Create a local embedding model using HuggingFace (SentenceTransformer)
     embed_model = HuggingFaceEmbedding(model_name="all-MiniLM-L6-v2")

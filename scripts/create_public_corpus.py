@@ -5,7 +5,7 @@ from datasets import load_dataset
 dataset = load_dataset("wikitext", "wikitext-2-raw-v1", split="train")
 
 # Directory where we'll store the text files
-data_dir = "public_corpus"
+data_dir = "../data/public_corpus"
 os.makedirs(data_dir, exist_ok=True)
 
 # Save each non-empty document to a separate text file
