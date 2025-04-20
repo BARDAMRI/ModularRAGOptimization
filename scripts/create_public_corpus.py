@@ -1,11 +1,13 @@
+# create_public_corpus.py
 import os
 from datasets import load_dataset
+from config import PUBLIC_CORPUS_DATASET, PUBLIC_CORPUS_DIR
 
 # Load a small public corpus from the "wikitext" dataset
-dataset = load_dataset("wikitext", "wikitext-2-raw-v1", split="train")
+dataset = load_dataset("wikitext", PUBLIC_CORPUS_DATASET, split="train")
 
 # Directory where we'll store the text files
-data_dir = "../data/public_corpus"
+data_dir = '../' + PUBLIC_CORPUS_DIR
 os.makedirs(data_dir, exist_ok=True)
 
 # Save each non-empty document to a separate text file

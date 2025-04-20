@@ -1,10 +1,11 @@
+# evaluator.py
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from sentence_transformers import SentenceTransformer, util
-
+from config import HF_MODEL_NAME
 """Load Models"""
 LLM_MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.1"
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+EMBEDDING_MODEL_NAME = HF_MODEL_NAME
 
 
 def load_llm():

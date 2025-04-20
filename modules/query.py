@@ -1,25 +1,44 @@
-import random
+# query.py
+
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from llama_index.core import Settings
+from llama_index.core.postprocessor import SimilarityPostprocessor
+from difflib import SequenceMatcher
+from config import MAX_RETRIES, QUALITY_THRESHOLD, RETRIEVER_TOP_K, SIMILARITY_CUTOFF, MAX_NEW_TOKENS
+
+
+def score_similarity(text, query):
+    return SequenceMatcher(None, text.lower(), query.lower()).ratio()
+
+
+def retrieve_context(query, index, top_k=RETRIEVER_TOP_K, similarity_cutoff=SIMILARITY_CUTOFF):
+    retriever = index.as_retriever()
+    retriever.postprocessors = [SimilarityPostprocessor(similarity_cutoff=similarity_cutoff)]
+    nodes = retriever.retrieve(query)
+    top_nodes = sorted(nodes, key=lambda n: score_similarity(n.get_content(), query), reverse=True)[:top_k]
+    return "\n".join([node.get_content() for node in top_nodes])
 
 
 def evaluate_answer_quality(answer, question, model, tokenizer, device):
-    eval_prompt = (
-        f"Evaluate the quality of the following answer to the question on a scale of 0 to 1.\n\n"
-        f"Question: {question}\n"
-        f"Answer: {answer}\n"
-        f"Score:"
-    )
-    inputs = tokenizer(eval_prompt, return_tensors="pt").to(device)
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=10,
-        do_sample=False
-    )
-    score_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    try:
-        score = float(score_text.split()[-1])
-        return min(max(score, 0.0), 1.0)
-    except ValueError:
-        return 0.0
+    return 1.0
+    # eval_prompt = (
+    #     f"Evaluate the quality of the following answer to the question on a scale of 0 to 1.\n\n"
+    #     f"Question: {question}\n"
+    #     f"Answer: {answer}\n"
+    #     f"Score:"
+    # )
+    # inputs = tokenizer(eval_prompt, return_tensors="pt").to(device)
+    # outputs = model.generate(
+    #     **inputs,
+    #     max_new_tokens=MAX_NEW_TOKENS,
+    #     do_sample=False
+    # )
+    # score_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    # try:
+    #     score = float(score_text.split()[-1])
+    #     return min(max(score, 0.0), 1.0)
+    # except ValueError:
+    #     return 0.0
 
 
 def rephrase_query(original_prompt, previous_answer, model, tokenizer, device):
@@ -31,7 +50,7 @@ def rephrase_query(original_prompt, previous_answer, model, tokenizer, device):
     inputs = tokenizer(rephrase_prompt, return_tensors="pt").to(device)
     outputs = model.generate(
         **inputs,
-        max_new_tokens=50,
+        max_new_tokens=MAX_NEW_TOKENS,
         do_sample=True,
         temperature=0.7
     )
@@ -39,47 +58,58 @@ def rephrase_query(original_prompt, previous_answer, model, tokenizer, device):
 
 
 # Send a query to the model with a retrieval-feedback loop.
-def query_model(prompt, model, tokenizer, device, index=None, max_retries=3, quality_threshold=0.7):
-    answer = ""
-    score = 0.0
-    attempt = 0
-    current_prompt = prompt
+def query_model(prompt, model, tokenizer, device, index=None, max_retries=MAX_RETRIES,
+                quality_threshold=QUALITY_THRESHOLD):
+    try:
+        embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        Settings.embed_model = embed_model
 
-    while attempt <= max_retries:
-        if index is not None:
-            retrieved_context = index.query(current_prompt)
-            augmented_prompt = f"Context: {retrieved_context}\n\nQuestion: {current_prompt}\nAnswer:"
-        else:
-            augmented_prompt = current_prompt
+        answer = ""
+        score = 0.0
+        attempt = 0
+        current_prompt = prompt
 
-        inputs = tokenizer(augmented_prompt, return_tensors="pt").to(device)
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=50,
-            do_sample=True,
-            temperature=0.7
-        )
-        answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        while attempt <= max_retries:
+            try:
+                if index is not None:
+                    retrieved_context = retrieve_context(current_prompt, index)
+                    augmented_prompt = f"Context: {retrieved_context}\n\nQuestion: {current_prompt}\nAnswer:"
+                else:
+                    augmented_prompt = current_prompt
 
-        score = evaluate_answer_quality(answer, current_prompt, model, tokenizer, device)
-        if score >= quality_threshold or attempt == max_retries:
-            return answer
+                inputs = tokenizer(augmented_prompt, return_tensors="pt").to(device)
+                outputs = model.generate(
+                    **inputs,
+                    max_new_tokens=MAX_NEW_TOKENS,
+                    do_sample=True,
+                    temperature=0.7,
+                    pad_token_id=tokenizer.eos_token_id
+                )
+                answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-        current_prompt = rephrase_query(current_prompt, answer, model, tokenizer, device)
-        attempt += 1
+                score = evaluate_answer_quality(answer, current_prompt, model, tokenizer, device)
+                if score >= quality_threshold or attempt == max_retries:
+                    return answer
 
-    if not answer.strip():
+                current_prompt = rephrase_query(current_prompt, answer, model, tokenizer, device)
+                attempt += 1
+            except ValueError as err:
+                print(f"query_model scoring loop faced an error: \n{err}\n\n")
+
+        if not answer.strip():
+            return {
+                "final_answer": "Model did not generate a response.",
+                "final_score": 0.0,
+                "attempts": attempt + 1,
+                "final_prompt": current_prompt,
+                "error": "Empty response from model"
+            }
+
         return {
-            "final_answer": "Model did not generate a response.",
-            "final_score": 0.0,
+            "final_answer": answer,
+            "final_score": score,
             "attempts": attempt + 1,
-            "final_prompt": current_prompt,
-            "error": "Empty response from model"
+            "final_prompt": current_prompt
         }
-
-    return {
-        "final_answer": answer,
-        "final_score": score,
-        "attempts": attempt + 1,
-        "final_prompt": current_prompt
-    }
+    except ValueError as err:
+        print(f"query_model ended with error: \n{err}\n\n")

@@ -1,13 +1,13 @@
+# modelHuggingFaceDownload.py
 from transformers import AutoModelForCausalLM, AutoTokenizer
-
-MODEL_NAME = "meta-llama/Meta-Llama-3-8B"
-
+from config import LLAMA_MODEL_NAME
+from config import LLAMA_MODEL_DIR
 # Download the model and tokenizer
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, torch_dtype="auto")
+tokenizer = AutoTokenizer.from_pretrained(LLAMA_MODEL_NAME)
+model = AutoModelForCausalLM.from_pretrained(LLAMA_MODEL_NAME, torch_dtype="auto")
 
 # Save them inside your project
-model.save_pretrained("models/Llama3.2-8B")
-tokenizer.save_pretrained("models/Llama3.2-8B")
+model.save_pretrained(LLAMA_MODEL_DIR)
+tokenizer.save_pretrained(LLAMA_MODEL_DIR)
 
 print("> Model downloaded successfully!")
