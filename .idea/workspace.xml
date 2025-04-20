@@ -4,9 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="replacing the corpus with wikipedia">
+    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="removing the tensors from the ignore list">
+      <change afterPath="$PROJECT_DIR$/models/Llama3.2-8B/model-00001-of-00004.safetensors" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/Llama3.2-8B/model-00002-of-00004.safetensors" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/Llama3.2-8B/model-00003-of-00004.safetensors" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/Llama3.2-8B/model-00004-of-00004.safetensors" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/storage/wikipedia_20220301.en/default__vector_store.json" beforeDir="false" afterPath="$PROJECT_DIR$/storage/wikipedia_20220301.en/default__vector_store.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -390,7 +393,23 @@
       <option name="project" value="LOCAL" />
       <updated>1745162386178</updated>
     </task>
-    <option name="localTasksCounter" value="25" />
+    <task id="LOCAL-00025" summary="replacing the corpus with wikipedia">
+      <option name="closed" value="true" />
+      <created>1745162816098</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1745162816098</updated>
+    </task>
+    <task id="LOCAL-00026" summary="removing the tensors from the ignore list">
+      <option name="closed" value="true" />
+      <created>1745162970324</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1745162970324</updated>
+    </task>
+    <option name="localTasksCounter" value="27" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -420,7 +439,8 @@
     <MESSAGE value="starting the basic implementation of the retrieval-feedback loop" />
     <MESSAGE value="moving constants into config." />
     <MESSAGE value="replacing the corpus with wikipedia" />
-    <option name="LAST_COMMIT_MESSAGE" value="replacing the corpus with wikipedia" />
+    <MESSAGE value="removing the tensors from the ignore list" />
+    <option name="LAST_COMMIT_MESSAGE" value="removing the tensors from the ignore list" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
