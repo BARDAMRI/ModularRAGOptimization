@@ -89,19 +89,31 @@ def query_model(prompt, model, tokenizer, device, index=None, max_retries=MAX_RE
 
                 score = evaluate_answer_quality(answer, current_prompt, model, tokenizer, device)
                 if score >= quality_threshold or attempt == max_retries:
-                    return answer
+                    return {
+                        "question": prompt,
+                        "answer": answer,
+                        "score": score,
+                        "attempts": attempt + 1,
+                        "error": None
+                    }
 
                 current_prompt = rephrase_query(current_prompt, answer, model, tokenizer, device)
                 attempt += 1
             except ValueError as err:
-                print(f"query_model scoring loop faced an error: \n{err}\n\n")
+                return {
+                    "question": prompt,
+                    "answer": answer,
+                    "score": score,
+                    "attempts": attempt + 1,
+                    "error": str(err)
+                }
 
         if not answer.strip():
             return {
-                "final_answer": "Model did not generate a response.",
-                "final_score": 0.0,
+                "question": prompt,
+                "answer": "Model did not generate a response.",
+                "score": 0.0,
                 "attempts": attempt + 1,
-                "final_prompt": current_prompt,
                 "error": "Empty response from model"
             }
 
@@ -112,4 +124,10 @@ def query_model(prompt, model, tokenizer, device, index=None, max_retries=MAX_RE
             "final_prompt": current_prompt
         }
     except ValueError as err:
-        print(f"query_model ended with error: \n{err}\n\n")
+        return {
+            "question": prompt,
+            "answer": "Error during generation.",
+            "score": 0.0,
+            "attempts": 0,
+            "error": str(err)
+        }

@@ -1,0 +1,869 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module difflib</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>difflib</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:/Users/bardamri/.pyenv/versions/3.10.13/lib/python3.10/difflib.py">/Users/bardamri/.pyenv/versions/3.10.13/lib/python3.10/difflib.py</a><br><a href="https://docs.python.org/3.10/library/difflib.html">Module Reference</a></font></td></tr></table>
+    <p><tt>Module&nbsp;difflib&nbsp;--&nbsp;helpers&nbsp;for&nbsp;computing&nbsp;deltas&nbsp;between&nbsp;objects.<br>
+&nbsp;<br>
+Function&nbsp;<a href="#-get_close_matches">get_close_matches</a>(word,&nbsp;possibilities,&nbsp;n=3,&nbsp;cutoff=0.6):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Use&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>&nbsp;to&nbsp;return&nbsp;list&nbsp;of&nbsp;the&nbsp;best&nbsp;"good&nbsp;enough"&nbsp;matches.<br>
+&nbsp;<br>
+Function&nbsp;<a href="#-context_diff">context_diff</a>(a,&nbsp;b):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;For&nbsp;two&nbsp;lists&nbsp;of&nbsp;strings,&nbsp;return&nbsp;a&nbsp;delta&nbsp;in&nbsp;context&nbsp;diff&nbsp;format.<br>
+&nbsp;<br>
+Function&nbsp;<a href="#-ndiff">ndiff</a>(a,&nbsp;b):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Return&nbsp;a&nbsp;delta:&nbsp;the&nbsp;difference&nbsp;between&nbsp;`a`&nbsp;and&nbsp;`b`&nbsp;(lists&nbsp;of&nbsp;strings).<br>
+&nbsp;<br>
+Function&nbsp;<a href="#-restore">restore</a>(delta,&nbsp;which):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Return&nbsp;one&nbsp;of&nbsp;the&nbsp;two&nbsp;sequences&nbsp;that&nbsp;generated&nbsp;an&nbsp;ndiff&nbsp;delta.<br>
+&nbsp;<br>
+Function&nbsp;<a href="#-unified_diff">unified_diff</a>(a,&nbsp;b):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;For&nbsp;two&nbsp;lists&nbsp;of&nbsp;strings,&nbsp;return&nbsp;a&nbsp;delta&nbsp;in&nbsp;unified&nbsp;diff&nbsp;format.<br>
+&nbsp;<br>
+Class&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;flexible&nbsp;class&nbsp;for&nbsp;comparing&nbsp;pairs&nbsp;of&nbsp;sequences&nbsp;of&nbsp;any&nbsp;type.<br>
+&nbsp;<br>
+Class&nbsp;<a href="#Differ">Differ</a>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;For&nbsp;producing&nbsp;human-readable&nbsp;deltas&nbsp;from&nbsp;sequences&nbsp;of&nbsp;lines&nbsp;of&nbsp;text.<br>
+&nbsp;<br>
+Class&nbsp;<a href="#HtmlDiff">HtmlDiff</a>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;For&nbsp;producing&nbsp;HTML&nbsp;side&nbsp;by&nbsp;side&nbsp;comparison&nbsp;with&nbsp;change&nbsp;highlights.</tt></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ee77aa">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Classes</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#ee77aa"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl>
+<dt><font face="helvetica, arial"><a href="builtins.html#object">builtins.object</a>
+</font></dt><dd>
+<dl>
+<dt><font face="helvetica, arial"><a href="difflib.html#Differ">Differ</a>
+</font></dt><dt><font face="helvetica, arial"><a href="difflib.html#HtmlDiff">HtmlDiff</a>
+</font></dt><dt><font face="helvetica, arial"><a href="difflib.html#SequenceMatcher">SequenceMatcher</a>
+</font></dt></dl>
+</dd>
+<dt><font face="helvetica, arial"><a href="builtins.html#tuple">builtins.tuple</a>(<a href="builtins.html#object">builtins.object</a>)
+</font></dt><dd>
+<dl>
+<dt><font face="helvetica, arial"><a href="difflib.html#Match">Match</a>
+</font></dt></dl>
+</dd>
+</dl>
+ <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Differ">class <strong>Differ</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Differ">Differ</a>(linejunk=None,&nbsp;charjunk=None)<br>
+&nbsp;<br>
+<a href="#Differ">Differ</a>&nbsp;is&nbsp;a&nbsp;class&nbsp;for&nbsp;comparing&nbsp;sequences&nbsp;of&nbsp;lines&nbsp;of&nbsp;text,&nbsp;and<br>
+producing&nbsp;human-readable&nbsp;differences&nbsp;or&nbsp;deltas.&nbsp;&nbsp;<a href="#Differ">Differ</a>&nbsp;uses<br>
+<a href="#SequenceMatcher">SequenceMatcher</a>&nbsp;both&nbsp;to&nbsp;compare&nbsp;sequences&nbsp;of&nbsp;lines,&nbsp;and&nbsp;to&nbsp;compare<br>
+sequences&nbsp;of&nbsp;characters&nbsp;within&nbsp;similar&nbsp;(near-matching)&nbsp;lines.<br>
+&nbsp;<br>
+Each&nbsp;line&nbsp;of&nbsp;a&nbsp;<a href="#Differ">Differ</a>&nbsp;delta&nbsp;begins&nbsp;with&nbsp;a&nbsp;two-letter&nbsp;code:<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'-&nbsp;'&nbsp;&nbsp;&nbsp;&nbsp;line&nbsp;unique&nbsp;to&nbsp;sequence&nbsp;1<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'+&nbsp;'&nbsp;&nbsp;&nbsp;&nbsp;line&nbsp;unique&nbsp;to&nbsp;sequence&nbsp;2<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'&nbsp;&nbsp;'&nbsp;&nbsp;&nbsp;&nbsp;line&nbsp;common&nbsp;to&nbsp;both&nbsp;sequences<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'?&nbsp;'&nbsp;&nbsp;&nbsp;&nbsp;line&nbsp;not&nbsp;present&nbsp;in&nbsp;either&nbsp;input&nbsp;sequence<br>
+&nbsp;<br>
+Lines&nbsp;beginning&nbsp;with&nbsp;'?&nbsp;'&nbsp;attempt&nbsp;to&nbsp;guide&nbsp;the&nbsp;eye&nbsp;to&nbsp;intraline<br>
+differences,&nbsp;and&nbsp;were&nbsp;not&nbsp;present&nbsp;in&nbsp;either&nbsp;input&nbsp;sequence.&nbsp;&nbsp;These&nbsp;lines<br>
+can&nbsp;be&nbsp;confusing&nbsp;if&nbsp;the&nbsp;sequences&nbsp;contain&nbsp;tab&nbsp;characters.<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;<a href="#Differ">Differ</a>&nbsp;makes&nbsp;no&nbsp;claim&nbsp;to&nbsp;produce&nbsp;a&nbsp;*minimal*&nbsp;diff.&nbsp;&nbsp;To&nbsp;the<br>
+contrary,&nbsp;minimal&nbsp;diffs&nbsp;are&nbsp;often&nbsp;counter-intuitive,&nbsp;because&nbsp;they&nbsp;synch<br>
+up&nbsp;anywhere&nbsp;possible,&nbsp;sometimes&nbsp;accidental&nbsp;matches&nbsp;100&nbsp;pages&nbsp;apart.<br>
+Restricting&nbsp;synch&nbsp;points&nbsp;to&nbsp;contiguous&nbsp;matches&nbsp;preserves&nbsp;some&nbsp;notion&nbsp;of<br>
+locality,&nbsp;at&nbsp;the&nbsp;occasional&nbsp;cost&nbsp;of&nbsp;producing&nbsp;a&nbsp;longer&nbsp;diff.<br>
+&nbsp;<br>
+Example:&nbsp;Comparing&nbsp;two&nbsp;texts.<br>
+&nbsp;<br>
+First&nbsp;we&nbsp;set&nbsp;up&nbsp;the&nbsp;texts,&nbsp;sequences&nbsp;of&nbsp;individual&nbsp;single-line&nbsp;strings<br>
+ending&nbsp;with&nbsp;newlines&nbsp;(such&nbsp;sequences&nbsp;can&nbsp;also&nbsp;be&nbsp;obtained&nbsp;from&nbsp;the<br>
+`readlines()`&nbsp;method&nbsp;of&nbsp;file-like&nbsp;objects):<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;text1&nbsp;=&nbsp;'''&nbsp;&nbsp;1.&nbsp;Beautiful&nbsp;is&nbsp;better&nbsp;than&nbsp;ugly.<br>
+...&nbsp;&nbsp;&nbsp;2.&nbsp;Explicit&nbsp;is&nbsp;better&nbsp;than&nbsp;implicit.<br>
+...&nbsp;&nbsp;&nbsp;3.&nbsp;Simple&nbsp;is&nbsp;better&nbsp;than&nbsp;complex.<br>
+...&nbsp;&nbsp;&nbsp;4.&nbsp;Complex&nbsp;is&nbsp;better&nbsp;than&nbsp;complicated.<br>
+...&nbsp;'''.splitlines(keepends=True)<br>
+&gt;&gt;&gt;&nbsp;len(text1)<br>
+4<br>
+&gt;&gt;&gt;&nbsp;text1[0][-1]<br>
+'\n'<br>
+&gt;&gt;&gt;&nbsp;text2&nbsp;=&nbsp;'''&nbsp;&nbsp;1.&nbsp;Beautiful&nbsp;is&nbsp;better&nbsp;than&nbsp;ugly.<br>
+...&nbsp;&nbsp;&nbsp;3.&nbsp;&nbsp;&nbsp;Simple&nbsp;is&nbsp;better&nbsp;than&nbsp;complex.<br>
+...&nbsp;&nbsp;&nbsp;4.&nbsp;Complicated&nbsp;is&nbsp;better&nbsp;than&nbsp;complex.<br>
+...&nbsp;&nbsp;&nbsp;5.&nbsp;Flat&nbsp;is&nbsp;better&nbsp;than&nbsp;nested.<br>
+...&nbsp;'''.splitlines(keepends=True)<br>
+&nbsp;<br>
+Next&nbsp;we&nbsp;instantiate&nbsp;a&nbsp;<a href="#Differ">Differ</a>&nbsp;<a href="builtins.html#object">object</a>:<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;d&nbsp;=&nbsp;<a href="#Differ">Differ</a>()<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;when&nbsp;instantiating&nbsp;a&nbsp;<a href="#Differ">Differ</a>&nbsp;<a href="builtins.html#object">object</a>&nbsp;we&nbsp;may&nbsp;pass&nbsp;functions&nbsp;to<br>
+filter&nbsp;out&nbsp;line&nbsp;and&nbsp;character&nbsp;'junk'.&nbsp;&nbsp;See&nbsp;<a href="#Differ">Differ</a>.__init__&nbsp;for&nbsp;details.<br>
+&nbsp;<br>
+Finally,&nbsp;we&nbsp;compare&nbsp;the&nbsp;two:<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;result&nbsp;=&nbsp;list(d.<a href="#Differ-compare">compare</a>(text1,&nbsp;text2))<br>
+&nbsp;<br>
+'result'&nbsp;is&nbsp;a&nbsp;list&nbsp;of&nbsp;strings,&nbsp;so&nbsp;let's&nbsp;pretty-print&nbsp;it:<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;from&nbsp;pprint&nbsp;import&nbsp;pprint&nbsp;as&nbsp;_pprint<br>
+&gt;&gt;&gt;&nbsp;_pprint(result)<br>
+['&nbsp;&nbsp;&nbsp;&nbsp;1.&nbsp;Beautiful&nbsp;is&nbsp;better&nbsp;than&nbsp;ugly.\n',<br>
+&nbsp;'-&nbsp;&nbsp;&nbsp;2.&nbsp;Explicit&nbsp;is&nbsp;better&nbsp;than&nbsp;implicit.\n',<br>
+&nbsp;'-&nbsp;&nbsp;&nbsp;3.&nbsp;Simple&nbsp;is&nbsp;better&nbsp;than&nbsp;complex.\n',<br>
+&nbsp;'+&nbsp;&nbsp;&nbsp;3.&nbsp;&nbsp;&nbsp;Simple&nbsp;is&nbsp;better&nbsp;than&nbsp;complex.\n',<br>
+&nbsp;'?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;++\n',<br>
+&nbsp;'-&nbsp;&nbsp;&nbsp;4.&nbsp;Complex&nbsp;is&nbsp;better&nbsp;than&nbsp;complicated.\n',<br>
+&nbsp;'?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;^&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;^\n',<br>
+&nbsp;'+&nbsp;&nbsp;&nbsp;4.&nbsp;Complicated&nbsp;is&nbsp;better&nbsp;than&nbsp;complex.\n',<br>
+&nbsp;'?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;++++&nbsp;^&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;^\n',<br>
+&nbsp;'+&nbsp;&nbsp;&nbsp;5.&nbsp;Flat&nbsp;is&nbsp;better&nbsp;than&nbsp;nested.\n']<br>
+&nbsp;<br>
+As&nbsp;a&nbsp;single&nbsp;multi-line&nbsp;string&nbsp;it&nbsp;looks&nbsp;like&nbsp;this:<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;print(''.join(result),&nbsp;end="")<br>
+&nbsp;&nbsp;&nbsp;&nbsp;1.&nbsp;Beautiful&nbsp;is&nbsp;better&nbsp;than&nbsp;ugly.<br>
+-&nbsp;&nbsp;&nbsp;2.&nbsp;Explicit&nbsp;is&nbsp;better&nbsp;than&nbsp;implicit.<br>
+-&nbsp;&nbsp;&nbsp;3.&nbsp;Simple&nbsp;is&nbsp;better&nbsp;than&nbsp;complex.<br>
++&nbsp;&nbsp;&nbsp;3.&nbsp;&nbsp;&nbsp;Simple&nbsp;is&nbsp;better&nbsp;than&nbsp;complex.<br>
+?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;++<br>
+-&nbsp;&nbsp;&nbsp;4.&nbsp;Complex&nbsp;is&nbsp;better&nbsp;than&nbsp;complicated.<br>
+?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;^&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;^<br>
++&nbsp;&nbsp;&nbsp;4.&nbsp;Complicated&nbsp;is&nbsp;better&nbsp;than&nbsp;complex.<br>
+?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;++++&nbsp;^&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;^<br>
++&nbsp;&nbsp;&nbsp;5.&nbsp;Flat&nbsp;is&nbsp;better&nbsp;than&nbsp;nested.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Differ-__init__"><strong>__init__</strong></a>(self, linejunk=None, charjunk=None)</dt><dd><tt>Construct&nbsp;a&nbsp;text&nbsp;differencer,&nbsp;with&nbsp;optional&nbsp;filters.<br>
+&nbsp;<br>
+The&nbsp;two&nbsp;optional&nbsp;keyword&nbsp;parameters&nbsp;are&nbsp;for&nbsp;filter&nbsp;functions:<br>
+&nbsp;<br>
+-&nbsp;`linejunk`:&nbsp;A&nbsp;function&nbsp;that&nbsp;should&nbsp;accept&nbsp;a&nbsp;single&nbsp;string&nbsp;argument,<br>
+&nbsp;&nbsp;and&nbsp;return&nbsp;true&nbsp;iff&nbsp;the&nbsp;string&nbsp;is&nbsp;junk.&nbsp;The&nbsp;module-level&nbsp;function<br>
+&nbsp;&nbsp;`IS_LINE_JUNK`&nbsp;may&nbsp;be&nbsp;used&nbsp;to&nbsp;filter&nbsp;out&nbsp;lines&nbsp;without&nbsp;visible<br>
+&nbsp;&nbsp;characters,&nbsp;except&nbsp;for&nbsp;at&nbsp;most&nbsp;one&nbsp;splat&nbsp;('#').&nbsp;&nbsp;It&nbsp;is&nbsp;recommended<br>
+&nbsp;&nbsp;to&nbsp;leave&nbsp;linejunk&nbsp;None;&nbsp;the&nbsp;underlying&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>&nbsp;class&nbsp;has<br>
+&nbsp;&nbsp;an&nbsp;adaptive&nbsp;notion&nbsp;of&nbsp;"noise"&nbsp;lines&nbsp;that's&nbsp;better&nbsp;than&nbsp;any&nbsp;static<br>
+&nbsp;&nbsp;definition&nbsp;the&nbsp;author&nbsp;has&nbsp;ever&nbsp;been&nbsp;able&nbsp;to&nbsp;craft.<br>
+&nbsp;<br>
+-&nbsp;`charjunk`:&nbsp;A&nbsp;function&nbsp;that&nbsp;should&nbsp;accept&nbsp;a&nbsp;string&nbsp;of&nbsp;length&nbsp;1.&nbsp;The<br>
+&nbsp;&nbsp;module-level&nbsp;function&nbsp;`IS_CHARACTER_JUNK`&nbsp;may&nbsp;be&nbsp;used&nbsp;to&nbsp;filter&nbsp;out<br>
+&nbsp;&nbsp;whitespace&nbsp;characters&nbsp;(a&nbsp;blank&nbsp;or&nbsp;tab;&nbsp;**note**:&nbsp;bad&nbsp;idea&nbsp;to&nbsp;include<br>
+&nbsp;&nbsp;newline&nbsp;in&nbsp;this!).&nbsp;&nbsp;Use&nbsp;of&nbsp;IS_CHARACTER_JUNK&nbsp;is&nbsp;recommended.</tt></dd></dl>
+
+<dl><dt><a name="Differ-compare"><strong>compare</strong></a>(self, a, b)</dt><dd><tt>Compare&nbsp;two&nbsp;sequences&nbsp;of&nbsp;lines;&nbsp;generate&nbsp;the&nbsp;resulting&nbsp;delta.<br>
+&nbsp;<br>
+Each&nbsp;sequence&nbsp;must&nbsp;contain&nbsp;individual&nbsp;single-line&nbsp;strings&nbsp;ending&nbsp;with<br>
+newlines.&nbsp;Such&nbsp;sequences&nbsp;can&nbsp;be&nbsp;obtained&nbsp;from&nbsp;the&nbsp;`readlines()`&nbsp;method<br>
+of&nbsp;file-like&nbsp;objects.&nbsp;&nbsp;The&nbsp;delta&nbsp;generated&nbsp;also&nbsp;consists&nbsp;of&nbsp;newline-<br>
+terminated&nbsp;strings,&nbsp;ready&nbsp;to&nbsp;be&nbsp;printed&nbsp;as-is&nbsp;via&nbsp;the&nbsp;writelines()<br>
+method&nbsp;of&nbsp;a&nbsp;file-like&nbsp;<a href="builtins.html#object">object</a>.<br>
+&nbsp;<br>
+Example:<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;print(''.join(<a href="#Differ">Differ</a>().<a href="#Differ-compare">compare</a>('one\ntwo\nthree\n'.splitlines(True),<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'ore\ntree\nemu\n'.splitlines(True))),<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;end="")<br>
+-&nbsp;one<br>
+?&nbsp;&nbsp;^<br>
++&nbsp;ore<br>
+?&nbsp;&nbsp;^<br>
+-&nbsp;two<br>
+-&nbsp;three<br>
+?&nbsp;&nbsp;-<br>
++&nbsp;tree<br>
++&nbsp;emu</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="HtmlDiff">class <strong>HtmlDiff</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#HtmlDiff">HtmlDiff</a>(tabsize=8,&nbsp;wrapcolumn=None,&nbsp;linejunk=None,&nbsp;charjunk=&amp;lt;function&nbsp;IS_CHARACTER_JUNK&nbsp;at&nbsp;0x103734a60&amp;gt;)<br>
+&nbsp;<br>
+For&nbsp;producing&nbsp;HTML&nbsp;side&nbsp;by&nbsp;side&nbsp;comparison&nbsp;with&nbsp;change&nbsp;highlights.<br>
+&nbsp;<br>
+This&nbsp;class&nbsp;can&nbsp;be&nbsp;used&nbsp;to&nbsp;create&nbsp;an&nbsp;HTML&nbsp;table&nbsp;(or&nbsp;a&nbsp;complete&nbsp;HTML&nbsp;file<br>
+containing&nbsp;the&nbsp;table)&nbsp;showing&nbsp;a&nbsp;side&nbsp;by&nbsp;side,&nbsp;line&nbsp;by&nbsp;line&nbsp;comparison<br>
+of&nbsp;text&nbsp;with&nbsp;inter-line&nbsp;and&nbsp;intra-line&nbsp;change&nbsp;highlights.&nbsp;&nbsp;The&nbsp;table&nbsp;can<br>
+be&nbsp;generated&nbsp;in&nbsp;either&nbsp;full&nbsp;or&nbsp;contextual&nbsp;difference&nbsp;mode.<br>
+&nbsp;<br>
+The&nbsp;following&nbsp;methods&nbsp;are&nbsp;provided&nbsp;for&nbsp;HTML&nbsp;generation:<br>
+&nbsp;<br>
+make_table&nbsp;--&nbsp;generates&nbsp;HTML&nbsp;for&nbsp;a&nbsp;single&nbsp;side&nbsp;by&nbsp;side&nbsp;table<br>
+make_file&nbsp;--&nbsp;generates&nbsp;complete&nbsp;HTML&nbsp;file&nbsp;with&nbsp;a&nbsp;single&nbsp;side&nbsp;by&nbsp;side&nbsp;table<br>
+&nbsp;<br>
+See&nbsp;tools/scripts/diff.py&nbsp;for&nbsp;an&nbsp;example&nbsp;usage&nbsp;of&nbsp;this&nbsp;class.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="HtmlDiff-__init__"><strong>__init__</strong></a>(self, tabsize=8, wrapcolumn=None, linejunk=None, charjunk=&lt;function IS_CHARACTER_JUNK at 0x103734a60&gt;)</dt><dd><tt><a href="#HtmlDiff">HtmlDiff</a>&nbsp;instance&nbsp;initializer<br>
+&nbsp;<br>
+Arguments:<br>
+tabsize&nbsp;--&nbsp;tab&nbsp;stop&nbsp;spacing,&nbsp;defaults&nbsp;to&nbsp;8.<br>
+wrapcolumn&nbsp;--&nbsp;column&nbsp;number&nbsp;where&nbsp;lines&nbsp;are&nbsp;broken&nbsp;and&nbsp;wrapped,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;defaults&nbsp;to&nbsp;None&nbsp;where&nbsp;lines&nbsp;are&nbsp;not&nbsp;wrapped.<br>
+linejunk,charjunk&nbsp;--&nbsp;keyword&nbsp;arguments&nbsp;passed&nbsp;into&nbsp;<a href="#-ndiff">ndiff</a>()&nbsp;(used&nbsp;by<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#HtmlDiff">HtmlDiff</a>()&nbsp;to&nbsp;generate&nbsp;the&nbsp;side&nbsp;by&nbsp;side&nbsp;HTML&nbsp;differences).&nbsp;&nbsp;See<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#-ndiff">ndiff</a>()&nbsp;documentation&nbsp;for&nbsp;argument&nbsp;default&nbsp;values&nbsp;and&nbsp;descriptions.</tt></dd></dl>
+
+<dl><dt><a name="HtmlDiff-make_file"><strong>make_file</strong></a>(self, fromlines, tolines, fromdesc='', todesc='', context=False, numlines=5, *, charset='utf-8')</dt><dd><tt>Returns&nbsp;HTML&nbsp;file&nbsp;of&nbsp;side&nbsp;by&nbsp;side&nbsp;comparison&nbsp;with&nbsp;change&nbsp;highlights<br>
+&nbsp;<br>
+Arguments:<br>
+fromlines&nbsp;--&nbsp;list&nbsp;of&nbsp;"from"&nbsp;lines<br>
+tolines&nbsp;--&nbsp;list&nbsp;of&nbsp;"to"&nbsp;lines<br>
+fromdesc&nbsp;--&nbsp;"from"&nbsp;file&nbsp;column&nbsp;header&nbsp;string<br>
+todesc&nbsp;--&nbsp;"to"&nbsp;file&nbsp;column&nbsp;header&nbsp;string<br>
+context&nbsp;--&nbsp;set&nbsp;to&nbsp;True&nbsp;for&nbsp;contextual&nbsp;differences&nbsp;(defaults&nbsp;to&nbsp;False<br>
+&nbsp;&nbsp;&nbsp;&nbsp;which&nbsp;shows&nbsp;full&nbsp;differences).<br>
+numlines&nbsp;--&nbsp;number&nbsp;of&nbsp;context&nbsp;lines.&nbsp;&nbsp;When&nbsp;context&nbsp;is&nbsp;set&nbsp;True,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;controls&nbsp;number&nbsp;of&nbsp;lines&nbsp;displayed&nbsp;before&nbsp;and&nbsp;after&nbsp;the&nbsp;change.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;When&nbsp;context&nbsp;is&nbsp;False,&nbsp;controls&nbsp;the&nbsp;number&nbsp;of&nbsp;lines&nbsp;to&nbsp;place<br>
+&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;"next"&nbsp;link&nbsp;anchors&nbsp;before&nbsp;the&nbsp;next&nbsp;change&nbsp;(so&nbsp;click&nbsp;of<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"next"&nbsp;link&nbsp;jumps&nbsp;to&nbsp;just&nbsp;before&nbsp;the&nbsp;change).<br>
+charset&nbsp;--&nbsp;charset&nbsp;of&nbsp;the&nbsp;HTML&nbsp;document</tt></dd></dl>
+
+<dl><dt><a name="HtmlDiff-make_table"><strong>make_table</strong></a>(self, fromlines, tolines, fromdesc='', todesc='', context=False, numlines=5)</dt><dd><tt>Returns&nbsp;HTML&nbsp;table&nbsp;of&nbsp;side&nbsp;by&nbsp;side&nbsp;comparison&nbsp;with&nbsp;change&nbsp;highlights<br>
+&nbsp;<br>
+Arguments:<br>
+fromlines&nbsp;--&nbsp;list&nbsp;of&nbsp;"from"&nbsp;lines<br>
+tolines&nbsp;--&nbsp;list&nbsp;of&nbsp;"to"&nbsp;lines<br>
+fromdesc&nbsp;--&nbsp;"from"&nbsp;file&nbsp;column&nbsp;header&nbsp;string<br>
+todesc&nbsp;--&nbsp;"to"&nbsp;file&nbsp;column&nbsp;header&nbsp;string<br>
+context&nbsp;--&nbsp;set&nbsp;to&nbsp;True&nbsp;for&nbsp;contextual&nbsp;differences&nbsp;(defaults&nbsp;to&nbsp;False<br>
+&nbsp;&nbsp;&nbsp;&nbsp;which&nbsp;shows&nbsp;full&nbsp;differences).<br>
+numlines&nbsp;--&nbsp;number&nbsp;of&nbsp;context&nbsp;lines.&nbsp;&nbsp;When&nbsp;context&nbsp;is&nbsp;set&nbsp;True,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;controls&nbsp;number&nbsp;of&nbsp;lines&nbsp;displayed&nbsp;before&nbsp;and&nbsp;after&nbsp;the&nbsp;change.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;When&nbsp;context&nbsp;is&nbsp;False,&nbsp;controls&nbsp;the&nbsp;number&nbsp;of&nbsp;lines&nbsp;to&nbsp;place<br>
+&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;"next"&nbsp;link&nbsp;anchors&nbsp;before&nbsp;the&nbsp;next&nbsp;change&nbsp;(so&nbsp;click&nbsp;of<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"next"&nbsp;link&nbsp;jumps&nbsp;to&nbsp;just&nbsp;before&nbsp;the&nbsp;change).</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Match">class <strong>Match</strong></a>(<a href="builtins.html#tuple">builtins.tuple</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Match">Match</a>(a,&nbsp;b,&nbsp;size)<br>
+&nbsp;<br>
+<a href="#Match">Match</a>(a,&nbsp;b,&nbsp;size)<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%"><dl><dt>Method resolution order:</dt>
+<dd><a href="difflib.html#Match">Match</a></dd>
+<dd><a href="builtins.html#tuple">builtins.tuple</a></dd>
+<dd><a href="builtins.html#object">builtins.object</a></dd>
+</dl>
+<hr>
+Methods defined here:<br>
+<dl><dt><a name="Match-__getnewargs__"><strong>__getnewargs__</strong></a>(self)</dt><dd><tt>Return&nbsp;self&nbsp;as&nbsp;a&nbsp;plain&nbsp;<a href="builtins.html#tuple">tuple</a>.&nbsp;&nbsp;Used&nbsp;by&nbsp;copy&nbsp;and&nbsp;pickle.</tt></dd></dl>
+
+<dl><dt><a name="Match-__repr__"><strong>__repr__</strong></a>(self)</dt><dd><tt>Return&nbsp;a&nbsp;nicely&nbsp;formatted&nbsp;representation&nbsp;string</tt></dd></dl>
+
+<dl><dt><a name="Match-_asdict"><strong>_asdict</strong></a>(self)</dt><dd><tt>Return&nbsp;a&nbsp;new&nbsp;dict&nbsp;which&nbsp;maps&nbsp;field&nbsp;names&nbsp;to&nbsp;their&nbsp;values.</tt></dd></dl>
+
+<dl><dt><a name="Match-_replace"><strong>_replace</strong></a>(self, /, **kwds)</dt><dd><tt>Return&nbsp;a&nbsp;new&nbsp;<a href="#Match">Match</a>&nbsp;<a href="builtins.html#object">object</a>&nbsp;replacing&nbsp;specified&nbsp;fields&nbsp;with&nbsp;new&nbsp;values</tt></dd></dl>
+
+<hr>
+Class methods defined here:<br>
+<dl><dt><a name="Match-_make"><strong>_make</strong></a>(iterable)<font color="#909090"><font face="helvetica, arial"> from <a href="builtins.html#type">builtins.type</a></font></font></dt><dd><tt>Make&nbsp;a&nbsp;new&nbsp;<a href="#Match">Match</a>&nbsp;<a href="builtins.html#object">object</a>&nbsp;from&nbsp;a&nbsp;sequence&nbsp;or&nbsp;iterable</tt></dd></dl>
+
+<hr>
+Static methods defined here:<br>
+<dl><dt><a name="Match-__new__"><strong>__new__</strong></a>(_cls, a, b, size)</dt><dd><tt>Create&nbsp;new&nbsp;instance&nbsp;of&nbsp;<a href="#Match">Match</a>(a,&nbsp;b,&nbsp;size)</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>a</strong></dt>
+<dd><tt>Alias&nbsp;for&nbsp;field&nbsp;number&nbsp;0</tt></dd>
+</dl>
+<dl><dt><strong>b</strong></dt>
+<dd><tt>Alias&nbsp;for&nbsp;field&nbsp;number&nbsp;1</tt></dd>
+</dl>
+<dl><dt><strong>size</strong></dt>
+<dd><tt>Alias&nbsp;for&nbsp;field&nbsp;number&nbsp;2</tt></dd>
+</dl>
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>__match_args__</strong> = ('a', 'b', 'size')</dl>
+
+<dl><dt><strong>_field_defaults</strong> = {}</dl>
+
+<dl><dt><strong>_fields</strong> = ('a', 'b', 'size')</dl>
+
+<hr>
+Methods inherited from <a href="builtins.html#tuple">builtins.tuple</a>:<br>
+<dl><dt><a name="Match-__add__"><strong>__add__</strong></a>(self, value, /)</dt><dd><tt>Return&nbsp;self+value.</tt></dd></dl>
+
+<dl><dt><a name="Match-__contains__"><strong>__contains__</strong></a>(self, key, /)</dt><dd><tt>Return&nbsp;key&nbsp;in&nbsp;self.</tt></dd></dl>
+
+<dl><dt><a name="Match-__eq__"><strong>__eq__</strong></a>(self, value, /)</dt><dd><tt>Return&nbsp;self==value.</tt></dd></dl>
+
+<dl><dt><a name="Match-__ge__"><strong>__ge__</strong></a>(self, value, /)</dt><dd><tt>Return&nbsp;self&gt;=value.</tt></dd></dl>
+
+<dl><dt><a name="Match-__getattribute__"><strong>__getattribute__</strong></a>(self, name, /)</dt><dd><tt>Return&nbsp;getattr(self,&nbsp;name).</tt></dd></dl>
+
+<dl><dt><a name="Match-__getitem__"><strong>__getitem__</strong></a>(self, key, /)</dt><dd><tt>Return&nbsp;self[key].</tt></dd></dl>
+
+<dl><dt><a name="Match-__gt__"><strong>__gt__</strong></a>(self, value, /)</dt><dd><tt>Return&nbsp;self&gt;value.</tt></dd></dl>
+
+<dl><dt><a name="Match-__hash__"><strong>__hash__</strong></a>(self, /)</dt><dd><tt>Return&nbsp;hash(self).</tt></dd></dl>
+
+<dl><dt><a name="Match-__iter__"><strong>__iter__</strong></a>(self, /)</dt><dd><tt>Implement&nbsp;iter(self).</tt></dd></dl>
+
+<dl><dt><a name="Match-__le__"><strong>__le__</strong></a>(self, value, /)</dt><dd><tt>Return&nbsp;self&lt;=value.</tt></dd></dl>
+
+<dl><dt><a name="Match-__len__"><strong>__len__</strong></a>(self, /)</dt><dd><tt>Return&nbsp;len(self).</tt></dd></dl>
+
+<dl><dt><a name="Match-__lt__"><strong>__lt__</strong></a>(self, value, /)</dt><dd><tt>Return&nbsp;self&lt;value.</tt></dd></dl>
+
+<dl><dt><a name="Match-__mul__"><strong>__mul__</strong></a>(self, value, /)</dt><dd><tt>Return&nbsp;self*value.</tt></dd></dl>
+
+<dl><dt><a name="Match-__ne__"><strong>__ne__</strong></a>(self, value, /)</dt><dd><tt>Return&nbsp;self!=value.</tt></dd></dl>
+
+<dl><dt><a name="Match-__rmul__"><strong>__rmul__</strong></a>(self, value, /)</dt><dd><tt>Return&nbsp;value*self.</tt></dd></dl>
+
+<dl><dt><a name="Match-count"><strong>count</strong></a>(self, value, /)</dt><dd><tt>Return&nbsp;number&nbsp;of&nbsp;occurrences&nbsp;of&nbsp;value.</tt></dd></dl>
+
+<dl><dt><a name="Match-index"><strong>index</strong></a>(self, value, start=0, stop=9223372036854775807, /)</dt><dd><tt>Return&nbsp;first&nbsp;index&nbsp;of&nbsp;value.<br>
+&nbsp;<br>
+Raises&nbsp;ValueError&nbsp;if&nbsp;the&nbsp;value&nbsp;is&nbsp;not&nbsp;present.</tt></dd></dl>
+
+<hr>
+Class methods inherited from <a href="builtins.html#tuple">builtins.tuple</a>:<br>
+<dl><dt><a name="Match-__class_getitem__"><strong>__class_getitem__</strong></a>(...)<font color="#909090"><font face="helvetica, arial"> from <a href="builtins.html#type">builtins.type</a></font></font></dt><dd><tt>See&nbsp;<a href="https://www.python.org/dev/peps/pep-0585/">PEP&nbsp;585</a></tt></dd></dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="SequenceMatcher">class <strong>SequenceMatcher</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#SequenceMatcher">SequenceMatcher</a>(isjunk=None,&nbsp;a='',&nbsp;b='',&nbsp;autojunk=True)<br>
+&nbsp;<br>
+<a href="#SequenceMatcher">SequenceMatcher</a>&nbsp;is&nbsp;a&nbsp;flexible&nbsp;class&nbsp;for&nbsp;comparing&nbsp;pairs&nbsp;of&nbsp;sequences&nbsp;of<br>
+any&nbsp;type,&nbsp;so&nbsp;long&nbsp;as&nbsp;the&nbsp;sequence&nbsp;elements&nbsp;are&nbsp;hashable.&nbsp;&nbsp;The&nbsp;basic<br>
+algorithm&nbsp;predates,&nbsp;and&nbsp;is&nbsp;a&nbsp;little&nbsp;fancier&nbsp;than,&nbsp;an&nbsp;algorithm<br>
+published&nbsp;in&nbsp;the&nbsp;late&nbsp;1980's&nbsp;by&nbsp;Ratcliff&nbsp;and&nbsp;Obershelp&nbsp;under&nbsp;the<br>
+hyperbolic&nbsp;name&nbsp;"gestalt&nbsp;pattern&nbsp;matching".&nbsp;&nbsp;The&nbsp;basic&nbsp;idea&nbsp;is&nbsp;to&nbsp;find<br>
+the&nbsp;longest&nbsp;contiguous&nbsp;matching&nbsp;subsequence&nbsp;that&nbsp;contains&nbsp;no&nbsp;"junk"<br>
+elements&nbsp;(R-O&nbsp;doesn't&nbsp;address&nbsp;junk).&nbsp;&nbsp;The&nbsp;same&nbsp;idea&nbsp;is&nbsp;then&nbsp;applied<br>
+recursively&nbsp;to&nbsp;the&nbsp;pieces&nbsp;of&nbsp;the&nbsp;sequences&nbsp;to&nbsp;the&nbsp;left&nbsp;and&nbsp;to&nbsp;the&nbsp;right<br>
+of&nbsp;the&nbsp;matching&nbsp;subsequence.&nbsp;&nbsp;This&nbsp;does&nbsp;not&nbsp;yield&nbsp;minimal&nbsp;edit<br>
+sequences,&nbsp;but&nbsp;does&nbsp;tend&nbsp;to&nbsp;yield&nbsp;matches&nbsp;that&nbsp;"look&nbsp;right"&nbsp;to&nbsp;people.<br>
+&nbsp;<br>
+<a href="#SequenceMatcher">SequenceMatcher</a>&nbsp;tries&nbsp;to&nbsp;compute&nbsp;a&nbsp;"human-friendly&nbsp;diff"&nbsp;between&nbsp;two<br>
+sequences.&nbsp;&nbsp;Unlike&nbsp;e.g.&nbsp;UNIX(tm)&nbsp;diff,&nbsp;the&nbsp;fundamental&nbsp;notion&nbsp;is&nbsp;the<br>
+longest&nbsp;*contiguous*&nbsp;&amp;&nbsp;junk-free&nbsp;matching&nbsp;subsequence.&nbsp;&nbsp;That's&nbsp;what<br>
+catches&nbsp;peoples'&nbsp;eyes.&nbsp;&nbsp;The&nbsp;Windows(tm)&nbsp;windiff&nbsp;has&nbsp;another&nbsp;interesting<br>
+notion,&nbsp;pairing&nbsp;up&nbsp;elements&nbsp;that&nbsp;appear&nbsp;uniquely&nbsp;in&nbsp;each&nbsp;sequence.<br>
+That,&nbsp;and&nbsp;the&nbsp;method&nbsp;here,&nbsp;appear&nbsp;to&nbsp;yield&nbsp;more&nbsp;intuitive&nbsp;difference<br>
+reports&nbsp;than&nbsp;does&nbsp;diff.&nbsp;&nbsp;This&nbsp;method&nbsp;appears&nbsp;to&nbsp;be&nbsp;the&nbsp;least&nbsp;vulnerable<br>
+to&nbsp;syncing&nbsp;up&nbsp;on&nbsp;blocks&nbsp;of&nbsp;"junk&nbsp;lines",&nbsp;though&nbsp;(like&nbsp;blank&nbsp;lines&nbsp;in<br>
+ordinary&nbsp;text&nbsp;files,&nbsp;or&nbsp;maybe&nbsp;"&lt;P&gt;"&nbsp;lines&nbsp;in&nbsp;HTML&nbsp;files).&nbsp;&nbsp;That&nbsp;may&nbsp;be<br>
+because&nbsp;this&nbsp;is&nbsp;the&nbsp;only&nbsp;method&nbsp;of&nbsp;the&nbsp;3&nbsp;that&nbsp;has&nbsp;a&nbsp;*concept*&nbsp;of<br>
+"junk"&nbsp;&lt;wink&gt;.<br>
+&nbsp;<br>
+Example,&nbsp;comparing&nbsp;two&nbsp;strings,&nbsp;and&nbsp;considering&nbsp;blanks&nbsp;to&nbsp;be&nbsp;"junk":<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;s&nbsp;=&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>(lambda&nbsp;x:&nbsp;x&nbsp;==&nbsp;"&nbsp;",<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"private&nbsp;Thread&nbsp;currentThread;",<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"private&nbsp;volatile&nbsp;Thread&nbsp;currentThread;")<br>
+&gt;&gt;&gt;<br>
+&nbsp;<br>
+.<a href="#SequenceMatcher-ratio">ratio</a>()&nbsp;returns&nbsp;a&nbsp;float&nbsp;in&nbsp;[0,&nbsp;1],&nbsp;measuring&nbsp;the&nbsp;"similarity"&nbsp;of&nbsp;the<br>
+sequences.&nbsp;&nbsp;As&nbsp;a&nbsp;rule&nbsp;of&nbsp;thumb,&nbsp;a&nbsp;.<a href="#SequenceMatcher-ratio">ratio</a>()&nbsp;value&nbsp;over&nbsp;0.6&nbsp;means&nbsp;the<br>
+sequences&nbsp;are&nbsp;close&nbsp;matches:<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;print(round(s.<a href="#SequenceMatcher-ratio">ratio</a>(),&nbsp;3))<br>
+0.866<br>
+&gt;&gt;&gt;<br>
+&nbsp;<br>
+If&nbsp;you're&nbsp;only&nbsp;interested&nbsp;in&nbsp;where&nbsp;the&nbsp;sequences&nbsp;match,<br>
+.<a href="#SequenceMatcher-get_matching_blocks">get_matching_blocks</a>()&nbsp;is&nbsp;handy:<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;for&nbsp;block&nbsp;in&nbsp;s.<a href="#SequenceMatcher-get_matching_blocks">get_matching_blocks</a>():<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print("a[%d]&nbsp;and&nbsp;b[%d]&nbsp;match&nbsp;for&nbsp;%d&nbsp;elements"&nbsp;%&nbsp;block)<br>
+a[0]&nbsp;and&nbsp;b[0]&nbsp;match&nbsp;for&nbsp;8&nbsp;elements<br>
+a[8]&nbsp;and&nbsp;b[17]&nbsp;match&nbsp;for&nbsp;21&nbsp;elements<br>
+a[29]&nbsp;and&nbsp;b[38]&nbsp;match&nbsp;for&nbsp;0&nbsp;elements<br>
+&nbsp;<br>
+Note&nbsp;that&nbsp;the&nbsp;last&nbsp;<a href="builtins.html#tuple">tuple</a>&nbsp;returned&nbsp;by&nbsp;.<a href="#SequenceMatcher-get_matching_blocks">get_matching_blocks</a>()&nbsp;is&nbsp;always&nbsp;a<br>
+dummy,&nbsp;(len(a),&nbsp;len(b),&nbsp;0),&nbsp;and&nbsp;this&nbsp;is&nbsp;the&nbsp;only&nbsp;case&nbsp;in&nbsp;which&nbsp;the&nbsp;last<br>
+<a href="builtins.html#tuple">tuple</a>&nbsp;element&nbsp;(number&nbsp;of&nbsp;elements&nbsp;matched)&nbsp;is&nbsp;0.<br>
+&nbsp;<br>
+If&nbsp;you&nbsp;want&nbsp;to&nbsp;know&nbsp;how&nbsp;to&nbsp;change&nbsp;the&nbsp;first&nbsp;sequence&nbsp;into&nbsp;the&nbsp;second,<br>
+use&nbsp;.<a href="#SequenceMatcher-get_opcodes">get_opcodes</a>():<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;for&nbsp;opcode&nbsp;in&nbsp;s.<a href="#SequenceMatcher-get_opcodes">get_opcodes</a>():<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print("%6s&nbsp;a[%d:%d]&nbsp;b[%d:%d]"&nbsp;%&nbsp;opcode)<br>
+&nbsp;equal&nbsp;a[0:8]&nbsp;b[0:8]<br>
+insert&nbsp;a[8:8]&nbsp;b[8:17]<br>
+&nbsp;equal&nbsp;a[8:29]&nbsp;b[17:38]<br>
+&nbsp;<br>
+See&nbsp;the&nbsp;<a href="#Differ">Differ</a>&nbsp;class&nbsp;for&nbsp;a&nbsp;fancy&nbsp;human-friendly&nbsp;file&nbsp;differencer,&nbsp;which<br>
+uses&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>&nbsp;both&nbsp;to&nbsp;compare&nbsp;sequences&nbsp;of&nbsp;lines,&nbsp;and&nbsp;to&nbsp;compare<br>
+sequences&nbsp;of&nbsp;characters&nbsp;within&nbsp;similar&nbsp;(near-matching)&nbsp;lines.<br>
+&nbsp;<br>
+See&nbsp;also&nbsp;function&nbsp;<a href="#-get_close_matches">get_close_matches</a>()&nbsp;in&nbsp;this&nbsp;module,&nbsp;which&nbsp;shows&nbsp;how<br>
+simple&nbsp;code&nbsp;building&nbsp;on&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>&nbsp;can&nbsp;be&nbsp;used&nbsp;to&nbsp;do&nbsp;useful&nbsp;work.<br>
+&nbsp;<br>
+Timing:&nbsp;&nbsp;Basic&nbsp;R-O&nbsp;is&nbsp;cubic&nbsp;time&nbsp;worst&nbsp;case&nbsp;and&nbsp;quadratic&nbsp;time&nbsp;expected<br>
+case.&nbsp;&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>&nbsp;is&nbsp;quadratic&nbsp;time&nbsp;for&nbsp;the&nbsp;worst&nbsp;case&nbsp;and&nbsp;has<br>
+expected-case&nbsp;behavior&nbsp;dependent&nbsp;in&nbsp;a&nbsp;complicated&nbsp;way&nbsp;on&nbsp;how&nbsp;many<br>
+elements&nbsp;the&nbsp;sequences&nbsp;have&nbsp;in&nbsp;common;&nbsp;best&nbsp;case&nbsp;time&nbsp;is&nbsp;linear.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="SequenceMatcher-__init__"><strong>__init__</strong></a>(self, isjunk=None, a='', b='', autojunk=True)</dt><dd><tt>Construct&nbsp;a&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>.<br>
+&nbsp;<br>
+Optional&nbsp;arg&nbsp;isjunk&nbsp;is&nbsp;None&nbsp;(the&nbsp;default),&nbsp;or&nbsp;a&nbsp;one-argument<br>
+function&nbsp;that&nbsp;takes&nbsp;a&nbsp;sequence&nbsp;element&nbsp;and&nbsp;returns&nbsp;true&nbsp;iff&nbsp;the<br>
+element&nbsp;is&nbsp;junk.&nbsp;&nbsp;None&nbsp;is&nbsp;equivalent&nbsp;to&nbsp;passing&nbsp;"lambda&nbsp;x:&nbsp;0",&nbsp;i.e.<br>
+no&nbsp;elements&nbsp;are&nbsp;considered&nbsp;to&nbsp;be&nbsp;junk.&nbsp;&nbsp;For&nbsp;example,&nbsp;pass<br>
+&nbsp;&nbsp;&nbsp;&nbsp;lambda&nbsp;x:&nbsp;x&nbsp;in&nbsp;"&nbsp;\t"<br>
+if&nbsp;you're&nbsp;comparing&nbsp;lines&nbsp;as&nbsp;sequences&nbsp;of&nbsp;characters,&nbsp;and&nbsp;don't<br>
+want&nbsp;to&nbsp;synch&nbsp;up&nbsp;on&nbsp;blanks&nbsp;or&nbsp;hard&nbsp;tabs.<br>
+&nbsp;<br>
+Optional&nbsp;arg&nbsp;a&nbsp;is&nbsp;the&nbsp;first&nbsp;of&nbsp;two&nbsp;sequences&nbsp;to&nbsp;be&nbsp;compared.&nbsp;&nbsp;By<br>
+default,&nbsp;an&nbsp;empty&nbsp;string.&nbsp;&nbsp;The&nbsp;elements&nbsp;of&nbsp;a&nbsp;must&nbsp;be&nbsp;hashable.&nbsp;&nbsp;See<br>
+also&nbsp;.<a href="#SequenceMatcher-set_seqs">set_seqs</a>()&nbsp;and&nbsp;.<a href="#SequenceMatcher-set_seq1">set_seq1</a>().<br>
+&nbsp;<br>
+Optional&nbsp;arg&nbsp;b&nbsp;is&nbsp;the&nbsp;second&nbsp;of&nbsp;two&nbsp;sequences&nbsp;to&nbsp;be&nbsp;compared.&nbsp;&nbsp;By<br>
+default,&nbsp;an&nbsp;empty&nbsp;string.&nbsp;&nbsp;The&nbsp;elements&nbsp;of&nbsp;b&nbsp;must&nbsp;be&nbsp;hashable.&nbsp;See<br>
+also&nbsp;.<a href="#SequenceMatcher-set_seqs">set_seqs</a>()&nbsp;and&nbsp;.<a href="#SequenceMatcher-set_seq2">set_seq2</a>().<br>
+&nbsp;<br>
+Optional&nbsp;arg&nbsp;autojunk&nbsp;should&nbsp;be&nbsp;set&nbsp;to&nbsp;False&nbsp;to&nbsp;disable&nbsp;the<br>
+"automatic&nbsp;junk&nbsp;heuristic"&nbsp;that&nbsp;treats&nbsp;popular&nbsp;elements&nbsp;as&nbsp;junk<br>
+(see&nbsp;module&nbsp;documentation&nbsp;for&nbsp;more&nbsp;information).</tt></dd></dl>
+
+<dl><dt><a name="SequenceMatcher-find_longest_match"><strong>find_longest_match</strong></a>(self, alo=0, ahi=None, blo=0, bhi=None)</dt><dd><tt>Find&nbsp;longest&nbsp;matching&nbsp;block&nbsp;in&nbsp;a[alo:ahi]&nbsp;and&nbsp;b[blo:bhi].<br>
+&nbsp;<br>
+By&nbsp;default&nbsp;it&nbsp;will&nbsp;find&nbsp;the&nbsp;longest&nbsp;match&nbsp;in&nbsp;the&nbsp;entirety&nbsp;of&nbsp;a&nbsp;and&nbsp;b.<br>
+&nbsp;<br>
+If&nbsp;isjunk&nbsp;is&nbsp;not&nbsp;defined:<br>
+&nbsp;<br>
+Return&nbsp;(i,j,k)&nbsp;such&nbsp;that&nbsp;a[i:i+k]&nbsp;is&nbsp;equal&nbsp;to&nbsp;b[j:j+k],&nbsp;where<br>
+&nbsp;&nbsp;&nbsp;&nbsp;alo&nbsp;&lt;=&nbsp;i&nbsp;&lt;=&nbsp;i+k&nbsp;&lt;=&nbsp;ahi<br>
+&nbsp;&nbsp;&nbsp;&nbsp;blo&nbsp;&lt;=&nbsp;j&nbsp;&lt;=&nbsp;j+k&nbsp;&lt;=&nbsp;bhi<br>
+and&nbsp;for&nbsp;all&nbsp;(i',j',k')&nbsp;meeting&nbsp;those&nbsp;conditions,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;k&nbsp;&gt;=&nbsp;k'<br>
+&nbsp;&nbsp;&nbsp;&nbsp;i&nbsp;&lt;=&nbsp;i'<br>
+&nbsp;&nbsp;&nbsp;&nbsp;and&nbsp;if&nbsp;i&nbsp;==&nbsp;i',&nbsp;j&nbsp;&lt;=&nbsp;j'<br>
+&nbsp;<br>
+In&nbsp;other&nbsp;words,&nbsp;of&nbsp;all&nbsp;maximal&nbsp;matching&nbsp;blocks,&nbsp;return&nbsp;one&nbsp;that<br>
+starts&nbsp;earliest&nbsp;in&nbsp;a,&nbsp;and&nbsp;of&nbsp;all&nbsp;those&nbsp;maximal&nbsp;matching&nbsp;blocks&nbsp;that<br>
+start&nbsp;earliest&nbsp;in&nbsp;a,&nbsp;return&nbsp;the&nbsp;one&nbsp;that&nbsp;starts&nbsp;earliest&nbsp;in&nbsp;b.<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;s&nbsp;=&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>(None,&nbsp;"&nbsp;abcd",&nbsp;"abcd&nbsp;abcd")<br>
+&gt;&gt;&gt;&nbsp;s.<a href="#SequenceMatcher-find_longest_match">find_longest_match</a>(0,&nbsp;5,&nbsp;0,&nbsp;9)<br>
+<a href="#Match">Match</a>(a=0,&nbsp;b=4,&nbsp;size=5)<br>
+&nbsp;<br>
+If&nbsp;isjunk&nbsp;is&nbsp;defined,&nbsp;first&nbsp;the&nbsp;longest&nbsp;matching&nbsp;block&nbsp;is<br>
+determined&nbsp;as&nbsp;above,&nbsp;but&nbsp;with&nbsp;the&nbsp;additional&nbsp;restriction&nbsp;that&nbsp;no<br>
+junk&nbsp;element&nbsp;appears&nbsp;in&nbsp;the&nbsp;block.&nbsp;&nbsp;Then&nbsp;that&nbsp;block&nbsp;is&nbsp;extended&nbsp;as<br>
+far&nbsp;as&nbsp;possible&nbsp;by&nbsp;matching&nbsp;(only)&nbsp;junk&nbsp;elements&nbsp;on&nbsp;both&nbsp;sides.&nbsp;&nbsp;So<br>
+the&nbsp;resulting&nbsp;block&nbsp;never&nbsp;matches&nbsp;on&nbsp;junk&nbsp;except&nbsp;as&nbsp;identical&nbsp;junk<br>
+happens&nbsp;to&nbsp;be&nbsp;adjacent&nbsp;to&nbsp;an&nbsp;"interesting"&nbsp;match.<br>
+&nbsp;<br>
+Here's&nbsp;the&nbsp;same&nbsp;example&nbsp;as&nbsp;before,&nbsp;but&nbsp;considering&nbsp;blanks&nbsp;to&nbsp;be<br>
+junk.&nbsp;&nbsp;That&nbsp;prevents&nbsp;"&nbsp;abcd"&nbsp;from&nbsp;matching&nbsp;the&nbsp;"&nbsp;abcd"&nbsp;at&nbsp;the&nbsp;tail<br>
+end&nbsp;of&nbsp;the&nbsp;second&nbsp;sequence&nbsp;directly.&nbsp;&nbsp;Instead&nbsp;only&nbsp;the&nbsp;"abcd"&nbsp;can<br>
+match,&nbsp;and&nbsp;matches&nbsp;the&nbsp;leftmost&nbsp;"abcd"&nbsp;in&nbsp;the&nbsp;second&nbsp;sequence:<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;s&nbsp;=&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>(lambda&nbsp;x:&nbsp;x=="&nbsp;",&nbsp;"&nbsp;abcd",&nbsp;"abcd&nbsp;abcd")<br>
+&gt;&gt;&gt;&nbsp;s.<a href="#SequenceMatcher-find_longest_match">find_longest_match</a>(0,&nbsp;5,&nbsp;0,&nbsp;9)<br>
+<a href="#Match">Match</a>(a=1,&nbsp;b=0,&nbsp;size=4)<br>
+&nbsp;<br>
+If&nbsp;no&nbsp;blocks&nbsp;match,&nbsp;return&nbsp;(alo,&nbsp;blo,&nbsp;0).<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;s&nbsp;=&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>(None,&nbsp;"ab",&nbsp;"c")<br>
+&gt;&gt;&gt;&nbsp;s.<a href="#SequenceMatcher-find_longest_match">find_longest_match</a>(0,&nbsp;2,&nbsp;0,&nbsp;1)<br>
+<a href="#Match">Match</a>(a=0,&nbsp;b=0,&nbsp;size=0)</tt></dd></dl>
+
+<dl><dt><a name="SequenceMatcher-get_grouped_opcodes"><strong>get_grouped_opcodes</strong></a>(self, n=3)</dt><dd><tt>Isolate&nbsp;change&nbsp;clusters&nbsp;by&nbsp;eliminating&nbsp;ranges&nbsp;with&nbsp;no&nbsp;changes.<br>
+&nbsp;<br>
+Return&nbsp;a&nbsp;generator&nbsp;of&nbsp;groups&nbsp;with&nbsp;up&nbsp;to&nbsp;n&nbsp;lines&nbsp;of&nbsp;context.<br>
+Each&nbsp;group&nbsp;is&nbsp;in&nbsp;the&nbsp;same&nbsp;format&nbsp;as&nbsp;returned&nbsp;by&nbsp;<a href="#SequenceMatcher-get_opcodes">get_opcodes</a>().<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;from&nbsp;pprint&nbsp;import&nbsp;pprint<br>
+&gt;&gt;&gt;&nbsp;a&nbsp;=&nbsp;list(map(str,&nbsp;range(1,40)))<br>
+&gt;&gt;&gt;&nbsp;b&nbsp;=&nbsp;a[:]<br>
+&gt;&gt;&gt;&nbsp;b[8:8]&nbsp;=&nbsp;['i']&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;Make&nbsp;an&nbsp;insertion<br>
+&gt;&gt;&gt;&nbsp;b[20]&nbsp;+=&nbsp;'x'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;Make&nbsp;a&nbsp;replacement<br>
+&gt;&gt;&gt;&nbsp;b[23:28]&nbsp;=&nbsp;[]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;Make&nbsp;a&nbsp;deletion<br>
+&gt;&gt;&gt;&nbsp;b[30]&nbsp;+=&nbsp;'y'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;Make&nbsp;another&nbsp;replacement<br>
+&gt;&gt;&gt;&nbsp;pprint(list(<a href="#SequenceMatcher">SequenceMatcher</a>(None,a,b).<a href="#SequenceMatcher-get_grouped_opcodes">get_grouped_opcodes</a>()))<br>
+[[('equal',&nbsp;5,&nbsp;8,&nbsp;5,&nbsp;8),&nbsp;('insert',&nbsp;8,&nbsp;8,&nbsp;8,&nbsp;9),&nbsp;('equal',&nbsp;8,&nbsp;11,&nbsp;9,&nbsp;12)],<br>
+&nbsp;[('equal',&nbsp;16,&nbsp;19,&nbsp;17,&nbsp;20),<br>
+&nbsp;&nbsp;('replace',&nbsp;19,&nbsp;20,&nbsp;20,&nbsp;21),<br>
+&nbsp;&nbsp;('equal',&nbsp;20,&nbsp;22,&nbsp;21,&nbsp;23),<br>
+&nbsp;&nbsp;('delete',&nbsp;22,&nbsp;27,&nbsp;23,&nbsp;23),<br>
+&nbsp;&nbsp;('equal',&nbsp;27,&nbsp;30,&nbsp;23,&nbsp;26)],<br>
+&nbsp;[('equal',&nbsp;31,&nbsp;34,&nbsp;27,&nbsp;30),<br>
+&nbsp;&nbsp;('replace',&nbsp;34,&nbsp;35,&nbsp;30,&nbsp;31),<br>
+&nbsp;&nbsp;('equal',&nbsp;35,&nbsp;38,&nbsp;31,&nbsp;34)]]</tt></dd></dl>
+
+<dl><dt><a name="SequenceMatcher-get_matching_blocks"><strong>get_matching_blocks</strong></a>(self)</dt><dd><tt>Return&nbsp;list&nbsp;of&nbsp;triples&nbsp;describing&nbsp;matching&nbsp;subsequences.<br>
+&nbsp;<br>
+Each&nbsp;triple&nbsp;is&nbsp;of&nbsp;the&nbsp;form&nbsp;(i,&nbsp;j,&nbsp;n),&nbsp;and&nbsp;means&nbsp;that<br>
+a[i:i+n]&nbsp;==&nbsp;b[j:j+n].&nbsp;&nbsp;The&nbsp;triples&nbsp;are&nbsp;monotonically&nbsp;increasing&nbsp;in<br>
+i&nbsp;and&nbsp;in&nbsp;j.&nbsp;&nbsp;New&nbsp;in&nbsp;Python&nbsp;2.5,&nbsp;it's&nbsp;also&nbsp;guaranteed&nbsp;that&nbsp;if<br>
+(i,&nbsp;j,&nbsp;n)&nbsp;and&nbsp;(i',&nbsp;j',&nbsp;n')&nbsp;are&nbsp;adjacent&nbsp;triples&nbsp;in&nbsp;the&nbsp;list,&nbsp;and<br>
+the&nbsp;second&nbsp;is&nbsp;not&nbsp;the&nbsp;last&nbsp;triple&nbsp;in&nbsp;the&nbsp;list,&nbsp;then&nbsp;i+n&nbsp;!=&nbsp;i'&nbsp;or<br>
+j+n&nbsp;!=&nbsp;j'.&nbsp;&nbsp;IOW,&nbsp;adjacent&nbsp;triples&nbsp;never&nbsp;describe&nbsp;adjacent&nbsp;equal<br>
+blocks.<br>
+&nbsp;<br>
+The&nbsp;last&nbsp;triple&nbsp;is&nbsp;a&nbsp;dummy,&nbsp;(len(a),&nbsp;len(b),&nbsp;0),&nbsp;and&nbsp;is&nbsp;the&nbsp;only<br>
+triple&nbsp;with&nbsp;n==0.<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;s&nbsp;=&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>(None,&nbsp;"abxcd",&nbsp;"abcd")<br>
+&gt;&gt;&gt;&nbsp;list(s.<a href="#SequenceMatcher-get_matching_blocks">get_matching_blocks</a>())<br>
+[<a href="#Match">Match</a>(a=0,&nbsp;b=0,&nbsp;size=2),&nbsp;<a href="#Match">Match</a>(a=3,&nbsp;b=2,&nbsp;size=2),&nbsp;<a href="#Match">Match</a>(a=5,&nbsp;b=4,&nbsp;size=0)]</tt></dd></dl>
+
+<dl><dt><a name="SequenceMatcher-get_opcodes"><strong>get_opcodes</strong></a>(self)</dt><dd><tt>Return&nbsp;list&nbsp;of&nbsp;5-tuples&nbsp;describing&nbsp;how&nbsp;to&nbsp;turn&nbsp;a&nbsp;into&nbsp;b.<br>
+&nbsp;<br>
+Each&nbsp;<a href="builtins.html#tuple">tuple</a>&nbsp;is&nbsp;of&nbsp;the&nbsp;form&nbsp;(tag,&nbsp;i1,&nbsp;i2,&nbsp;j1,&nbsp;j2).&nbsp;&nbsp;The&nbsp;first&nbsp;<a href="builtins.html#tuple">tuple</a><br>
+has&nbsp;i1&nbsp;==&nbsp;j1&nbsp;==&nbsp;0,&nbsp;and&nbsp;remaining&nbsp;tuples&nbsp;have&nbsp;i1&nbsp;==&nbsp;the&nbsp;i2&nbsp;from&nbsp;the<br>
+<a href="builtins.html#tuple">tuple</a>&nbsp;preceding&nbsp;it,&nbsp;and&nbsp;likewise&nbsp;for&nbsp;j1&nbsp;==&nbsp;the&nbsp;previous&nbsp;j2.<br>
+&nbsp;<br>
+The&nbsp;tags&nbsp;are&nbsp;strings,&nbsp;with&nbsp;these&nbsp;meanings:<br>
+&nbsp;<br>
+'replace':&nbsp;&nbsp;a[i1:i2]&nbsp;should&nbsp;be&nbsp;replaced&nbsp;by&nbsp;b[j1:j2]<br>
+'delete':&nbsp;&nbsp;&nbsp;a[i1:i2]&nbsp;should&nbsp;be&nbsp;deleted.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Note&nbsp;that&nbsp;j1==j2&nbsp;in&nbsp;this&nbsp;case.<br>
+'insert':&nbsp;&nbsp;&nbsp;b[j1:j2]&nbsp;should&nbsp;be&nbsp;inserted&nbsp;at&nbsp;a[i1:i1].<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Note&nbsp;that&nbsp;i1==i2&nbsp;in&nbsp;this&nbsp;case.<br>
+'equal':&nbsp;&nbsp;&nbsp;&nbsp;a[i1:i2]&nbsp;==&nbsp;b[j1:j2]<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;a&nbsp;=&nbsp;"qabxcd"<br>
+&gt;&gt;&gt;&nbsp;b&nbsp;=&nbsp;"abycdf"<br>
+&gt;&gt;&gt;&nbsp;s&nbsp;=&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>(None,&nbsp;a,&nbsp;b)<br>
+&gt;&gt;&gt;&nbsp;for&nbsp;tag,&nbsp;i1,&nbsp;i2,&nbsp;j1,&nbsp;j2&nbsp;in&nbsp;s.<a href="#SequenceMatcher-get_opcodes">get_opcodes</a>():<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;print(("%7s&nbsp;a[%d:%d]&nbsp;(%s)&nbsp;b[%d:%d]&nbsp;(%s)"&nbsp;%<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(tag,&nbsp;i1,&nbsp;i2,&nbsp;a[i1:i2],&nbsp;j1,&nbsp;j2,&nbsp;b[j1:j2])))<br>
+&nbsp;delete&nbsp;a[0:1]&nbsp;(q)&nbsp;b[0:0]&nbsp;()<br>
+&nbsp;&nbsp;equal&nbsp;a[1:3]&nbsp;(ab)&nbsp;b[0:2]&nbsp;(ab)<br>
+replace&nbsp;a[3:4]&nbsp;(x)&nbsp;b[2:3]&nbsp;(y)<br>
+&nbsp;&nbsp;equal&nbsp;a[4:6]&nbsp;(cd)&nbsp;b[3:5]&nbsp;(cd)<br>
+&nbsp;insert&nbsp;a[6:6]&nbsp;()&nbsp;b[5:6]&nbsp;(f)</tt></dd></dl>
+
+<dl><dt><a name="SequenceMatcher-quick_ratio"><strong>quick_ratio</strong></a>(self)</dt><dd><tt>Return&nbsp;an&nbsp;upper&nbsp;bound&nbsp;on&nbsp;<a href="#SequenceMatcher-ratio">ratio</a>()&nbsp;relatively&nbsp;quickly.<br>
+&nbsp;<br>
+This&nbsp;isn't&nbsp;defined&nbsp;beyond&nbsp;that&nbsp;it&nbsp;is&nbsp;an&nbsp;upper&nbsp;bound&nbsp;on&nbsp;.<a href="#SequenceMatcher-ratio">ratio</a>(),&nbsp;and<br>
+is&nbsp;faster&nbsp;to&nbsp;compute.</tt></dd></dl>
+
+<dl><dt><a name="SequenceMatcher-ratio"><strong>ratio</strong></a>(self)</dt><dd><tt>Return&nbsp;a&nbsp;measure&nbsp;of&nbsp;the&nbsp;sequences'&nbsp;similarity&nbsp;(float&nbsp;in&nbsp;[0,1]).<br>
+&nbsp;<br>
+Where&nbsp;T&nbsp;is&nbsp;the&nbsp;total&nbsp;number&nbsp;of&nbsp;elements&nbsp;in&nbsp;both&nbsp;sequences,&nbsp;and<br>
+M&nbsp;is&nbsp;the&nbsp;number&nbsp;of&nbsp;matches,&nbsp;this&nbsp;is&nbsp;2.0*M&nbsp;/&nbsp;T.<br>
+Note&nbsp;that&nbsp;this&nbsp;is&nbsp;1&nbsp;if&nbsp;the&nbsp;sequences&nbsp;are&nbsp;identical,&nbsp;and&nbsp;0&nbsp;if<br>
+they&nbsp;have&nbsp;nothing&nbsp;in&nbsp;common.<br>
+&nbsp;<br>
+.<a href="#SequenceMatcher-ratio">ratio</a>()&nbsp;is&nbsp;expensive&nbsp;to&nbsp;compute&nbsp;if&nbsp;you&nbsp;haven't&nbsp;already&nbsp;computed<br>
+.<a href="#SequenceMatcher-get_matching_blocks">get_matching_blocks</a>()&nbsp;or&nbsp;.<a href="#SequenceMatcher-get_opcodes">get_opcodes</a>(),&nbsp;in&nbsp;which&nbsp;case&nbsp;you&nbsp;may<br>
+want&nbsp;to&nbsp;try&nbsp;.<a href="#SequenceMatcher-quick_ratio">quick_ratio</a>()&nbsp;or&nbsp;.<a href="#SequenceMatcher-real_quick_ratio">real_quick_ratio</a>()&nbsp;first&nbsp;to&nbsp;get&nbsp;an<br>
+upper&nbsp;bound.<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;s&nbsp;=&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>(None,&nbsp;"abcd",&nbsp;"bcde")<br>
+&gt;&gt;&gt;&nbsp;s.<a href="#SequenceMatcher-ratio">ratio</a>()<br>
+0.75<br>
+&gt;&gt;&gt;&nbsp;s.<a href="#SequenceMatcher-quick_ratio">quick_ratio</a>()<br>
+0.75<br>
+&gt;&gt;&gt;&nbsp;s.<a href="#SequenceMatcher-real_quick_ratio">real_quick_ratio</a>()<br>
+1.0</tt></dd></dl>
+
+<dl><dt><a name="SequenceMatcher-real_quick_ratio"><strong>real_quick_ratio</strong></a>(self)</dt><dd><tt>Return&nbsp;an&nbsp;upper&nbsp;bound&nbsp;on&nbsp;<a href="#SequenceMatcher-ratio">ratio</a>()&nbsp;very&nbsp;quickly.<br>
+&nbsp;<br>
+This&nbsp;isn't&nbsp;defined&nbsp;beyond&nbsp;that&nbsp;it&nbsp;is&nbsp;an&nbsp;upper&nbsp;bound&nbsp;on&nbsp;.<a href="#SequenceMatcher-ratio">ratio</a>(),&nbsp;and<br>
+is&nbsp;faster&nbsp;to&nbsp;compute&nbsp;than&nbsp;either&nbsp;.<a href="#SequenceMatcher-ratio">ratio</a>()&nbsp;or&nbsp;.<a href="#SequenceMatcher-quick_ratio">quick_ratio</a>().</tt></dd></dl>
+
+<dl><dt><a name="SequenceMatcher-set_seq1"><strong>set_seq1</strong></a>(self, a)</dt><dd><tt>Set&nbsp;the&nbsp;first&nbsp;sequence&nbsp;to&nbsp;be&nbsp;compared.<br>
+&nbsp;<br>
+The&nbsp;second&nbsp;sequence&nbsp;to&nbsp;be&nbsp;compared&nbsp;is&nbsp;not&nbsp;changed.<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;s&nbsp;=&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>(None,&nbsp;"abcd",&nbsp;"bcde")<br>
+&gt;&gt;&gt;&nbsp;s.<a href="#SequenceMatcher-ratio">ratio</a>()<br>
+0.75<br>
+&gt;&gt;&gt;&nbsp;s.<a href="#SequenceMatcher-set_seq1">set_seq1</a>("bcde")<br>
+&gt;&gt;&gt;&nbsp;s.<a href="#SequenceMatcher-ratio">ratio</a>()<br>
+1.0<br>
+&gt;&gt;&gt;<br>
+&nbsp;<br>
+<a href="#SequenceMatcher">SequenceMatcher</a>&nbsp;computes&nbsp;and&nbsp;caches&nbsp;detailed&nbsp;information&nbsp;about&nbsp;the<br>
+second&nbsp;sequence,&nbsp;so&nbsp;if&nbsp;you&nbsp;want&nbsp;to&nbsp;compare&nbsp;one&nbsp;sequence&nbsp;S&nbsp;against<br>
+many&nbsp;sequences,&nbsp;use&nbsp;.<a href="#SequenceMatcher-set_seq2">set_seq2</a>(S)&nbsp;once&nbsp;and&nbsp;call&nbsp;.<a href="#SequenceMatcher-set_seq1">set_seq1</a>(x)<br>
+repeatedly&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;other&nbsp;sequences.<br>
+&nbsp;<br>
+See&nbsp;also&nbsp;<a href="#SequenceMatcher-set_seqs">set_seqs</a>()&nbsp;and&nbsp;<a href="#SequenceMatcher-set_seq2">set_seq2</a>().</tt></dd></dl>
+
+<dl><dt><a name="SequenceMatcher-set_seq2"><strong>set_seq2</strong></a>(self, b)</dt><dd><tt>Set&nbsp;the&nbsp;second&nbsp;sequence&nbsp;to&nbsp;be&nbsp;compared.<br>
+&nbsp;<br>
+The&nbsp;first&nbsp;sequence&nbsp;to&nbsp;be&nbsp;compared&nbsp;is&nbsp;not&nbsp;changed.<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;s&nbsp;=&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>(None,&nbsp;"abcd",&nbsp;"bcde")<br>
+&gt;&gt;&gt;&nbsp;s.<a href="#SequenceMatcher-ratio">ratio</a>()<br>
+0.75<br>
+&gt;&gt;&gt;&nbsp;s.<a href="#SequenceMatcher-set_seq2">set_seq2</a>("abcd")<br>
+&gt;&gt;&gt;&nbsp;s.<a href="#SequenceMatcher-ratio">ratio</a>()<br>
+1.0<br>
+&gt;&gt;&gt;<br>
+&nbsp;<br>
+<a href="#SequenceMatcher">SequenceMatcher</a>&nbsp;computes&nbsp;and&nbsp;caches&nbsp;detailed&nbsp;information&nbsp;about&nbsp;the<br>
+second&nbsp;sequence,&nbsp;so&nbsp;if&nbsp;you&nbsp;want&nbsp;to&nbsp;compare&nbsp;one&nbsp;sequence&nbsp;S&nbsp;against<br>
+many&nbsp;sequences,&nbsp;use&nbsp;.<a href="#SequenceMatcher-set_seq2">set_seq2</a>(S)&nbsp;once&nbsp;and&nbsp;call&nbsp;.<a href="#SequenceMatcher-set_seq1">set_seq1</a>(x)<br>
+repeatedly&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;other&nbsp;sequences.<br>
+&nbsp;<br>
+See&nbsp;also&nbsp;<a href="#SequenceMatcher-set_seqs">set_seqs</a>()&nbsp;and&nbsp;<a href="#SequenceMatcher-set_seq1">set_seq1</a>().</tt></dd></dl>
+
+<dl><dt><a name="SequenceMatcher-set_seqs"><strong>set_seqs</strong></a>(self, a, b)</dt><dd><tt>Set&nbsp;the&nbsp;two&nbsp;sequences&nbsp;to&nbsp;be&nbsp;compared.<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;s&nbsp;=&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>()<br>
+&gt;&gt;&gt;&nbsp;s.<a href="#SequenceMatcher-set_seqs">set_seqs</a>("abcd",&nbsp;"bcde")<br>
+&gt;&gt;&gt;&nbsp;s.<a href="#SequenceMatcher-ratio">ratio</a>()<br>
+0.75</tt></dd></dl>
+
+<hr>
+Class methods defined here:<br>
+<dl><dt><a name="SequenceMatcher-__class_getitem__"><strong>__class_getitem__</strong></a> = GenericAlias(...)<font color="#909090"><font face="helvetica, arial"> from <a href="builtins.html#type">builtins.type</a></font></font></dt><dd><tt>Represent&nbsp;a&nbsp;<a href="https://www.python.org/dev/peps/pep-0585/">PEP&nbsp;585</a>&nbsp;generic&nbsp;type<br>
+&nbsp;<br>
+E.g.&nbsp;for&nbsp;t&nbsp;=&nbsp;list[int],&nbsp;t.__origin__&nbsp;is&nbsp;list&nbsp;and&nbsp;t.__args__&nbsp;is&nbsp;(int,).</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+</td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#eeaa77">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Functions</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl><dt><a name="-IS_CHARACTER_JUNK"><strong>IS_CHARACTER_JUNK</strong></a>(ch, ws=' \t')</dt><dd><tt>Return&nbsp;True&nbsp;for&nbsp;ignorable&nbsp;character:&nbsp;iff&nbsp;`ch`&nbsp;is&nbsp;a&nbsp;space&nbsp;or&nbsp;tab.<br>
+&nbsp;<br>
+Examples:<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;<a href="#-IS_CHARACTER_JUNK">IS_CHARACTER_JUNK</a>('&nbsp;')<br>
+True<br>
+&gt;&gt;&gt;&nbsp;<a href="#-IS_CHARACTER_JUNK">IS_CHARACTER_JUNK</a>('\t')<br>
+True<br>
+&gt;&gt;&gt;&nbsp;<a href="#-IS_CHARACTER_JUNK">IS_CHARACTER_JUNK</a>('\n')<br>
+False<br>
+&gt;&gt;&gt;&nbsp;<a href="#-IS_CHARACTER_JUNK">IS_CHARACTER_JUNK</a>('x')<br>
+False</tt></dd></dl>
+ <dl><dt><a name="-IS_LINE_JUNK"><strong>IS_LINE_JUNK</strong></a>(line, pat=&lt;built-in method match of re.Pattern object at 0x1032a5240&gt;)</dt><dd><tt>Return&nbsp;True&nbsp;for&nbsp;ignorable&nbsp;line:&nbsp;iff&nbsp;`line`&nbsp;is&nbsp;blank&nbsp;or&nbsp;contains&nbsp;a&nbsp;single&nbsp;'#'.<br>
+&nbsp;<br>
+Examples:<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;<a href="#-IS_LINE_JUNK">IS_LINE_JUNK</a>('\n')<br>
+True<br>
+&gt;&gt;&gt;&nbsp;<a href="#-IS_LINE_JUNK">IS_LINE_JUNK</a>('&nbsp;&nbsp;#&nbsp;&nbsp;&nbsp;\n')<br>
+True<br>
+&gt;&gt;&gt;&nbsp;<a href="#-IS_LINE_JUNK">IS_LINE_JUNK</a>('hello\n')<br>
+False</tt></dd></dl>
+ <dl><dt><a name="-context_diff"><strong>context_diff</strong></a>(a, b, fromfile='', tofile='', fromfiledate='', tofiledate='', n=3, lineterm='\n')</dt><dd><tt>Compare&nbsp;two&nbsp;sequences&nbsp;of&nbsp;lines;&nbsp;generate&nbsp;the&nbsp;delta&nbsp;as&nbsp;a&nbsp;context&nbsp;diff.<br>
+&nbsp;<br>
+Context&nbsp;diffs&nbsp;are&nbsp;a&nbsp;compact&nbsp;way&nbsp;of&nbsp;showing&nbsp;line&nbsp;changes&nbsp;and&nbsp;a&nbsp;few<br>
+lines&nbsp;of&nbsp;context.&nbsp;&nbsp;The&nbsp;number&nbsp;of&nbsp;context&nbsp;lines&nbsp;is&nbsp;set&nbsp;by&nbsp;'n'&nbsp;which<br>
+defaults&nbsp;to&nbsp;three.<br>
+&nbsp;<br>
+By&nbsp;default,&nbsp;the&nbsp;diff&nbsp;control&nbsp;lines&nbsp;(those&nbsp;with&nbsp;***&nbsp;or&nbsp;---)&nbsp;are<br>
+created&nbsp;with&nbsp;a&nbsp;trailing&nbsp;newline.&nbsp;&nbsp;This&nbsp;is&nbsp;helpful&nbsp;so&nbsp;that&nbsp;inputs<br>
+created&nbsp;from&nbsp;file.readlines()&nbsp;result&nbsp;in&nbsp;diffs&nbsp;that&nbsp;are&nbsp;suitable&nbsp;for<br>
+file.writelines()&nbsp;since&nbsp;both&nbsp;the&nbsp;inputs&nbsp;and&nbsp;outputs&nbsp;have&nbsp;trailing<br>
+newlines.<br>
+&nbsp;<br>
+For&nbsp;inputs&nbsp;that&nbsp;do&nbsp;not&nbsp;have&nbsp;trailing&nbsp;newlines,&nbsp;set&nbsp;the&nbsp;lineterm<br>
+argument&nbsp;to&nbsp;""&nbsp;so&nbsp;that&nbsp;the&nbsp;output&nbsp;will&nbsp;be&nbsp;uniformly&nbsp;newline&nbsp;free.<br>
+&nbsp;<br>
+The&nbsp;context&nbsp;diff&nbsp;format&nbsp;normally&nbsp;has&nbsp;a&nbsp;header&nbsp;for&nbsp;filenames&nbsp;and<br>
+modification&nbsp;times.&nbsp;&nbsp;Any&nbsp;or&nbsp;all&nbsp;of&nbsp;these&nbsp;may&nbsp;be&nbsp;specified&nbsp;using<br>
+strings&nbsp;for&nbsp;'fromfile',&nbsp;'tofile',&nbsp;'fromfiledate',&nbsp;and&nbsp;'tofiledate'.<br>
+The&nbsp;modification&nbsp;times&nbsp;are&nbsp;normally&nbsp;expressed&nbsp;in&nbsp;the&nbsp;ISO&nbsp;8601&nbsp;format.<br>
+If&nbsp;not&nbsp;specified,&nbsp;the&nbsp;strings&nbsp;default&nbsp;to&nbsp;blanks.<br>
+&nbsp;<br>
+Example:<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;print(''.join(<a href="#-context_diff">context_diff</a>('one\ntwo\nthree\nfour\n'.splitlines(True),<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'zero\none\ntree\nfour\n'.splitlines(True),&nbsp;'Original',&nbsp;'Current')),<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;end="")<br>
+***&nbsp;Original<br>
+---&nbsp;Current<br>
+***************<br>
+***&nbsp;1,4&nbsp;****<br>
+&nbsp;&nbsp;one<br>
+!&nbsp;two<br>
+!&nbsp;three<br>
+&nbsp;&nbsp;four<br>
+---&nbsp;1,4&nbsp;----<br>
++&nbsp;zero<br>
+&nbsp;&nbsp;one<br>
+!&nbsp;tree<br>
+&nbsp;&nbsp;four</tt></dd></dl>
+ <dl><dt><a name="-diff_bytes"><strong>diff_bytes</strong></a>(dfunc, a, b, fromfile=b'', tofile=b'', fromfiledate=b'', tofiledate=b'', n=3, lineterm=b'\n')</dt><dd><tt>Compare&nbsp;`a`&nbsp;and&nbsp;`b`,&nbsp;two&nbsp;sequences&nbsp;of&nbsp;lines&nbsp;represented&nbsp;as&nbsp;bytes&nbsp;rather<br>
+than&nbsp;str.&nbsp;This&nbsp;is&nbsp;a&nbsp;wrapper&nbsp;for&nbsp;`dfunc`,&nbsp;which&nbsp;is&nbsp;typically&nbsp;either<br>
+<a href="#-unified_diff">unified_diff</a>()&nbsp;or&nbsp;<a href="#-context_diff">context_diff</a>().&nbsp;Inputs&nbsp;are&nbsp;losslessly&nbsp;converted&nbsp;to<br>
+strings&nbsp;so&nbsp;that&nbsp;`dfunc`&nbsp;only&nbsp;has&nbsp;to&nbsp;worry&nbsp;about&nbsp;strings,&nbsp;and&nbsp;encoded<br>
+back&nbsp;to&nbsp;bytes&nbsp;on&nbsp;return.&nbsp;This&nbsp;is&nbsp;necessary&nbsp;to&nbsp;compare&nbsp;files&nbsp;with<br>
+unknown&nbsp;or&nbsp;inconsistent&nbsp;encoding.&nbsp;All&nbsp;other&nbsp;inputs&nbsp;(except&nbsp;`n`)&nbsp;must&nbsp;be<br>
+bytes&nbsp;rather&nbsp;than&nbsp;str.</tt></dd></dl>
+ <dl><dt><a name="-get_close_matches"><strong>get_close_matches</strong></a>(word, possibilities, n=3, cutoff=0.6)</dt><dd><tt>Use&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>&nbsp;to&nbsp;return&nbsp;list&nbsp;of&nbsp;the&nbsp;best&nbsp;"good&nbsp;enough"&nbsp;matches.<br>
+&nbsp;<br>
+word&nbsp;is&nbsp;a&nbsp;sequence&nbsp;for&nbsp;which&nbsp;close&nbsp;matches&nbsp;are&nbsp;desired&nbsp;(typically&nbsp;a<br>
+string).<br>
+&nbsp;<br>
+possibilities&nbsp;is&nbsp;a&nbsp;list&nbsp;of&nbsp;sequences&nbsp;against&nbsp;which&nbsp;to&nbsp;match&nbsp;word<br>
+(typically&nbsp;a&nbsp;list&nbsp;of&nbsp;strings).<br>
+&nbsp;<br>
+Optional&nbsp;arg&nbsp;n&nbsp;(default&nbsp;3)&nbsp;is&nbsp;the&nbsp;maximum&nbsp;number&nbsp;of&nbsp;close&nbsp;matches&nbsp;to<br>
+return.&nbsp;&nbsp;n&nbsp;must&nbsp;be&nbsp;&gt;&nbsp;0.<br>
+&nbsp;<br>
+Optional&nbsp;arg&nbsp;cutoff&nbsp;(default&nbsp;0.6)&nbsp;is&nbsp;a&nbsp;float&nbsp;in&nbsp;[0,&nbsp;1].&nbsp;&nbsp;Possibilities<br>
+that&nbsp;don't&nbsp;score&nbsp;at&nbsp;least&nbsp;that&nbsp;similar&nbsp;to&nbsp;word&nbsp;are&nbsp;ignored.<br>
+&nbsp;<br>
+The&nbsp;best&nbsp;(no&nbsp;more&nbsp;than&nbsp;n)&nbsp;matches&nbsp;among&nbsp;the&nbsp;possibilities&nbsp;are&nbsp;returned<br>
+in&nbsp;a&nbsp;list,&nbsp;sorted&nbsp;by&nbsp;similarity&nbsp;score,&nbsp;most&nbsp;similar&nbsp;first.<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;<a href="#-get_close_matches">get_close_matches</a>("appel",&nbsp;["ape",&nbsp;"apple",&nbsp;"peach",&nbsp;"puppy"])<br>
+['apple',&nbsp;'ape']<br>
+&gt;&gt;&gt;&nbsp;import&nbsp;keyword&nbsp;as&nbsp;_keyword<br>
+&gt;&gt;&gt;&nbsp;<a href="#-get_close_matches">get_close_matches</a>("wheel",&nbsp;_keyword.kwlist)<br>
+['while']<br>
+&gt;&gt;&gt;&nbsp;<a href="#-get_close_matches">get_close_matches</a>("Apple",&nbsp;_keyword.kwlist)<br>
+[]<br>
+&gt;&gt;&gt;&nbsp;<a href="#-get_close_matches">get_close_matches</a>("accept",&nbsp;_keyword.kwlist)<br>
+['except']</tt></dd></dl>
+ <dl><dt><a name="-ndiff"><strong>ndiff</strong></a>(a, b, linejunk=None, charjunk=&lt;function IS_CHARACTER_JUNK at 0x103734a60&gt;)</dt><dd><tt>Compare&nbsp;`a`&nbsp;and&nbsp;`b`&nbsp;(lists&nbsp;of&nbsp;strings);&nbsp;return&nbsp;a&nbsp;`<a href="#Differ">Differ</a>`-style&nbsp;delta.<br>
+&nbsp;<br>
+Optional&nbsp;keyword&nbsp;parameters&nbsp;`linejunk`&nbsp;and&nbsp;`charjunk`&nbsp;are&nbsp;for&nbsp;filter<br>
+functions,&nbsp;or&nbsp;can&nbsp;be&nbsp;None:<br>
+&nbsp;<br>
+-&nbsp;linejunk:&nbsp;A&nbsp;function&nbsp;that&nbsp;should&nbsp;accept&nbsp;a&nbsp;single&nbsp;string&nbsp;argument&nbsp;and<br>
+&nbsp;&nbsp;return&nbsp;true&nbsp;iff&nbsp;the&nbsp;string&nbsp;is&nbsp;junk.&nbsp;&nbsp;The&nbsp;default&nbsp;is&nbsp;None,&nbsp;and&nbsp;is<br>
+&nbsp;&nbsp;recommended;&nbsp;the&nbsp;underlying&nbsp;<a href="#SequenceMatcher">SequenceMatcher</a>&nbsp;class&nbsp;has&nbsp;an&nbsp;adaptive<br>
+&nbsp;&nbsp;notion&nbsp;of&nbsp;"noise"&nbsp;lines.<br>
+&nbsp;<br>
+-&nbsp;charjunk:&nbsp;A&nbsp;function&nbsp;that&nbsp;accepts&nbsp;a&nbsp;character&nbsp;(string&nbsp;of&nbsp;length<br>
+&nbsp;&nbsp;1),&nbsp;and&nbsp;returns&nbsp;true&nbsp;iff&nbsp;the&nbsp;character&nbsp;is&nbsp;junk.&nbsp;The&nbsp;default&nbsp;is<br>
+&nbsp;&nbsp;the&nbsp;module-level&nbsp;function&nbsp;IS_CHARACTER_JUNK,&nbsp;which&nbsp;filters&nbsp;out<br>
+&nbsp;&nbsp;whitespace&nbsp;characters&nbsp;(a&nbsp;blank&nbsp;or&nbsp;tab;&nbsp;note:&nbsp;it's&nbsp;a&nbsp;bad&nbsp;idea&nbsp;to<br>
+&nbsp;&nbsp;include&nbsp;newline&nbsp;in&nbsp;this!).<br>
+&nbsp;<br>
+Tools/scripts/ndiff.py&nbsp;is&nbsp;a&nbsp;command-line&nbsp;front-end&nbsp;to&nbsp;this&nbsp;function.<br>
+&nbsp;<br>
+Example:<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;diff&nbsp;=&nbsp;<a href="#-ndiff">ndiff</a>('one\ntwo\nthree\n'.splitlines(keepends=True),<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'ore\ntree\nemu\n'.splitlines(keepends=True))<br>
+&gt;&gt;&gt;&nbsp;print(''.join(diff),&nbsp;end="")<br>
+-&nbsp;one<br>
+?&nbsp;&nbsp;^<br>
++&nbsp;ore<br>
+?&nbsp;&nbsp;^<br>
+-&nbsp;two<br>
+-&nbsp;three<br>
+?&nbsp;&nbsp;-<br>
++&nbsp;tree<br>
++&nbsp;emu</tt></dd></dl>
+ <dl><dt><a name="-restore"><strong>restore</strong></a>(delta, which)</dt><dd><tt>Generate&nbsp;one&nbsp;of&nbsp;the&nbsp;two&nbsp;sequences&nbsp;that&nbsp;generated&nbsp;a&nbsp;delta.<br>
+&nbsp;<br>
+Given&nbsp;a&nbsp;`delta`&nbsp;produced&nbsp;by&nbsp;`<a href="#Differ">Differ</a>.compare()`&nbsp;or&nbsp;`<a href="#-ndiff">ndiff</a>()`,&nbsp;extract<br>
+lines&nbsp;originating&nbsp;from&nbsp;file&nbsp;1&nbsp;or&nbsp;2&nbsp;(parameter&nbsp;`which`),&nbsp;stripping&nbsp;off&nbsp;line<br>
+prefixes.<br>
+&nbsp;<br>
+Examples:<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;diff&nbsp;=&nbsp;<a href="#-ndiff">ndiff</a>('one\ntwo\nthree\n'.splitlines(keepends=True),<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'ore\ntree\nemu\n'.splitlines(keepends=True))<br>
+&gt;&gt;&gt;&nbsp;diff&nbsp;=&nbsp;list(diff)<br>
+&gt;&gt;&gt;&nbsp;print(''.join(<a href="#-restore">restore</a>(diff,&nbsp;1)),&nbsp;end="")<br>
+one<br>
+two<br>
+three<br>
+&gt;&gt;&gt;&nbsp;print(''.join(<a href="#-restore">restore</a>(diff,&nbsp;2)),&nbsp;end="")<br>
+ore<br>
+tree<br>
+emu</tt></dd></dl>
+ <dl><dt><a name="-unified_diff"><strong>unified_diff</strong></a>(a, b, fromfile='', tofile='', fromfiledate='', tofiledate='', n=3, lineterm='\n')</dt><dd><tt>Compare&nbsp;two&nbsp;sequences&nbsp;of&nbsp;lines;&nbsp;generate&nbsp;the&nbsp;delta&nbsp;as&nbsp;a&nbsp;unified&nbsp;diff.<br>
+&nbsp;<br>
+Unified&nbsp;diffs&nbsp;are&nbsp;a&nbsp;compact&nbsp;way&nbsp;of&nbsp;showing&nbsp;line&nbsp;changes&nbsp;and&nbsp;a&nbsp;few<br>
+lines&nbsp;of&nbsp;context.&nbsp;&nbsp;The&nbsp;number&nbsp;of&nbsp;context&nbsp;lines&nbsp;is&nbsp;set&nbsp;by&nbsp;'n'&nbsp;which<br>
+defaults&nbsp;to&nbsp;three.<br>
+&nbsp;<br>
+By&nbsp;default,&nbsp;the&nbsp;diff&nbsp;control&nbsp;lines&nbsp;(those&nbsp;with&nbsp;---,&nbsp;+++,&nbsp;or&nbsp;@@)&nbsp;are<br>
+created&nbsp;with&nbsp;a&nbsp;trailing&nbsp;newline.&nbsp;&nbsp;This&nbsp;is&nbsp;helpful&nbsp;so&nbsp;that&nbsp;inputs<br>
+created&nbsp;from&nbsp;file.readlines()&nbsp;result&nbsp;in&nbsp;diffs&nbsp;that&nbsp;are&nbsp;suitable&nbsp;for<br>
+file.writelines()&nbsp;since&nbsp;both&nbsp;the&nbsp;inputs&nbsp;and&nbsp;outputs&nbsp;have&nbsp;trailing<br>
+newlines.<br>
+&nbsp;<br>
+For&nbsp;inputs&nbsp;that&nbsp;do&nbsp;not&nbsp;have&nbsp;trailing&nbsp;newlines,&nbsp;set&nbsp;the&nbsp;lineterm<br>
+argument&nbsp;to&nbsp;""&nbsp;so&nbsp;that&nbsp;the&nbsp;output&nbsp;will&nbsp;be&nbsp;uniformly&nbsp;newline&nbsp;free.<br>
+&nbsp;<br>
+The&nbsp;unidiff&nbsp;format&nbsp;normally&nbsp;has&nbsp;a&nbsp;header&nbsp;for&nbsp;filenames&nbsp;and&nbsp;modification<br>
+times.&nbsp;&nbsp;Any&nbsp;or&nbsp;all&nbsp;of&nbsp;these&nbsp;may&nbsp;be&nbsp;specified&nbsp;using&nbsp;strings&nbsp;for<br>
+'fromfile',&nbsp;'tofile',&nbsp;'fromfiledate',&nbsp;and&nbsp;'tofiledate'.<br>
+The&nbsp;modification&nbsp;times&nbsp;are&nbsp;normally&nbsp;expressed&nbsp;in&nbsp;the&nbsp;ISO&nbsp;8601&nbsp;format.<br>
+&nbsp;<br>
+Example:<br>
+&nbsp;<br>
+&gt;&gt;&gt;&nbsp;for&nbsp;line&nbsp;in&nbsp;<a href="#-unified_diff">unified_diff</a>('one&nbsp;two&nbsp;three&nbsp;four'.split(),<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'zero&nbsp;one&nbsp;tree&nbsp;four'.split(),&nbsp;'Original',&nbsp;'Current',<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'2005-01-26&nbsp;23:30:50',&nbsp;'2010-04-02&nbsp;10:20:52',<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lineterm=''):<br>
+...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print(line)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;doctest:&nbsp;+NORMALIZE_WHITESPACE<br>
+---&nbsp;Original&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2005-01-26&nbsp;23:30:50<br>
++++&nbsp;Current&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2010-04-02&nbsp;10:20:52<br>
+@@&nbsp;-1,4&nbsp;+1,4&nbsp;@@<br>
++zero<br>
+&nbsp;one<br>
+-two<br>
+-three<br>
++tree<br>
+&nbsp;four</tt></dd></dl>
+</td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#55aa55">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Data</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#55aa55"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><strong>__all__</strong> = ['get_close_matches', 'ndiff', 'restore', 'SequenceMatcher', 'Differ', 'IS_CHARACTER_JUNK', 'IS_LINE_JUNK', 'context_diff', 'unified_diff', 'diff_bytes', 'HtmlDiff', 'Match']</td></tr></table>
+</body></html>
