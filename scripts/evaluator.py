@@ -3,6 +3,9 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from sentence_transformers import SentenceTransformer, util
 from config import HF_MODEL_NAME
+
+from matrics.results_logger import ResultsLogger
+
 """Load Models"""
 LLM_MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.1"
 EMBEDDING_MODEL_NAME = HF_MODEL_NAME
@@ -108,6 +111,100 @@ def sanity_check(original_query, optimized_query):
         "\n\nllm_judgment": llm_judgment,
         "\n\nembedding_judgment": embedding_judgment,
         "\n\nfinal_decision": "Optimized" if llm_judgment == "Optimized" or embedding_judgment else "Original"
+    }
+
+
+def enumerate_top_documents(query, index, embedding_model, top_k=5):
+    """
+    Retrieves and displays top-k documents for the query using embedding similarity.
+    Returns a summary dictionary and logs it to results.
+    """
+    retriever = index.as_retriever()
+    retriever.retrieve_mode = "embedding"
+    retriever.similarity_top_k = top_k
+
+    results = retriever.retrieve(query)
+    logger = ResultsLogger()
+
+    top_docs = []
+    print(f"\n📌 Query: {query}\n")
+
+    for i, node_with_score in enumerate(results):
+        # Try to get the similarity score if present
+        score = node_with_score.score if hasattr(node_with_score, "score") else None
+        # Get the content from the node
+        content = node_with_score.node.get_content()
+
+        print(f"📄 Rank {i + 1}")
+        print(f"🔢 Similarity Score: {score:.4f}" if score is not None else "🔢 Similarity Score: N/A")
+        print(f"🧾 Content Preview:\n{content[:300]}{'...' if len(content) > 300 else ''}")
+        print("-" * 50)
+
+        # Prepare document summary for result dictionary
+        top_docs.append({
+            "rank": i + 1,
+            "score": score,
+            "content": content[:500] + ("...[truncated]" if len(content) > 500 else "")
+        })
+
+    result = {
+        "query": query,
+        "top_documents": top_docs
+    }
+
+    logger.log(result)
+    return result
+
+
+# Hill climbing over top-k retrieved documents to find best answer/context
+def hill_climb_documents(query, index, llm_model, tokenizer, embedding_model, top_k=5, max_tokens=100):
+    """
+    Performs hill climbing over top-k retrieved documents to find the best context for generating an answer.
+    Returns the best answer and its associated score and document.
+    """
+    retriever = index.as_retriever()
+    retriever.retrieve_mode = "embedding"
+    retriever.similarity_top_k = top_k
+
+    results = retriever.retrieve(query)
+
+    best_score = -1.0
+    best_answer = None
+    best_context = None
+
+    for i, node_with_score in enumerate(results):
+        context = node_with_score.node.get_content()
+        prompt = f"Context:\n{context}\n\nQuestion: {query}\nAnswer:"
+
+        device = "mps" if torch.backends.mps.is_available() else "cpu"
+        inputs = tokenizer(prompt, return_tensors="pt").to(device)
+        outputs = llm_model.generate(**inputs, max_new_tokens=max_tokens)
+        answer = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+
+        query_emb = embedding_model.encode(query, convert_to_tensor=True)
+        answer_emb = embedding_model.encode(answer, convert_to_tensor=True)
+        score = util.pytorch_cos_sim(query_emb, answer_emb).item()
+
+        print(f"\n🔎 Candidate #{i + 1}")
+        print(f"📄 Similarity Score: {score:.4f}")
+        print(f"💬 Answer:\n{answer}")
+        print("-" * 50)
+
+        if score > best_score:
+            best_score = score
+            best_answer = answer
+            best_context = context
+
+    print("\n✅ Best Answer Selected:")
+    print(f"📊 Similarity Score: {best_score:.4f}")
+    print(f"🧾 Context Preview:\n{best_context[:300]}{'...' if len(best_context) > 300 else ''}")
+    print(f"💬 Answer: {best_answer}")
+
+    return {
+        "query": query,
+        "answer": best_answer,
+        "score": best_score,
+        "context": best_context
     }
 
 

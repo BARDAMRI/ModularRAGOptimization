@@ -4,20 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="import subprocess&#10;import os&#10;&#10;def download_llamaindex_docs(destination_folder=&quot;llamaindex_docs&quot;):&#10;    &quot;&quot;&quot;&#10;    Downloads the LlamaIndex documentation locally for offline use.&#10;    &quot;&quot;&quot;&#10;    url = &quot;https://docs.llamaindex.ai/en/stable/&quot;&#10;    os.makedirs(destination_folder, exist_ok=True)&#10;    command = [&#10;        &quot;wget&quot;,&#10;        &quot;--mirror&quot;,&#10;        &quot;--convert-links&quot;,&#10;        &quot;--adjust-extension&quot;,&#10;        &quot;--page-requisites&quot;,&#10;        &quot;--no-parent&quot;,&#10;        &quot;--directory-prefix&quot;, destination_folder,&#10;        url&#10;    ]&#10;&#10;    print(f&quot;Downloading LlamaIndex documentation into '{destination_folder}'...&quot;)&#10;    subprocess.run(command)&#10;    print(f&quot;Download complete! You can browse the docs offline from '{destination_folder}'.&quot;)&#10;&#10;if __name__ == &quot;__main__&quot;:&#10;    download_llamaindex_docs()">
-      <change afterPath="$PROJECT_DIR$/docsDownloader.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/hts-nohup.out" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules documentations/difflib.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules documentations/llama_index.core.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules documentations/llama_index.core.postprocessor.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules documentations/llama_index.embeddings.huggingface.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules documentations/llama_index.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules documentations/modules.indexer.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules documentations/modules.model_loader.html" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules documentations/modules.query.html" afterDir="false" />
+    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="docs for llama index">
+      <change afterPath="$PROJECT_DIR$/matrics/analyze_results.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/matrics/results_logger.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/results/outputs.jsonl" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/config.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/query.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/query.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/indexer.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/indexer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/evaluator.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/evaluator.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -73,7 +68,7 @@
       <recent name="$PROJECT_DIR$/data" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.docsDownloader">
+  <component name="RunManager" selected="Python.main">
     <configuration name="docsDownloader" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
@@ -456,7 +451,15 @@
       <option name="project" value="LOCAL" />
       <updated>1745163724309</updated>
     </task>
-    <option name="localTasksCounter" value="29" />
+    <task id="LOCAL-00029" summary="docs for llama index">
+      <option name="closed" value="true" />
+      <created>1746164686002</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1746164686002</updated>
+    </task>
+    <option name="localTasksCounter" value="30" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -487,14 +490,15 @@
     <MESSAGE value="moving constants into config." />
     <MESSAGE value="replacing the corpus with wikipedia" />
     <MESSAGE value="removing the tensors from the ignore list" />
-    <option name="LAST_COMMIT_MESSAGE" value="removing the tensors from the ignore list" />
+    <MESSAGE value="docs for llama index" />
+    <option name="LAST_COMMIT_MESSAGE" value="docs for llama index" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/scripts/evaluator.py</url>
-          <line>99</line>
+          <line>102</line>
           <option name="timeStamp" value="2" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -516,16 +520,6 @@
           <url>file://$PROJECT_DIR$/modules/query.py</url>
           <line>102</line>
           <option name="timeStamp" value="34" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/main.py</url>
-          <line>37</line>
-          <option name="timeStamp" value="36" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/main.py</url>
-          <line>39</line>
-          <option name="timeStamp" value="37" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/modules/query.py</url>

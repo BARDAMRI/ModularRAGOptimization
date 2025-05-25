@@ -16,7 +16,9 @@ QUALITY_THRESHOLD = 0.7
 RETRIEVER_TOP_K = 2
 SIMILARITY_CUTOFF = 0.85
 MAX_NEW_TOKENS = 64  # For a fuller sentence or paragraph should be set here to 128 short factual answers
+NQ_SAMPLE_SIZE = 5
 
 DEFAULT_HF_DATASET = "wikipedia"
 DEFAULT_HF_CONFIG = "20220301.en"
 INDEX_SOURCE_URL = "wikipedia:20220301.en"
+

@@ -72,7 +72,7 @@ def load_index(source="local", source_path=None):
         documents = SimpleDirectoryReader(corpus_dir).load_data()
         index = GPTVectorStoreIndex.from_documents(documents, embed_model=embed_model)
         index.storage_context.persist(persist_dir=storage_dir)
-        print(f"Indexed and saved new corpus from URL to {storage_dir}.")
+        print(f"✅ Indexed {len(documents)} documents and saved to {storage_dir}.")
         return index
 
     else:  # "local"
