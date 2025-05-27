@@ -3,8 +3,8 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from sentence_transformers import SentenceTransformer, util
 from config import HF_MODEL_NAME
-
-from matrics.results_logger import ResultsLogger
+from datetime import datetime
+from matrics.results_logger import ResultsLogger, plot_score_distribution
 
 """Load Models"""
 LLM_MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.1"
@@ -114,17 +114,25 @@ def sanity_check(original_query, optimized_query):
     }
 
 
-def enumerate_top_documents(query, index, embedding_model, top_k=5):
+def enumerate_top_documents(i, num, query, index, embedding_model, top_k=5):
     """
     Retrieves and displays top-k documents for the query using embedding similarity.
     Returns a summary dictionary and logs it to results.
     """
+    print(f"\n🔍 Starting enumerating for query #{i + 1} of {num}: {query}")
     retriever = index.as_retriever()
     retriever.retrieve_mode = "embedding"
     retriever.similarity_top_k = top_k
 
     results = retriever.retrieve(query)
     logger = ResultsLogger()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename_parts = ["results", "enumerate"]
+    if top_k:
+        filename_parts.append(f"top{top_k}")
+    filename_parts.append(timestamp)
+    name = "_".join(filename_parts)
+    plot_score_distribution(name)
 
     top_docs = []
     print(f"\n📌 Query: {query}\n")
@@ -157,11 +165,12 @@ def enumerate_top_documents(query, index, embedding_model, top_k=5):
 
 
 # Hill climbing over top-k retrieved documents to find best answer/context
-def hill_climb_documents(query, index, llm_model, tokenizer, embedding_model, top_k=5, max_tokens=100):
+def hill_climb_documents(i, num, query, index, llm_model, tokenizer, embedding_model, top_k=5, max_tokens=100):
     """
     Performs hill climbing over top-k retrieved documents to find the best context for generating an answer.
     Returns the best answer and its associated score and document.
     """
+    print(f"\n🔍 Starting hill climbing for query #{i + 1} of {num}: {query}")
     retriever = index.as_retriever()
     retriever.retrieve_mode = "embedding"
     retriever.similarity_top_k = top_k
@@ -181,8 +190,8 @@ def hill_climb_documents(query, index, llm_model, tokenizer, embedding_model, to
         outputs = llm_model.generate(**inputs, max_new_tokens=max_tokens)
         answer = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
 
-        query_emb = embedding_model.encode(query, convert_to_tensor=True)
-        answer_emb = embedding_model.encode(answer, convert_to_tensor=True)
+        query_emb = torch.tensor(embedding_model.get_text_embedding(query))
+        answer_emb = torch.tensor(embedding_model.get_text_embedding(answer))
         score = util.pytorch_cos_sim(query_emb, answer_emb).item()
 
         print(f"\n🔎 Candidate #{i + 1}")

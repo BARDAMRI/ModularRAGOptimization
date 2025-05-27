@@ -15,7 +15,10 @@ from matrics.results_logger import ResultsLogger, plot_score_distribution
 
 # Flushes any accidental keyboard input from the terminal buffer before reading input
 def flush_input():
-    termios.tcflush(sys.stdin, termios.TCIFLUSH)
+    try:
+        termios.tcflush(sys.stdin, termios.TCIFLUSH)
+    except Exception as e:
+        print(f"\n> Error received during input flush: {e} ")
 
 
 def run_query_evaluation():
@@ -55,11 +58,13 @@ def run_query_evaluation():
                 print(f"\n🔍 Running for NQ Query #{i + 1}: {query}")
 
                 if mode_choice == "h":
-                    result = hill_climb_documents(query, index, model, tokenizer, embedding_model, top_k=5)
+                    result = hill_climb_documents(i, NQ_SAMPLE_SIZE, query, index, model, tokenizer, embedding_model, top_k=5)
                     logger.log(result)
-                else:
-                    result = enumerate_top_documents(query, index, embedding_model, top_k=5)
+                elif mode_choice == "e":
+                    result = enumerate_top_documents(i, NQ_SAMPLE_SIZE, query, index, embedding_model, top_k=5)
                     logger.log(result)
+            else:
+                print("\n> Invalid input received...")
         return
     else:
         print("\n> Ask anything you want!\nType 'exit' to stop.")
@@ -81,8 +86,8 @@ def run_analysis():
     from matrics.results_logger import ResultsLogger, plot_score_distribution
 
     logger = ResultsLogger()
-    logger.summarize_scores()            # Print average, min, max
-    plot_score_distribution()            # Show histogram of score distribution
+    logger.summarize_scores()  # Print average, min, max
+    plot_score_distribution()  # Show histogram of score distribution
 
 
 if __name__ == "__main__":
