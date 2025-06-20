@@ -1,8 +1,8 @@
+# main.py
 from modules.model_loader import load_model
 from modules.query import query_model
-from modules.indexer import load_index
-import torch
-from config import DEVICE_TYPE_MPS, DEVICE_TYPE_CPU, INDEX_SOURCE_URL
+from modules.indexer import load_vector_db
+from config import INDEX_SOURCE_URL
 import sys
 import termios
 from scripts.evaluator import enumerate_top_documents
@@ -11,10 +11,53 @@ import os
 import json
 from config import NQ_SAMPLE_SIZE
 from matrics.results_logger import ResultsLogger, plot_score_distribution
+import torch
+from sentence_transformers import SentenceTransformer
+from utility.logger import logger  # Import logger from utility/logger.py
+
+tokenizer, model = load_model()
 
 
-# Flushes any accidental keyboard input from the terminal buffer before reading input
+def profile_gpu():
+    """
+    Profiles GPU utilization and memory usage.
+    """
+    if torch.cuda.is_available():
+        print("\n> GPU Utilization:")
+        print(torch.cuda.memory_summary(device="cuda"))
+    else:
+        print("\n> No GPU detected.")
+
+
+def check_device():
+    """
+    Checks and prints the available device for PyTorch (MPS, CUDA, or CPU).
+    """
+    if torch.backends.mps.is_available():
+        print("MPS backend is available. Using MPS for acceleration.")
+        return "mps"
+    elif torch.cuda.is_available():
+        print("CUDA backend is available. Using CUDA for acceleration.")
+        return "cuda"
+    else:
+        print("No GPU detected. Using CPU.")
+        return "cpu"
+
+
+# Example usage:
+device = check_device()
+
+
 def flush_input():
+    """
+    Flushes accidental keyboard input from the terminal buffer before reading input.
+
+    This function ensures that any unintended input in the terminal buffer is cleared
+    to avoid interference with subsequent user input.
+
+    Raises:
+        Exception: If an error occurs during the flush operation.
+    """
     try:
         termios.tcflush(sys.stdin, termios.TCIFLUSH)
     except Exception as e:
@@ -22,19 +65,13 @@ def flush_input():
 
 
 def run_query_evaluation():
-    # Load the tokenizer and LLM model (e.g., LLaMA) from safetensors
-    tokenizer, model = load_model()
-    device = DEVICE_TYPE_MPS if torch.backends.mps.is_available() else DEVICE_TYPE_CPU
+    logger.info("Starting query evaluation...")
+    profile_gpu()
 
-    print("\n> Warming up the model")
-    _ = model.generate(
-        **tokenizer("Warmup", return_tensors="pt").to(device),
-        max_new_tokens=1,
-        pad_token_id=tokenizer.eos_token_id
-    )
+    logger.info("Loading external Vector DB...")
+    vector_db = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
 
-    print("\n> Loading external Vector DB ")
-    index = load_index(source="url", source_path=INDEX_SOURCE_URL)
+    profile_gpu()
 
     run_mode = input("\n🛠️ Run in enumeration mode? (y/n): ").strip().lower()
     if run_mode == "y":
@@ -42,11 +79,11 @@ def run_query_evaluation():
 
         mode_choice = input("\n🧪 Select mode: (e)numeration / (h)ill climbing: ").strip().lower()
         embedding_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-mpnet-base-v2")
-        logger = ResultsLogger(top_k=5, mode="hill" if mode_choice == "h" else "enum")
+        results_logger = ResultsLogger(top_k=5, mode="hill" if mode_choice == "h" else "enum")
         nq_file_path = "data/user_query_datasets/natural-questions-master/nq_open/NQ-open.dev.jsonl"
 
         if not os.path.exists(nq_file_path):
-            print(f"❌ NQ file not found at: {nq_file_path}")
+            logger.error(f"NQ file not found at: {nq_file_path}")
             return
 
         with open(nq_file_path, "r") as f:
@@ -55,42 +92,51 @@ def run_query_evaluation():
                     break
                 data = json.loads(line)
                 query = data.get("question")
-                print(f"\n🔍 Running for NQ Query #{i + 1}: {query}")
+                logger.info(f"Running for NQ Query #{i + 1}: {query}")
 
                 if mode_choice == "h":
-                    result = hill_climb_documents(i, NQ_SAMPLE_SIZE, query, index, model, tokenizer, embedding_model, top_k=5)
-                    logger.log(result)
+                    embedding_model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
+                    result = hill_climb_documents(i, NQ_SAMPLE_SIZE, query, vector_db, model, tokenizer,
+                                                  embedding_model, top_k=5)
+                    results_logger.log(result)
                 elif mode_choice == "e":
-                    result = enumerate_top_documents(i, NQ_SAMPLE_SIZE, query, index, embedding_model, top_k=5)
-                    logger.log(result)
-            else:
-                print("\n> Invalid input received...")
+                    result = enumerate_top_documents(i, NQ_SAMPLE_SIZE, query, vector_db, embedding_model, top_k=5)
+                    results_logger.log(result)
+
+                profile_gpu()
         return
     else:
-        print("\n> Ask anything you want!\nType 'exit' to stop.")
+        logger.info("Entering interactive query mode...")
         while True:
             flush_input()
             user_prompt = input("\n💬 Enter your query: ")
             if user_prompt.lower() == "exit":
-                print("> Exiting. Have a great day!")
+                logger.info("Exiting application.")
                 break
 
-            result = query_model(user_prompt, model, tokenizer, device, index)
+            result = query_model(user_prompt, model, tokenizer, device, vector_db, max_retries=3, quality_threshold=0.5)
             if result["error"]:
-                print(f"\n⚠️ Error: {result['error']}")
+                logger.error(f"Error: {result['error']}")
             else:
-                print(f"\nQuestion: {result['question']}\nAnswer: {result['answer'].strip()}")
+                logger.info(f"Question: {result['question']}, Answer: {result['answer'].strip()}")
+
+            profile_gpu()
 
 
 def run_analysis():
-    from matrics.results_logger import ResultsLogger, plot_score_distribution
+    """
+    Runs analysis on logged results, summarizing scores and plotting score distributions.
 
-    logger = ResultsLogger()
-    logger.summarize_scores()  # Print average, min, max
+    This function is triggered when the script is run with the `--analyze` argument.
+    """
+    logger.info("Running analysis on logged results...")
+    logger_instance = ResultsLogger()
+    logger_instance.summarize_scores()  # Print average, min, max
     plot_score_distribution()  # Show histogram of score distribution
 
 
 if __name__ == "__main__":
+    logger.info("Application started.")
     if "--analyze" in sys.argv:
         run_analysis()
     else:

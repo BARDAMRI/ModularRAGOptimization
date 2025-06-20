@@ -29,36 +29,6 @@
   ]
 }
 {
-  "query": "when was the last time anyone was on the moon",
-  "top_documents": [
-    {
-      "rank": 1,
-      "score": 0.5921079411734298,
-      "content": "Apollo 11 (July 16–24, 1969) was the American spaceflight that first landed humans on the Moon. Commander Neil Armstrong and lunar module pilot Buzz Aldrin landed the Apollo Lunar Module Eagle on July 20, 1969, at 20:17 UTC, and Armstrong became the first person to step onto the Moon's surface six hours and 39 minutes later, on July 21 at 02:56 UTC. Aldrin joined him 19 minutes later, and they spent about two and a quarter hours together exploring the site they had named Tranquility Base upon la...[truncated]"
-    },
-    {
-      "rank": 2,
-      "score": 0.5455086009095039,
-      "content": "Apollo 15 (July 26August 7, 1971) was the ninth crewed mission in the United States' Apollo program and the fourth to land on the Moon. It was the first J mission, with a longer stay on the Moon and a greater focus on science than earlier landings. Apollo 15 saw the first use of the Lunar Roving Vehicle.\n\nThe mission began on July 26 and ended on August 7, with the lunar surface exploration taking place between July 30 and August 2. Commander David Scott and Lunar Module Pilot James Irwin landed...[truncated]"
-    },
-    {
-      "rank": 3,
-      "score": 0.5416421054931484,
-      "content": "Apollo 8 (December 21–27, 1968) was the first crewed spacecraft to leave low Earth orbit, and also the first human spaceflight to reach another astronomical object, namely the Moon, which the crew orbited without landing, and then departed safely back to Earth. These three astronauts—Frank Borman, James Lovell, and William Anders—were the first humans to witness and photograph an Earthrise.\n\nApollo 8 launched on December 21, 1968, and was the second crewed spaceflight mission flown in the United...[truncated]"
-    },
-    {
-      "rank": 4,
-      "score": 0.5310816564862003,
-      "content": "The Apollo program, also known as Project Apollo, was the third United States human spaceflight program carried out by the National Aeronautics and Space Administration (NASA), which succeeded in preparing and landing the first humans on the Moon from 1968 to 1972. It was first conceived during Dwight D. Eisenhower's administration as a three-person spacecraft to follow the one-person Project Mercury, which put the first Americans in space. Apollo was later dedicated to President John F. Kennedy...[truncated]"
-    },
-    {
-      "rank": 5,
-      "score": 0.5304715136673205,
-      "content": "Apollo 14 (January 31, 1971February 9, 1971) was the eighth crewed mission in the United States Apollo program, the third to land on the Moon, and the first to land in the lunar highlands. It was the last of the \"H missions\", landings at specific sites of scientific interest on the Moon for two-day stays with two lunar extravehicular activities (EVAs or moonwalks).\n\nThe mission was originally scheduled for 1970, but was postponed because of the investigation following the failure of Apollo 13 to...[truncated]"
-    }
-  ]
-}
-{
   "query": "who wrote he ain't heavy he's my brother lyrics",
   "top_documents": [
     {
