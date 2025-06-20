@@ -3,32 +3,10 @@ from typing import Tuple, Union
 import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizer, PreTrainedModel, AutoModelForCausalLM
-from sentence_transformers import SentenceTransformer, util
+from sentence_transformers import SentenceTransformer
 from config import HF_MODEL_NAME, LLM_MODEL_NAME
-from datetime import datetime
-from matrics.results_logger import ResultsLogger, plot_score_distribution
 from modules.query import retrieve_context
-from utility.logger import logger  # Import logger from utility/logger.py
-from utility.embedding_calculations import get_text_embedding, calculate_cosine_similarity
-
-
-def llm_query_processing(query, llm_model, embedding_model):
-    """
-    Process query using LLM with consistent embedding logic.
-
-    Args:
-        query (str): The input query to process.
-        llm_model: The language model used for processing the query.
-        embedding_model: The embedding model used to generate query embeddings.
-
-    Returns:
-        The result of processing the query using the LLM.
-    """
-    logger.info(f"Processing query with LLM: {query}")
-    query_vector = get_text_embedding(query, embedding_model)  # Generate embedding for the query
-    result = llm_model.process_query(query_vector)  # Process the query embedding using the LLM
-    logger.info(f"LLM processing result: {result}")
-    return result
+from utility.logger import logger
 
 
 def load_llm() -> Tuple[PreTrainedTokenizer, Union[PreTrainedModel, AutoModelForCausalLM]]:
@@ -94,7 +72,7 @@ def run_llm_query(query: str, tokenizer: PreTrainedTokenizer,
     return result
 
 
-def sanity_check(user_query, optimized_user_query, vector_db, vector_query=None, convert_to_vector=False):
+def sanity_check(user_query, optimized_user_query, vector_db, vector_query=None):
     """
     Perform a sanity check for query optimization.
 
@@ -103,7 +81,6 @@ def sanity_check(user_query, optimized_user_query, vector_db, vector_query=None,
         optimized_user_query (str): The optimized user query.
         vector_db: The vector database instance.
         vector_query: Optional vector representation of the query.
-        convert_to_vector (bool): Whether to convert the query to a vector.
 
     Returns:
         dict: Results of the sanity check.
@@ -116,13 +93,11 @@ def sanity_check(user_query, optimized_user_query, vector_db, vector_query=None,
         query=vector_query if not convert_to_vector else user_query,
         vector_db=vector_db,
         embed_model=HuggingFaceEmbedding(model_name="sentence-transformers/all-mpnet-base-v2"),
-        convert_to_vector=convert_to_vector
     )
     opt_answer = run_llm_query(optimized_user_query, tokenizer, model) if vector_query is None else retrieve_context(
         query=vector_query if not convert_to_vector else optimized_user_query,
         vector_db=vector_db,
         embed_model=HuggingFaceEmbedding(model_name="sentence-transformers/all-mpnet-base-v2"),
-        convert_to_vector=convert_to_vector
     )
 
     embedding_judgment = compare_answers_with_embeddings(user_query, orig_answer, opt_answer)
@@ -147,45 +122,6 @@ def sanity_check(user_query, optimized_user_query, vector_db, vector_query=None,
         "embedding_judgment": embedding_judgment,
         "final_decision": "Optimized" if llm_judgment == "Optimized" or embedding_judgment == "Optimized" else "Original"
     }
-
-
-def vectordb_query_processing(query, vector_db, embedding_model):
-    """
-    Process query using VectorDB with consistent embedding logic.
-
-    Args:
-        query (str): The input query to process.
-        vector_db: The vector database instance.
-        embedding_model: The embedding model used to generate query embeddings.
-
-    Returns:
-        list: Search results from the vector database.
-    """
-    logger.info(f"Processing query with VectorDB: {query}")
-    query_vector = get_text_embedding(query, embedding_model)  # Generate embedding for the query
-    results = vector_db.search(query_vector)  # Perform search in the vector database
-    logger.info(f"VectorDB search results: {results}")
-    return results
-
-
-def evaluate_similarity(query, document, embedding_model):
-    """
-    Evaluate cosine similarity between query and document embeddings.
-
-    Args:
-        query (str): The input query.
-        document (str): The document to compare against.
-        embedding_model: The embedding model used to generate embeddings.
-
-    Returns:
-        float: The cosine similarity score between the query and the document.
-    """
-    logger.info(f"Evaluating similarity between query and document.")
-    query_vector = get_text_embedding(query, embedding_model)  # Generate embedding for the query
-    document_vector = get_text_embedding(document, embedding_model)  # Generate embedding for the document
-    similarity_score = calculate_cosine_similarity(query_vector, document_vector)  # Calculate cosine similarity
-    logger.info(f"Cosine similarity score: {similarity_score}")
-    return similarity_score
 
 
 def enumerate_top_documents(i, num, query, index, embedding_model, top_k=5, convert_to_vector=False):

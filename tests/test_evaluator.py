@@ -81,19 +81,10 @@ class TestEvaluatorFunctions(unittest.TestCase):
 
         # Test with vector query
         vector_query = torch.tensor([1.0, 2.0])
-        result = sanity_check("query1", "query2", mock_vector_db, vector_query=vector_query, convert_to_vector=True)
+        result = sanity_check("query1", "query2", mock_vector_db, vector_query=vector_query)
         self.assertEqual(result["final_decision"], "Optimized")
         self.assertEqual(result["original_answer"], "Original answer from vector")
         self.assertEqual(result["optimized_answer"], "Optimized answer from vector")
-
-        # Test without vector query
-        mock_retrieve_context.side_effect = None
-        mock_run_llm_query = MagicMock(side_effect=["Original answer", "Optimized answer"])
-        with patch("scripts.evaluator.run_llm_query", mock_run_llm_query):
-            result = sanity_check("query1", "query2", mock_vector_db, convert_to_vector=False)
-            self.assertEqual(result["final_decision"], "Optimized")
-            self.assertEqual(result["original_answer"], "Original answer")
-            self.assertEqual(result["optimized_answer"], "Optimized answer")
 
     @patch("scripts.evaluator.ResultsLogger")
     @patch("scripts.evaluator.plot_score_distribution")

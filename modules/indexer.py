@@ -123,7 +123,8 @@ def download_and_save_from_url(url: str, target_dir: str) -> None:
     logger.info(f"Downloaded and saved corpus to {file_path}")
 
 
-def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> VectorStoreIndex:
+def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> (
+        VectorStoreIndex, HuggingFaceEmbedding):
     """
     Loads or creates a vector database for document retrieval with optimized embedding model caching.
 
@@ -137,9 +138,8 @@ def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> 
     logger.info(f"Loading vector database from source: {source}, source_path: {source_path}")
     if not hasattr(load_vector_db, "_embed_model"):
         load_vector_db._embed_model = HuggingFaceEmbedding(model_name=HF_MODEL_NAME)
-    embed_model = load_vector_db._embed_model
-    Settings.embed_model = embed_model
-
+    embedding_model = load_vector_db._embed_model
+    Settings.embed_model = embedding_model
     if source == "url":
         if source_path is None:
             logger.error("source_path must be provided for 'url' source.")
@@ -161,29 +161,29 @@ def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> 
         if os.path.exists(storage_dir):
             logger.info(f"Loading existing vector database from {storage_dir}...")
             storage_context = StorageContext.from_defaults(persist_dir=storage_dir)
-            vector_db = load_index_from_storage(storage_context, embed_model=embed_model)
+            vector_db = load_index_from_storage(storage_context, embed_model=embedding_model)
             logger.info(f"Loaded existing vector database for '{corpus_name}' from {storage_dir}.")
-            return vector_db
+            return vector_db, embedding_model
 
         logger.info(f"Indexing documents from {corpus_dir}...")
         documents = SimpleDirectoryReader(corpus_dir).load_data()
-        vector_db = GPTVectorStoreIndex.from_documents(documents, embed_model=embed_model)
+        vector_db = GPTVectorStoreIndex.from_documents(documents, embed_model=embedding_model)
         vector_db.storage_context.persist(persist_dir=storage_dir)
         logger.info(f"Indexed {len(documents)} documents and saved to {storage_dir}.")
-        return vector_db
+        return vector_db, embedding_model
 
     else:
         storage_dir = "storage"
         if os.path.exists(storage_dir):
             logger.info("Loading existing local vector database from 'storage/'.")
             storage_context = StorageContext.from_defaults(persist_dir=storage_dir)
-            vector_db = load_index_from_storage(storage_context, embed_model=embed_model)
+            vector_db = load_index_from_storage(storage_context, embed_model=embedding_model)
             logger.info("Loaded existing local vector database from 'storage/'.")
-            return vector_db
+            return vector_db, embedding_model
 
         logger.info("Indexing documents from local data path...")
         documents = SimpleDirectoryReader(DATA_PATH).load_data()
-        vector_db = GPTVectorStoreIndex.from_documents(documents, embed_model=embed_model)
+        vector_db = GPTVectorStoreIndex.from_documents(documents, embed_model=embedding_model)
         vector_db.storage_context.persist(persist_dir=storage_dir)
         logger.info("Indexed and saved new local corpus to 'storage/'.")
-        return vector_db
+        return vector_db, embedding_model

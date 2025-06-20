@@ -6,7 +6,6 @@ from config import INDEX_SOURCE_URL
 import sys
 import termios
 from scripts.evaluator import enumerate_top_documents
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 import os
 import json
 from config import NQ_SAMPLE_SIZE
@@ -69,7 +68,7 @@ def run_query_evaluation():
     profile_gpu()
 
     logger.info("Loading external Vector DB...")
-    vector_db = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
+    vector_db, embedding_model = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
 
     profile_gpu()
 
@@ -78,7 +77,6 @@ def run_query_evaluation():
         from scripts.evaluator import hill_climb_documents
 
         mode_choice = input("\n🧪 Select mode: (e)numeration / (h)ill climbing: ").strip().lower()
-        embedding_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-mpnet-base-v2")
         results_logger = ResultsLogger(top_k=5, mode="hill" if mode_choice == "h" else "enum")
         nq_file_path = "data/user_query_datasets/natural-questions-master/nq_open/NQ-open.dev.jsonl"
 
@@ -95,7 +93,6 @@ def run_query_evaluation():
                 logger.info(f"Running for NQ Query #{i + 1}: {query}")
 
                 if mode_choice == "h":
-                    embedding_model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
                     result = hill_climb_documents(i, NQ_SAMPLE_SIZE, query, vector_db, model, tokenizer,
                                                   embedding_model, top_k=5)
                     results_logger.log(result)
@@ -114,7 +111,7 @@ def run_query_evaluation():
                 logger.info("Exiting application.")
                 break
 
-            result = query_model(user_prompt, model, tokenizer, device, vector_db, max_retries=3, quality_threshold=0.5)
+            result = query_model(user_prompt, model, tokenizer, device, vector_db, embedding_model, max_retries=3, quality_threshold=0.5)
             if result["error"]:
                 logger.error(f"Error: {result['error']}")
             else:

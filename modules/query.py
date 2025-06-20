@@ -5,26 +5,11 @@ from typing import Union, Optional, List, Dict
 from llama_index.core import VectorStoreIndex
 import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from llama_index.core import Settings
 import heapq
-from difflib import SequenceMatcher
-
 from transformers import AutoModelForCausalLM, GPT2TokenizerFast
-
 from config import MAX_RETRIES, QUALITY_THRESHOLD, MAX_NEW_TOKENS
-from utility.embedding_calculations import get_text_embedding
+from utility.embedding_utils import convert_text_into_vector
 from utility.logger import logger  # Import logger
-
-
-def score_similarity(text: str, query: Union[str, np.ndarray]) -> float:
-    logger.info("Calculating similarity score between text and query.")
-    if isinstance(query, str):
-        score = SequenceMatcher(None, text.lower(), query.lower()).ratio()
-        logger.info(f"Similarity score calculated: {score}")
-        return score
-    else:
-        logger.error("score_similarity only supports string queries, not vectors.")
-        raise TypeError("score_similarity only supports string queries, not vectors.")
 
 
 def vector_similarity(vector1: np.ndarray, vector2: np.ndarray) -> float:
@@ -37,7 +22,7 @@ def vector_similarity(vector1: np.ndarray, vector2: np.ndarray) -> float:
 @lru_cache(maxsize=1000)
 def get_cached_embedding(text: str, embed_model: HuggingFaceEmbedding) -> np.ndarray:
     logger.info(f"Retrieving cached embedding for text: {text[:30]}...")
-    embedding = get_text_embedding(text, embed_model)
+    embedding = convert_text_into_vector(text, embed_model)
     logger.info("Cached embedding retrieved successfully.")
     return embedding
 
@@ -45,10 +30,9 @@ def get_cached_embedding(text: str, embed_model: HuggingFaceEmbedding) -> np.nda
 def retrieve_context(
         query: Union[str, np.ndarray],
         vector_db: VectorStoreIndex,
-        embed_model: Optional[HuggingFaceEmbedding] = None,
+        embed_model: HuggingFaceEmbedding,
         top_k: int = 5,
         similarity_cutoff: float = 0.5,
-        convert_to_vector: bool = False
 ) -> str:
     logger.info("Retrieving context for the query.")
     if not isinstance(query, (str, np.ndarray)):
@@ -60,18 +44,17 @@ def retrieve_context(
     logger.info(f"Retrieved {len(nodes)} nodes from vector database.")
 
     query_vector: Optional[np.ndarray] = None
-    if isinstance(query, str) and convert_to_vector:
+    if isinstance(query, str):
         if embed_model is None:
             logger.error("embed_model is required for converting string queries to vectors.")
             raise ValueError("embed_model is required for converting string queries to vectors.")
-        query_vector = get_text_embedding(query, embed_model)
+        query_vector = convert_text_into_vector(query, embed_model)
     elif isinstance(query, np.ndarray):
         query_vector = query
 
     contents: List[str] = [node.get_content() for node in nodes]
-    document_embeddings: Optional[np.ndarray] = None
-    if convert_to_vector:
-        document_embeddings = np.array([get_cached_embedding(content, embed_model) for content in contents])
+    document_embeddings: Optional[np.ndarray] = np.array(
+        [get_cached_embedding(content, embed_model) for content in contents])
 
     similarity_scores: Union[np.ndarray, List[float]]
     if query_vector is not None and document_embeddings is not None:
@@ -79,7 +62,8 @@ def retrieve_context(
                 np.linalg.norm(document_embeddings, axis=1) * np.linalg.norm(query_vector)
         )
     else:
-        similarity_scores = [score_similarity(content, query) for content in contents]
+        logger.warn("Query vector or document embeddings are None, cannot continue the retrieval operation.")
+        return ''
 
     scored_nodes = zip(similarity_scores, contents)
     top_nodes = heapq.nlargest(top_k, scored_nodes, key=lambda x: x[0])
@@ -134,13 +118,12 @@ def query_model(
         tokenizer: GPT2TokenizerFast,
         device: torch.device,
         vector_db: Optional[VectorStoreIndex] = None,
+        embedding_model: Optional[HuggingFaceEmbedding] = None,
         max_retries: int = MAX_RETRIES,
         quality_threshold: float = QUALITY_THRESHOLD
 ) -> Dict[str, Union[str, float, int, None]]:
     logger.info("Starting query process with the model.")
     try:
-        embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        Settings.embed_model = embed_model
 
         answer: str = ""
         score: float = 0.0
@@ -150,7 +133,7 @@ def query_model(
         while attempt <= max_retries:
             try:
                 if vector_db is not None:
-                    retrieved_context = retrieve_context(current_prompt, vector_db)
+                    retrieved_context = retrieve_context(current_prompt, vector_db, embedding_model)
                     augmented_prompt = f"Context: {retrieved_context}\n\nQuestion: {current_prompt}\nAnswer:"
                 else:
                     augmented_prompt = current_prompt
