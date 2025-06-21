@@ -3,6 +3,31 @@ from config import INDEX_SOURCE_URL
 from modules.indexer import load_vector_db
 from llama_index.core import VectorStoreIndex
 
+# ============== Getting the type of the vector_db. ============
+
+from llama_index.core.indices.base import BaseIndex
+from config import INDEX_SOURCE_URL
+from modules.indexer import load_vector_db
+from llama_index.core import VectorStoreIndex
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+
+# ============ Getting the type of the vector_db. ============
+vector_db, embedding_space = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
+print(type(vector_db))  # Prints the type of vector_db
+
+# Example: Using isinstance() to check if it's a specific type
+if isinstance(vector_db, VectorStoreIndex):
+    print("vector_db is a VectorStoreIndex")
+    print(type(vector_db.vector_store))  # Prints the type of the vector store
+elif isinstance(vector_db, BaseIndex):
+    print("vector_db is a BaseIndex")
+else:
+    print(f"Unknown type: {type(vector_db)}")
+
+# Example: Using dir() to inspect the object
+print(dir(vector_db))  # Lists all attributes and methods of vector_db
+
 # ============ Getting the type of the tokenizer.============
 
 
