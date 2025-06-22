@@ -4,25 +4,18 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="setting the cosine similarity to be the similarity method">
-      <change afterPath="$PROJECT_DIR$/classes/EmbeddingVectorStoreIndex.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/logger.log" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/query_test_similarity.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/storage/wikipedia_20220301.en/default__vector_store.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/storage/wikipedia_20220301.en/docstore.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/storage/wikipedia_20220301.en/graph_store.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/storage/wikipedia_20220301.en/image__vector_store.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/storage/wikipedia_20220301.en/index_store.json" afterDir="false" />
+    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="making sure the similarity function and the vector conversion function are same as the VectorStoreIndex">
+      <change afterPath="$PROJECT_DIR$/storage/wikipedia_20220301.en/default__vector_store.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/storage/wikipedia_20220301.en/docstore.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/storage/wikipedia_20220301.en/graph_store.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/storage/wikipedia_20220301.en/image__vector_store.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/storage/wikipedia_20220301.en/index_store.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/indexer.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/indexer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/query.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/query.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/storage/wikipedia_20220301.en/default__vector_store.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/storage/wikipedia_20220301.en/docstore.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/storage/wikipedia_20220301.en/graph_store.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/storage/wikipedia_20220301.en/image__vector_store.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/storage/wikipedia_20220301.en/index_store.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/logger.log" beforeDir="false" afterPath="$PROJECT_DIR$/tests/logger.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utility/embedding_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/embedding_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/logger.log" beforeDir="false" afterPath="$PROJECT_DIR$/logger.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/model_loader.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/model_loader.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/query_test_similarity.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/query_test_similarity.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -414,7 +407,15 @@
       <option name="project" value="LOCAL" />
       <updated>1750488136063</updated>
     </task>
-    <option name="localTasksCounter" value="35" />
+    <task id="LOCAL-00035" summary="making sure the similarity function and the vector conversion function are same as the VectorStoreIndex">
+      <option name="closed" value="true" />
+      <created>1750576544469</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1750576544469</updated>
+    </task>
+    <option name="localTasksCounter" value="36" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -451,7 +452,8 @@
     <MESSAGE value="starting with the mission to use the vector db embedding space." />
     <MESSAGE value="adding the embedding model as an argument" />
     <MESSAGE value="setting the cosine similarity to be the similarity method" />
-    <option name="LAST_COMMIT_MESSAGE" value="setting the cosine similarity to be the similarity method" />
+    <MESSAGE value="making sure the similarity function and the vector conversion function are same as the VectorStoreIndex" />
+    <option name="LAST_COMMIT_MESSAGE" value="making sure the similarity function and the vector conversion function are same as the VectorStoreIndex" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

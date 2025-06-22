@@ -13,8 +13,6 @@ def normalize(v):
     return v / np.linalg.norm(v) if np.linalg.norm(v) != 0 else v
 
 
-
-
 # Load the vector database and embedding model
 vector_db, embedding_model = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
 

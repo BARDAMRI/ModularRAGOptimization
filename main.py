@@ -70,8 +70,6 @@ def run_query_evaluation():
     logger.info("Loading external Vector DB...")
     vector_db, embedding_model = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
 
-    profile_gpu()
-
     run_mode = input("\n🛠️ Run in enumeration mode? (y/n): ").strip().lower()
     if run_mode == "y":
         from scripts.evaluator import hill_climb_documents
@@ -100,7 +98,6 @@ def run_query_evaluation():
                     result = enumerate_top_documents(i, NQ_SAMPLE_SIZE, query, vector_db, embedding_model, top_k=5)
                     results_logger.log(result)
 
-                profile_gpu()
         return
     else:
         logger.info("Entering interactive query mode...")
@@ -111,13 +108,12 @@ def run_query_evaluation():
                 logger.info("Exiting application.")
                 break
 
-            result = query_model(user_prompt, model, tokenizer, device, vector_db, embedding_model, max_retries=3, quality_threshold=0.5)
+            result = query_model(user_prompt, model, tokenizer, device, vector_db, embedding_model, max_retries=3,
+                                 quality_threshold=0.5)
             if result["error"]:
                 logger.error(f"Error: {result['error']}")
             else:
                 logger.info(f"Question: {result['question']}, Answer: {result['answer'].strip()}")
-
-            profile_gpu()
 
 
 def run_analysis():
