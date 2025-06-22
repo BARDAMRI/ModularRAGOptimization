@@ -1,23 +1,91 @@
 import numpy as np
+from llama_index.core.schema import MetadataMode
 
 from config import INDEX_SOURCE_URL
 from modules.indexer import load_vector_db
 from utility.embedding_utils import get_query_vector
 
 
-# Helper to embed node consistently (using same method as vector DB)
-def embed_node_consistently(text: str, model, vector_db):
-    # Use as_query=False to match the document encoding during index creation
-    embedding = model.get_text_embedding(text)
-    return normalize(np.array(embedding))
+def embed_node_like_llamaindex(node, embedding_model):
+    """
+    מחקה בדיוק את התהליך של LlamaIndex ליצירת embeddings
+    """
+    # 1. קבל את הטקסט כמו ש-LlamaIndex עושה - עם metadata
+    text_to_embed = node.get_content(metadata_mode=MetadataMode.EMBED)
+
+    # 2. השתמש בפונקציה הנכונה לקידוד documents (לא queries)
+    try:
+        # נסה עם get_text_embedding (הפונקציה הסטנדרטית לדוקומנטים)
+        embedding = embedding_model.get_text_embedding(text_to_embed)
+    except Exception as e:
+        print(f"⚠️  שגיאה בקידוד: {e}")
+        # fallback - נסה בלי פרמטרים נוספים
+        embedding = embedding_model.get_text_embedding(text_to_embed)
+
+    # 3. המר לנמפי array
+    embedding = np.array(embedding)
+
+    # 4. בדוק אם המודל עושה normalization אוטומטי
+    embedding_norm = np.linalg.norm(embedding)
+    print(f"נורמה של הווקטור הגולמי: {embedding_norm:.6f}")
+
+    # 5. normalize רק אם המודל לא עושה זאת בעצמו
+    if embedding_norm > 1.1 or embedding_norm < 0.9:  # לא מנורמל
+        embedding = normalize(embedding)
+        print("✅ ביצעתי normalization ידני")
+    else:
+        print("✅ הווקטור כבר מנורמל")
+
+    return embedding
 
 
 def normalize(v):
-    return v / np.linalg.norm(v) if np.linalg.norm(v) != 0 else v
+    norm = np.linalg.norm(v)
+    return v / norm if norm != 0 else v
+
+
+def analyze_text_differences(node):
+    """
+    בודק הבדלים בין הטקסט הגולמי לטקסט המעובד
+    """
+    original_text = node.text
+
+    # טקסט עם metadata כמו ש-LlamaIndex משתמש
+    embed_text = node.get_content(metadata_mode=MetadataMode.EMBED)
+
+    print("🔍 ניתוח הטקסט")
+    print("-" * 50)
+    print(f"אורך טקסט מקורי: {len(original_text)}")
+    print(f"אורך טקסט לקידוד: {len(embed_text)}")
+
+    if original_text != embed_text:
+        print("⚠️  הטקסט השתנה!")
+        print("טקסט מקורי (100 תווים ראשונים):")
+        print(repr(original_text[:100]))
+        print("טקסט לקידוד (100 תווים ראשונים):")
+        print(repr(embed_text[:100]))
+
+        # בדוק metadata
+        if hasattr(node, 'metadata') and node.metadata:
+            print(f"Metadata קיים: {node.metadata}")
+    else:
+        print("✅ הטקסט זהה")
+
+    return embed_text
 
 
 # Load the vector database and embedding model
 vector_db, embedding_model = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
+
+# בדוק את סוג המודל
+print(f"🔍 מידע על המודל")
+print("-" * 50)
+print(f"סוג המודל: {type(embedding_model)}")
+print(f"שם המודל: {getattr(embedding_model, 'model_name', 'לא ידוע')}")
+
+# רשימת methods זמינים
+methods = [method for method in dir(embedding_model) if 'embed' in method.lower()]
+print(f"Methods זמינים: {methods}")
 
 # Access internal vector store
 vector_store = getattr(vector_db, "_vector_store", None)
@@ -33,56 +101,55 @@ retrieved_node = node_with_score.node
 retrieved_score = node_with_score.score
 node_id = retrieved_node.node_id
 
-# === TEXT CHECKS ===
-original_text = retrieved_node.text
+# === TEXT ANALYSIS ===
+processed_text = analyze_text_differences(retrieved_node)
 
-print("🔍 TEXT ANALYSIS")
-print("-" * 40)
-print("Original Text:")
-print(repr(original_text))
-
-# Optionally re-load from the same source file (if available) — skipped here
-# Check for leading/trailing whitespace
-stripped_text = original_text.strip()
-if original_text != stripped_text:
-    print("⚠️  Text has leading/trailing whitespace.")
-
-# Normalize to remove all extra spaces
-normalized_text = " ".join(original_text.split())
-if original_text != normalized_text:
-    print("⚠️  Text has extra internal spacing or newlines.")
-
-print("Text length:", len(original_text))
-
-# === EMBEDDING CHECKS ===
-print("\n🔍 EMBEDDING ANALYSIS")
-print("-" * 40)
+# === EMBEDDING ANALYSIS ===
+print("\n🔍 ניתוח Embeddings")
+print("-" * 50)
 
 # Get stored vector from the index
 stored_vector = normalize(np.array(vector_store.data.embedding_dict[node_id]))
+print(f"ווקטור שמור - נורמה: {np.linalg.norm(np.array(vector_store.data.embedding_dict[node_id])):.6f}")
 
-#
-# Re-encode using the same embedding path as the vector DB
-reencoded_doc_vector = embed_node_consistently(original_text, embedding_model, vector_db=vector_db)
-print(f"Re-encoded vector preview: {reencoded_doc_vector[:5]}")
-cosine_1 = np.dot(query_vector, reencoded_doc_vector)
+# Re-encode using LlamaIndex's exact method
+reencoded_vector = embed_node_like_llamaindex(retrieved_node, embedding_model)
+
+# Re-encode using original text (for comparison)
+original_text = retrieved_node.text
+reencoded_original = normalize(np.array(embedding_model.get_text_embedding(original_text)))
+
+# Cosine similarities
 cosine_vs_stored = np.dot(query_vector, stored_vector)
+cosine_vs_reencoded = np.dot(query_vector, reencoded_vector)
+cosine_vs_original = np.dot(query_vector, reencoded_original)
 
-# Try using get_query_embedding on the doc (just to test!)
-query_style_doc_vector = normalize(get_query_vector(original_text, embedding_model))
-cosine_query_style = np.dot(query_vector, query_style_doc_vector)
+# Distances
+distance_llamaindex = np.linalg.norm(reencoded_vector - stored_vector)
+distance_original = np.linalg.norm(reencoded_original - stored_vector)
 
-# Distance between vectors
-reencode_diff = np.linalg.norm(reencoded_doc_vector - stored_vector)
+print(f"\n📊 תוצאות השוואה:")
+print(f"Cosine - stored vector:           {retrieved_score:.6f}")
+print(f"Cosine - manual stored:           {cosine_vs_stored:.6f}")
+print(f"Cosine - LlamaIndex style:        {cosine_vs_reencoded:.6f}")
+print(f"Cosine - original text only:      {cosine_vs_original:.6f}")
 
-print(f"Stored cosine (from vector_store): {retrieved_score}")
-print(f"Manual cosine w/ stored vector:   {cosine_vs_stored}")
-print(f"Manual cosine w/ re-encoded doc:  {cosine_1}")
-print(f"Manual cosine w/ query-style doc: {cosine_query_style}")
-print(f"⚠️  Vector difference (||stored - reencoded||): {reencode_diff:.6f}")
+print(f"\n📏 מרחקים:")
+print(f"||LlamaIndex style - stored||:    {distance_llamaindex:.6f}")
+print(f"||Original text - stored||:       {distance_original:.6f}")
 
-if reencode_diff > 1e-5:
-    print("❗Stored vector and regenerated vector do NOT match exactly.")
+# בדיקת הצלחה
+if distance_llamaindex < 1e-5:
+    print("✅ הצלחנו! הווקטורים זהים")
+elif distance_llamaindex < distance_original:
+    print("🔶 השיפור חלקי - יש עדיין הבדל קטן")
+else:
+    print("❌ עדיין יש בעיה - צריך לחקור עוד")
 
-print("Stored vector dim:", stored_vector.shape)
-print("Re-encoded vector dim:", reencoded_doc_vector.shape)
+# מידע נוסף לדיבוג
+print(f"\nמימדי ווקטורים:")
+print(f"Stored: {stored_vector.shape}")
+print(f"Re-encoded: {reencoded_vector.shape}")
+print(f"דוגמת ערכים (5 ראשונים):")
+print(f"Stored:     {stored_vector[:5]}")
+print(f"Re-encoded: {reencoded_vector[:5]}")

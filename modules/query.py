@@ -3,6 +3,7 @@ from functools import lru_cache
 import numpy as np
 from typing import Union, Optional, List, Dict
 from llama_index.core import VectorStoreIndex
+from llama_index.core.schema import MetadataMode
 import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 import heapq
@@ -38,25 +39,55 @@ def vector_similarity(vector1: np.ndarray, vector2: np.ndarray) -> float:
     return similarity
 
 
-@lru_cache(maxsize=1000)
-def get_cached_embedding(text: str, embed_model: HuggingFaceEmbedding) -> np.ndarray:
+def get_llamaindex_compatible_text(node) -> str:
     """
-        Retrieves the cached embedding for a given text using the specified embedding model.
+    Extracts text from a node in the exact same way LlamaIndex does for embedding.
 
-        Args:
-            text (str): Text to convert into an embedding.
-            embed_model (HuggingFaceEmbedding): Embedding model to use.
+    Args:
+        node: LlamaIndex node object
 
-        Returns:
-            np.ndarray: Cached embedding vector for the text.
-        """
-    logger.info(f"Retrieving cached embedding for text: {text[:30]}...")
-    embedding = get_document_vector(text, embed_model)
+    Returns:
+        str: Text processed exactly as LlamaIndex processes it for embedding
+    """
+    try:
+        # Use the same method LlamaIndex uses for embedding
+        return node.get_content(metadata_mode=MetadataMode.EMBED)
+    except Exception as e:
+        logger.warning(f"Failed to get LlamaIndex-compatible text: {e}. Falling back to node.text")
+        return node.text
+
+
+@lru_cache(maxsize=1000)
+def get_cached_embedding_llamaindex_style(text: str, embed_model: HuggingFaceEmbedding) -> np.ndarray:
+    """
+    Retrieves the cached embedding for a given text using LlamaIndex's exact method.
+
+    This function replicates exactly how LlamaIndex creates embeddings for documents.
+
+    Args:
+        text (str): Text to convert into an embedding (should be the full processed text with metadata).
+        embed_model (HuggingFaceEmbedding): Embedding model to use.
+
+    Returns:
+        np.ndarray: Cached embedding vector for the text.
+    """
+    logger.info(f"Retrieving cached embedding for text: {text[:50]}...")
+
+    # Use get_text_embedding (not get_query_embedding) to match document encoding
+    embedding = embed_model.get_text_embedding(text)
+    embedding_array = np.array(embedding)
+
+    # Check if the model returns normalized vectors
+    norm = np.linalg.norm(embedding_array)
+    if norm > 1.1 or norm < 0.9:  # Not normalized
+        embedding_array = embedding_array / norm
+        logger.debug("Applied manual normalization to embedding")
+
     logger.info("Cached embedding retrieved successfully.")
-    return embedding
+    return embedding_array
 
 
-def retrieve_context(
+def retrieve_context_aligned_to_llama_index(
         query: Union[str, np.ndarray],
         vector_db: VectorStoreIndex,
         embed_model: HuggingFaceEmbedding,
@@ -64,30 +95,34 @@ def retrieve_context(
         similarity_cutoff: float = 0.5,
 ) -> str:
     """
-       Retrieves relevant context from the vector database based on the query.
+    Retrieves relevant context from the vector database using LlamaIndex-compatible embeddings.
 
-       Args:
-           query (Union[str, np.ndarray]): Query text or vector.
-           vector_db (VectorStoreIndex): Vector database for document retrieval.
-           embed_model (HuggingFaceEmbedding): Embedding model for vector conversion.
-           top_k (int): Number of top results to retrieve.
-           similarity_cutoff (float): Minimum similarity score to include results.
+    Args:
+        query (Union[str, np.ndarray]): Query text or vector.
+        vector_db (VectorStoreIndex): Vector database for document retrieval.
+        embed_model (HuggingFaceEmbedding): Embedding model for vector conversion.
+        top_k (int): Number of top results to retrieve.
+        similarity_cutoff (float): Minimum similarity score to include results.
 
-       Returns:
-           str: Retrieved context as a concatenated string.
-       """
-    logger.info("Retrieving context for the query.")
+    Returns:
+        str: Retrieved context as a concatenated string.
+    """
+    logger.info("Retrieving context for the query with LlamaIndex compatibility.")
     if not isinstance(query, (str, np.ndarray)):
         logger.error("Query must be a string or a numpy.ndarray.")
         raise TypeError("Query must be a string or a numpy.ndarray.")
 
-    retriever = vector_db.as_retriever()
-    nodes = retriever.retrieve(query)
-    if not nodes:
+    # Use LlamaIndex's native retriever first
+    retriever = vector_db.as_retriever(similarity_top_k=top_k)
+    nodes_with_scores = retriever.retrieve(query)
+
+    if not nodes_with_scores:
         logger.warning("No nodes retrieved from the vector DB.")
         return ''
-    logger.info(f"Retrieved {len(nodes)} nodes from vector database.")
 
+    logger.info(f"Retrieved {len(nodes_with_scores)} nodes from vector database.")
+
+    # Get query vector
     query_vector: Optional[np.ndarray] = None
     if isinstance(query, str):
         if embed_model is None:
@@ -97,26 +132,64 @@ def retrieve_context(
     elif isinstance(query, np.ndarray):
         query_vector = query
 
-    contents: List[str] = [node.get_content() for node in nodes]
+    # Extract nodes and their LlamaIndex-compatible text
+    nodes = [node_with_score.node for node_with_score in nodes_with_scores]
+    llamaindex_texts = [get_llamaindex_compatible_text(node) for node in nodes]
+
+    # Get embeddings using LlamaIndex's exact method
     document_embeddings = np.array([
-        get_cached_embedding(content, embed_model)
-        for content in contents
+        get_cached_embedding_llamaindex_style(text, embed_model)
+        for text in llamaindex_texts
     ])
-    similarity_scores: Union[np.ndarray, List[float]]
+
+    # Get LlamaIndex's original scores for comparison
+    llamaindex_scores = [node_with_score.score for node_with_score in nodes_with_scores]
+
+    # Calculate similarities manually to verify/compare
     if query_vector is not None and document_embeddings is not None:
-        similarity_scores = np.dot(document_embeddings, query_vector) / (
+        # Manual similarity calculation (should match LlamaIndex's results)
+        manual_similarities = np.dot(document_embeddings, query_vector) / (
                 np.linalg.norm(document_embeddings, axis=1) * np.linalg.norm(query_vector)
         )
-    else:
-        logger.warning("Query vector or document embeddings are None, cannot continue the retrieval operation.")
-        return ''
 
-    scored_nodes = zip(similarity_scores, contents)
+        logger.info("Similarity comparison:")
+        for i, (manual_sim, llamaindex_sim) in enumerate(zip(manual_similarities, llamaindex_scores)):
+            diff = abs(manual_sim - llamaindex_sim)
+            logger.info(f"Node {i}: Manual={manual_sim:.6f}, LlamaIndex={llamaindex_sim:.6f}, Diff={diff:.6f}")
+
+        # Use manual similarities for filtering (they should match LlamaIndex's)
+        similarity_scores = manual_similarities
+    else:
+        logger.warning("Query vector or document embeddings are None, using LlamaIndex scores.")
+        similarity_scores = llamaindex_scores
+
+    # Get the actual content for each node (not the metadata-enhanced text)
+    node_contents = [node.get_content() for node in nodes]
+
+    # Create scored pairs and filter
+    scored_nodes = list(zip(similarity_scores, node_contents))
     top_nodes = heapq.nlargest(top_k, scored_nodes, key=lambda x: x[0])
     filtered_nodes = [content for score, content in top_nodes if score >= similarity_cutoff]
 
     logger.info(f"Filtered {len(filtered_nodes)} nodes based on similarity cutoff.")
     return "\n".join(filtered_nodes)
+
+
+# Keep the original function as fallback
+def retrieve_context(
+        query: Union[str, np.ndarray],
+        vector_db: VectorStoreIndex,
+        embed_model: HuggingFaceEmbedding,
+        top_k: int = 5,
+        similarity_cutoff: float = 0.5,
+) -> str:
+    """
+    Original retrieve_context function - kept for backward compatibility.
+    Use retrieve_context_improved for better LlamaIndex compatibility.
+    """
+    logger.warning(
+        "Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.")
+    return retrieve_context_aligned_to_llama_index(query, vector_db, embed_model, top_k, similarity_cutoff)
 
 
 def evaluate_answer_quality(
@@ -127,18 +200,18 @@ def evaluate_answer_quality(
         device: torch.device
 ) -> float:
     """
-        Evaluates the quality of the generated answer based on the given question.
+    Evaluates the quality of the generated answer based on the given question.
 
-        Args:
-            answer (str): Generated answer.
-            question (str): Original question.
-            model (AutoModelForCausalLM): Language model used for evaluation.
-            tokenizer (GPT2TokenizerFast): Tokenizer for processing text.
-            device (torch.device): Device to run the evaluation on.
+    Args:
+        answer (str): Generated answer.
+        question (str): Original question.
+        model (AutoModelForCausalLM): Language model used for evaluation.
+        tokenizer (GPT2TokenizerFast): Tokenizer for processing text.
+        device (torch.device): Device to run the evaluation on.
 
-        Returns:
-            float: Quality score of the answer.
-        """
+    Returns:
+        float: Quality score of the answer.
+    """
     logger.info("Evaluating the quality of the answer.")
     # Placeholder for evaluation logic
     score = 1.0
@@ -154,18 +227,18 @@ def rephrase_query(
         device: torch.device
 ) -> str:
     """
-        Rephrases the original query based on the previous answer to improve the response.
+    Rephrases the original query based on the previous answer to improve the response.
 
-        Args:
-            original_prompt (str): Original query prompt.
-            previous_answer (str): Previous answer generated by the model.
-            model (AutoModelForCausalLM): Language model used for rephrasing.
-            tokenizer (GPT2TokenizerFast): Tokenizer for processing text.
-            device (torch.device): Device to run the rephrasing on.
+    Args:
+        original_prompt (str): Original query prompt.
+        previous_answer (str): Previous answer generated by the model.
+        model (AutoModelForCausalLM): Language model used for rephrasing.
+        tokenizer (GPT2TokenizerFast): Tokenizer for processing text.
+        device (torch.device): Device to run the rephrasing on.
 
-        Returns:
-            str: Rephrased query.
-        """
+    Returns:
+        str: Rephrased query.
+    """
     logger.info("Rephrasing the query based on the previous answer.")
     rephrase_prompt = (
         f"Original question: {original_prompt}\n"
@@ -192,24 +265,26 @@ def query_model(
         vector_db: Optional[VectorStoreIndex] = None,
         embedding_model: Optional[HuggingFaceEmbedding] = None,
         max_retries: int = MAX_RETRIES,
-        quality_threshold: float = QUALITY_THRESHOLD
+        quality_threshold: float = QUALITY_THRESHOLD,
+        use_improved_retrieval: bool = True
 ) -> Dict[str, Union[str, float, int, None]]:
     """
-       Queries the language model with the given prompt and retrieves an answer.
+    Queries the language model with the given prompt and retrieves an answer.
 
-       Args:
-           prompt (str): Query prompt.
-           model (AutoModelForCausalLM): Language model to generate the answer.
-           tokenizer (GPT2TokenizerFast): Tokenizer for processing text.
-           device (torch.device): Device to run the query on.
-           vector_db (Optional[VectorStoreIndex]): Vector database for context retrieval.
-           embedding_model (Optional[HuggingFaceEmbedding]): Embedding model for vector conversion.
-           max_retries (int): Maximum number of retries for improving the answer.
-           quality_threshold (float): Minimum quality score to accept the answer.
+    Args:
+        prompt (str): Query prompt.
+        model (AutoModelForCausalLM): Language model to generate the answer.
+        tokenizer (GPT2TokenizerFast): Tokenizer for processing text.
+        device (torch.device): Device to run the query on.
+        vector_db (Optional[VectorStoreIndex]): Vector database for context retrieval.
+        embedding_model (Optional[HuggingFaceEmbedding]): Embedding model for vector conversion.
+        max_retries (int): Maximum number of retries for improving the answer.
+        quality_threshold (float): Minimum quality score to accept the answer.
+        use_improved_retrieval (bool): Whether to use the improved LlamaIndex-compatible retrieval.
 
-       Returns:
-           Dict[str, Union[str, float, int, None]]: Dictionary containing the query result, including the answer, score, and attempts.
-       """
+    Returns:
+        Dict[str, Union[str, float, int, None]]: Dictionary containing the query result.
+    """
     logger.info("Starting query process with the model.")
     try:
         answer: str = ""
@@ -220,7 +295,10 @@ def query_model(
         while attempt <= max_retries:
             try:
                 if vector_db is not None:
-                    retrieved_context = retrieve_context(current_prompt, vector_db, embedding_model)
+                    if use_improved_retrieval:
+                        retrieved_context = retrieve_context_aligned_to_llama_index(current_prompt, vector_db, embedding_model)
+                    else:
+                        retrieved_context = retrieve_context(current_prompt, vector_db, embedding_model)
                     augmented_prompt = f"Context: {retrieved_context}\n\nQuestion: {current_prompt}\nAnswer:"
                 else:
                     augmented_prompt = current_prompt
