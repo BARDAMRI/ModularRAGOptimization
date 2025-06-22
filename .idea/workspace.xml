@@ -4,12 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="setting new embedding function for test">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/query.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/query.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/logger.log" beforeDir="false" afterPath="$PROJECT_DIR$/tests/logger.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/query_test_similarity.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/query_test_similarity.py" afterDir="false" />
-    </list>
+    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="finishing the vector conversion and the similarity function study. both now compatible to the ones used in the VectorStoreIndex" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -425,7 +420,15 @@
       <option name="project" value="LOCAL" />
       <updated>1750581443277</updated>
     </task>
-    <option name="localTasksCounter" value="38" />
+    <task id="LOCAL-00038" summary="finishing the vector conversion and the similarity function study. both now compatible to the ones used in the VectorStoreIndex">
+      <option name="closed" value="true" />
+      <created>1750581896865</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1750581896865</updated>
+    </task>
+    <option name="localTasksCounter" value="39" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -465,7 +468,8 @@
     <MESSAGE value="making sure the similarity function and the vector conversion function are same as the VectorStoreIndex" />
     <MESSAGE value="replacing model into generative one" />
     <MESSAGE value="setting new embedding function for test" />
-    <option name="LAST_COMMIT_MESSAGE" value="setting new embedding function for test" />
+    <MESSAGE value="finishing the vector conversion and the similarity function study. both now compatible to the ones used in the VectorStoreIndex" />
+    <option name="LAST_COMMIT_MESSAGE" value="finishing the vector conversion and the similarity function study. both now compatible to the ones used in the VectorStoreIndex" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
