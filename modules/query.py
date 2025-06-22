@@ -8,7 +8,7 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 import heapq
 from transformers import AutoModelForCausalLM, GPT2TokenizerFast
 from config import MAX_RETRIES, QUALITY_THRESHOLD, MAX_NEW_TOKENS
-from utility.embedding_utils import convert_text_into_vector
+from utility.embedding_utils import get_query_vector, get_document_vector
 from utility.logger import logger  # Import logger
 
 
@@ -16,6 +16,9 @@ def vector_similarity(vector1: np.ndarray, vector2: np.ndarray) -> float:
     """
     Calculates the cosine similarity between two vectors.
 
+    This function computes the cosine similarity score, which is a measure of similarity between two non-zero vectors.
+
+    In the VectorStoreIndex, the similarity function is : similarity = np.dot(vec1, vec2) / (||vec1|| * ||vec2||)
     Args:
         vector1 (np.ndarray): First vector.
         vector2 (np.ndarray): Second vector.
@@ -48,7 +51,7 @@ def get_cached_embedding(text: str, embed_model: HuggingFaceEmbedding) -> np.nda
             np.ndarray: Cached embedding vector for the text.
         """
     logger.info(f"Retrieving cached embedding for text: {text[:30]}...")
-    embedding = convert_text_into_vector(text, embed_model)
+    embedding = get_document_vector(text, embed_model)
     logger.info("Cached embedding retrieved successfully.")
     return embedding
 
@@ -80,6 +83,9 @@ def retrieve_context(
 
     retriever = vector_db.as_retriever()
     nodes = retriever.retrieve(query)
+    if not nodes:
+        logger.warning("No nodes retrieved from the vector DB.")
+        return ''
     logger.info(f"Retrieved {len(nodes)} nodes from vector database.")
 
     query_vector: Optional[np.ndarray] = None
@@ -87,21 +93,22 @@ def retrieve_context(
         if embed_model is None:
             logger.error("embed_model is required for converting string queries to vectors.")
             raise ValueError("embed_model is required for converting string queries to vectors.")
-        query_vector = convert_text_into_vector(query, embed_model)
+        query_vector = get_query_vector(query, embed_model)
     elif isinstance(query, np.ndarray):
         query_vector = query
 
     contents: List[str] = [node.get_content() for node in nodes]
-    document_embeddings: Optional[np.ndarray] = np.array(
-        [get_cached_embedding(content, embed_model) for content in contents])
-
+    document_embeddings = np.array([
+        get_cached_embedding(content, embed_model)
+        for content in contents
+    ])
     similarity_scores: Union[np.ndarray, List[float]]
     if query_vector is not None and document_embeddings is not None:
         similarity_scores = np.dot(document_embeddings, query_vector) / (
                 np.linalg.norm(document_embeddings, axis=1) * np.linalg.norm(query_vector)
         )
     else:
-        logger.warn("Query vector or document embeddings are None, cannot continue the retrieval operation.")
+        logger.warning("Query vector or document embeddings are None, cannot continue the retrieval operation.")
         return ''
 
     scored_nodes = zip(similarity_scores, contents)

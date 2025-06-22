@@ -167,7 +167,8 @@ def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> 
 
         logger.info(f"Indexing documents from {corpus_dir}...")
         documents = SimpleDirectoryReader(corpus_dir).load_data()
-        vector_db = GPTVectorStoreIndex.from_documents(documents, embed_model=embedding_model)
+        vector_db = GPTVectorStoreIndex.from_documents(documents, store_nodes_override=True,
+                                                       embed_model=embedding_model)
         vector_db.storage_context.persist(persist_dir=storage_dir)
         logger.info(f"Indexed {len(documents)} documents and saved to {storage_dir}.")
         return vector_db, embedding_model

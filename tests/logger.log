@@ -91,3 +91,158 @@
 2025-06-20 17:03:57,123 - INFO - Parsing source path: wikipedia:20220301.en
 2025-06-20 17:03:57,123 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
 2025-06-20 17:03:57,123 - INFO - Indexing documents from data/wikipedia_20220301.en...
+2025-06-21 09:51:28,386 - INFO - Loading vector database from source: url, source_path: path/to/index/source
+2025-06-21 09:51:31,403 - INFO - Parsing source path: path/to/index/source
+2025-06-21 09:51:31,403 - ERROR - Unsupported source path format: path/to/index/source
+2025-06-21 09:52:03,738 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 09:52:06,271 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 09:52:06,271 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 09:52:06,271 - INFO - Indexing documents from data/wikipedia_20220301.en...
+2025-06-21 09:52:59,075 - INFO - Indexed 1000 documents and saved to storage/wikipedia_20220301.en.
+2025-06-21 09:55:33,052 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 09:55:35,726 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 09:55:35,726 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 09:55:35,726 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 09:55:51,324 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 09:56:14,504 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 09:56:17,125 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 09:56:17,125 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 09:56:17,125 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 09:56:32,542 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 09:57:05,266 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 09:57:07,624 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 09:57:07,625 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 09:57:07,625 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 09:57:23,112 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 09:59:08,164 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 09:59:10,636 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 09:59:10,636 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 09:59:10,636 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 09:59:26,265 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 21:18:08,422 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 21:18:11,489 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 21:18:11,489 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 21:18:11,489 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 21:18:27,178 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 21:18:50,232 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 21:18:53,267 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 21:18:53,267 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 21:18:53,267 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 21:19:08,906 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 21:21:07,340 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 21:21:09,904 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 21:21:09,905 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 21:21:09,905 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 21:21:25,525 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 21:22:33,811 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 21:22:37,741 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 21:22:37,741 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 21:22:37,742 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 21:23:35,512 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 21:24:34,712 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 21:24:38,259 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 21:24:38,259 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 21:24:38,259 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 21:25:35,855 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 21:26:59,293 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 21:27:03,552 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 21:27:03,552 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 21:27:03,552 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 21:28:00,177 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 21:31:34,337 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 21:31:37,206 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 21:31:37,206 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 21:31:37,206 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 21:31:52,836 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 21:31:53,187 - INFO - Calculating cosine similarity between two vectors.
+2025-06-21 21:31:53,187 - INFO - Cosine similarity calculated: 0.1163581907749176
+2025-06-21 21:43:49,720 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 21:43:52,402 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 21:43:52,403 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 21:43:52,403 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 21:44:08,394 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 21:44:08,749 - INFO - Calculating cosine similarity between two vectors.
+2025-06-21 21:45:49,510 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 21:45:53,300 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 21:45:53,300 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 21:45:53,300 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 21:46:50,171 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 22:48:32,052 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 22:48:36,275 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 22:48:36,275 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 22:48:36,276 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 22:49:37,887 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 22:49:41,931 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 22:49:41,931 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 22:49:41,932 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 22:50:55,928 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 22:50:59,780 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 22:50:59,780 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 22:51:13,832 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 22:51:25,393 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 22:51:28,851 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 22:51:28,851 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 22:51:28,852 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 22:52:12,848 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 23:07:48,388 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 23:07:52,498 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 23:07:52,498 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 23:07:52,498 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 23:08:36,490 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 23:09:06,468 - INFO - Calculating cosine similarity between two vectors.
+2025-06-21 23:09:06,468 - INFO - Cosine similarity calculated: 0.1163581907749176
+2025-06-21 23:10:53,275 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 23:10:55,906 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 23:10:55,906 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 23:10:55,906 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 23:11:08,469 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 23:18:08,991 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 23:18:12,134 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 23:18:12,134 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 23:18:12,134 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 23:18:56,453 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 23:20:41,413 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 23:20:44,886 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 23:20:44,887 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 23:20:44,887 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 23:21:30,477 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 23:29:12,695 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 23:29:15,371 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 23:29:15,371 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 23:29:15,371 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 23:29:27,840 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 23:29:47,164 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 23:29:49,774 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 23:29:49,774 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 23:29:49,774 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 23:30:02,205 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 23:31:29,326 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 23:31:31,999 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 23:31:31,999 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 23:31:32,000 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 23:31:44,590 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 23:38:53,334 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 23:38:59,981 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 23:39:02,290 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 23:39:02,291 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 23:39:02,291 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 23:39:14,770 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-21 23:52:25,498 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-21 23:52:28,751 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-21 23:52:28,751 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-21 23:52:28,752 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-21 23:52:41,264 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-22 00:00:51,298 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-22 00:00:53,635 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-22 00:00:53,635 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-22 00:00:53,635 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-22 00:01:06,026 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-22 00:01:28,733 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-22 00:01:31,270 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-22 00:01:31,271 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-22 00:01:31,271 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-22 00:01:40,139 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-06-22 00:01:42,258 - INFO - Parsing source path: wikipedia:20220301.en
+2025-06-22 00:01:42,258 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-06-22 00:01:42,258 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-06-22 00:01:54,687 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
