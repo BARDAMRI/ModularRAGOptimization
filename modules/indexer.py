@@ -136,10 +136,9 @@ def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> 
         GPTVectorStoreIndex: Loaded or newly created vector database.
     """
     logger.info(f"Loading vector database from source: {source}, source_path: {source_path}")
+    embedding_model = HuggingFaceEmbedding(model_name=HF_MODEL_NAME)
     if not hasattr(load_vector_db, "_embed_model"):
-        load_vector_db._embed_model = HuggingFaceEmbedding(model_name=HF_MODEL_NAME)
-    embedding_model = load_vector_db._embed_model
-    Settings.embed_model = embedding_model
+        load_vector_db._embed_model = embedding_model
     if source == "url":
         if source_path is None:
             logger.error("source_path must be provided for 'url' source.")
@@ -165,13 +164,17 @@ def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> 
             logger.info(f"Loaded existing vector database for '{corpus_name}' from {storage_dir}.")
             return vector_db, embedding_model
 
-        logger.info(f"Indexing documents from {corpus_dir}...")
-        documents = SimpleDirectoryReader(corpus_dir).load_data()
-        vector_db = GPTVectorStoreIndex.from_documents(documents, store_nodes_override=True,
-                                                       embed_model=embedding_model)
-        vector_db.storage_context.persist(persist_dir=storage_dir)
-        logger.info(f"Indexed {len(documents)} documents and saved to {storage_dir}.")
-        return vector_db, embedding_model
+        else:
+            logger.info(f"Indexing documents from {corpus_dir}...")
+            documents = SimpleDirectoryReader(corpus_dir).load_data()
+            vector_db = GPTVectorStoreIndex.from_documents(
+                documents,
+                store_nodes_override=True,
+                embed_model=embedding_model
+            )
+            vector_db.storage_context.persist(persist_dir=storage_dir)
+            logger.info(f"Indexed {len(documents)} documents and saved to {storage_dir}.")
+            return vector_db, embedding_model
 
     else:
         storage_dir = "storage"
