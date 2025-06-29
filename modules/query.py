@@ -9,7 +9,7 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 import heapq
 from transformers import AutoModelForCausalLM, GPT2TokenizerFast
 from config import MAX_RETRIES, QUALITY_THRESHOLD, MAX_NEW_TOKENS
-from utility.embedding_utils import get_query_vector, get_document_vector
+from utility.embedding_utils import get_query_vector
 from utility.logger import logger  # Import logger
 
 

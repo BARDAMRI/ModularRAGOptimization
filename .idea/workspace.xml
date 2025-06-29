@@ -4,11 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="fixing the query tests">
+    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="making the smilarity and vector tests part of test class">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/logger.log" beforeDir="false" afterPath="$PROJECT_DIR$/tests/logger.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_query.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_query.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_vector_db.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_vector_db_and_embedding_model_creation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/query.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/query.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utility/embedding_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/embedding_utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -45,43 +44,44 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
-    &quot;Python tests.pytest for test_config.test_configuration_with_sample_query.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_evaluator.TestEvaluatorFunctions.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_enumerate_top_documents.executor&quot;: &quot;Debug&quot;,
-    &quot;Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_hill_climb_documents.executor&quot;: &quot;Debug&quot;,
-    &quot;Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_sanity_check.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_query.TestRetrieveContext.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_invalid_query.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query.executor&quot;: &quot;Debug&quot;,
-    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_no_convert_to_vector.executor&quot;: &quot;Debug&quot;,
-    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_vector_query.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_vector_db.TestLoadVectorDB.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_vector_db.TestVectorDBEmbedding.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_evaluator.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_vector_db.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python.EmbeddingVectorStoreIndex.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.check_vector_db_store_functions.executor&quot;: &quot;Run&quot;,
-    &quot;Python.code_testing.executor&quot;: &quot;Run&quot;,
-    &quot;Python.dir_tree_printer.executor&quot;: &quot;Run&quot;,
-    &quot;Python.docsDownloader.executor&quot;: &quot;Run&quot;,
-    &quot;Python.embedding_utils.executor&quot;: &quot;Run&quot;,
-    &quot;Python.index_builder.executor&quot;: &quot;Run&quot;,
-    &quot;Python.indexer.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.judge_llamaindex.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;Python.query.executor&quot;: &quot;Run&quot;,
-    &quot;Python.query_test_similarity.executor&quot;: &quot;Run&quot;,
-    &quot;Python.retrieve_answer.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_ADD_EXTERNAL_FILES": "true",
+    "Python tests.pytest for test_config.test_configuration_with_sample_query.executor": "Run",
+    "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.executor": "Run",
+    "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_enumerate_top_documents.executor": "Debug",
+    "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_hill_climb_documents.executor": "Debug",
+    "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_sanity_check.executor": "Run",
+    "Python tests.pytest for test_query.TestEmbeddingComparison.executor": "Run",
+    "Python tests.pytest for test_query.TestRetrieveContext.executor": "Run",
+    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_invalid_query.executor": "Run",
+    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query.executor": "Debug",
+    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector.executor": "Run",
+    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_no_convert_to_vector.executor": "Debug",
+    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_vector_query.executor": "Run",
+    "Python tests.pytest for test_vector_db.TestLoadVectorDB.executor": "Run",
+    "Python tests.pytest for test_vector_db.TestVectorDBEmbedding.executor": "Run",
+    "Python tests.pytest in test_evaluator.py.executor": "Run",
+    "Python tests.pytest in test_vector_db.py.executor": "Run",
+    "Python.EmbeddingVectorStoreIndex.executor": "Debug",
+    "Python.check_vector_db_store_functions.executor": "Run",
+    "Python.code_testing.executor": "Run",
+    "Python.dir_tree_printer.executor": "Run",
+    "Python.docsDownloader.executor": "Run",
+    "Python.embedding_utils.executor": "Run",
+    "Python.index_builder.executor": "Run",
+    "Python.indexer.executor": "Debug",
+    "Python.judge_llamaindex.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.query.executor": "Run",
+    "Python.query_test_similarity.executor": "Run",
+    "Python.retrieve_answer.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "run.code.analysis.last.selected.profile": "pProject Default",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/scripts" />
@@ -89,7 +89,7 @@
       <recent name="$PROJECT_DIR$/data" />
     </key>
   </component>
-  <component name="RunManager" selected="Python tests.pytest for test_query.TestRetrieveContext">
+  <component name="RunManager" selected="Python tests.pytest for test_query.TestEmbeddingComparison">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
@@ -110,6 +110,23 @@
       <option name="MODULE_MODE" value="false" />
       <option name="REDIRECT_INPUT" value="false" />
       <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest for test_query.TestEmbeddingComparison" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="ModularRAGOptimization" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_parameters" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;test_query.TestEmbeddingComparison&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
     <configuration name="pytest for test_query.TestRetrieveContext" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
@@ -165,6 +182,7 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python tests.pytest for test_query.TestEmbeddingComparison" />
         <item itemvalue="Python tests.pytest for test_query.TestRetrieveContext" />
         <item itemvalue="Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_vector_query" />
         <item itemvalue="Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector" />
@@ -507,7 +525,15 @@
       <option name="project" value="LOCAL" />
       <updated>1751184059625</updated>
     </task>
-    <option name="localTasksCounter" value="41" />
+    <task id="LOCAL-00041" summary="making the smilarity and vector tests part of test class">
+      <option name="closed" value="true" />
+      <created>1751187097510</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1751187097510</updated>
+    </task>
+    <option name="localTasksCounter" value="42" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -523,7 +549,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
-    <MESSAGE value="Creating the new code . Moving to llama and llama index so supporting RAG options" />
     <MESSAGE value="moving the running to main and adding loop" />
     <MESSAGE value="adding judge model" />
     <MESSAGE value="adding judge model. putting loop in main" />
@@ -548,7 +573,8 @@
     <MESSAGE value="setting new embedding function for test" />
     <MESSAGE value="finishing the vector conversion and the similarity function study. both now compatible to the ones used in the VectorStoreIndex" />
     <MESSAGE value="fixing the query tests" />
-    <option name="LAST_COMMIT_MESSAGE" value="fixing the query tests" />
+    <MESSAGE value="making the smilarity and vector tests part of test class" />
+    <option name="LAST_COMMIT_MESSAGE" value="making the smilarity and vector tests part of test class" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -557,11 +583,6 @@
           <url>file://$PROJECT_DIR$/classes/EmbeddingVectorStoreIndex.py</url>
           <line>23</line>
           <option name="timeStamp" value="12" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/tests/query_test_similarity.py</url>
-          <line>27</line>
-          <option name="timeStamp" value="14" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
