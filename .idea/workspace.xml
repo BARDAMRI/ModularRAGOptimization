@@ -4,11 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="finishing the vector conversion and the similarity function study. both now compatible to the ones used in the VectorStoreIndex">
+    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="fixing the query tests">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/logger.log" beforeDir="false" afterPath="$PROJECT_DIR$/tests/logger.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/query_test_similarity.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/query_test_similarity.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/test_query.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_query.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_vector_db.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_vector_db_and_embedding_model_creation.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -89,7 +89,7 @@
       <recent name="$PROJECT_DIR$/data" />
     </key>
   </component>
-  <component name="RunManager" selected="Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_vector_query">
+  <component name="RunManager" selected="Python tests.pytest for test_query.TestRetrieveContext">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
@@ -165,9 +165,9 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python tests.pytest for test_query.TestRetrieveContext" />
         <item itemvalue="Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_vector_query" />
         <item itemvalue="Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector" />
-        <item itemvalue="Python tests.pytest for test_query.TestRetrieveContext" />
       </list>
     </recent_temporary>
   </component>
@@ -499,7 +499,15 @@
       <option name="project" value="LOCAL" />
       <updated>1750582439050</updated>
     </task>
-    <option name="localTasksCounter" value="40" />
+    <task id="LOCAL-00040" summary="fixing the query tests">
+      <option name="closed" value="true" />
+      <created>1751184059625</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1751184059625</updated>
+    </task>
+    <option name="localTasksCounter" value="41" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -515,7 +523,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
-    <MESSAGE value="Initiating" />
     <MESSAGE value="Creating the new code . Moving to llama and llama index so supporting RAG options" />
     <MESSAGE value="moving the running to main and adding loop" />
     <MESSAGE value="adding judge model" />
@@ -540,7 +547,8 @@
     <MESSAGE value="replacing model into generative one" />
     <MESSAGE value="setting new embedding function for test" />
     <MESSAGE value="finishing the vector conversion and the similarity function study. both now compatible to the ones used in the VectorStoreIndex" />
-    <option name="LAST_COMMIT_MESSAGE" value="finishing the vector conversion and the similarity function study. both now compatible to the ones used in the VectorStoreIndex" />
+    <MESSAGE value="fixing the query tests" />
+    <option name="LAST_COMMIT_MESSAGE" value="fixing the query tests" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
