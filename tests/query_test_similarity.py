@@ -10,31 +10,24 @@ def embed_node_like_llamaindex(node, embedding_model):
     """
     מחקה בדיוק את התהליך של LlamaIndex ליצירת embeddings
     """
-    # 1. קבל את הטקסט כמו ש-LlamaIndex עושה - עם metadata
     text_to_embed = node.get_content(metadata_mode=MetadataMode.EMBED)
 
-    # 2. השתמש בפונקציה הנכונה לקידוד documents (לא queries)
     try:
-        # נסה עם get_text_embedding (הפונקציה הסטנדרטית לדוקומנטים)
         embedding = embedding_model.get_text_embedding(text_to_embed)
     except Exception as e:
-        print(f"⚠️  שגיאה בקידוד: {e}")
-        # fallback - נסה בלי פרמטרים נוספים
+        print(f"⚠  שגיאה בקידוד: {e}")
         embedding = embedding_model.get_text_embedding(text_to_embed)
 
-    # 3. המר לנמפי array
     embedding = np.array(embedding)
 
-    # 4. בדוק אם המודל עושה normalization אוטומטי
     embedding_norm = np.linalg.norm(embedding)
     print(f"נורמה של הווקטור הגולמי: {embedding_norm:.6f}")
 
-    # 5. normalize רק אם המודל לא עושה זאת בעצמו
     if embedding_norm > 1.1 or embedding_norm < 0.9:  # לא מנורמל
         embedding = normalize(embedding)
-        print("✅ ביצעתי normalization ידני")
+        print(" ביצעתי normalization ידני")
     else:
-        print("✅ הווקטור כבר מנורמל")
+        print(" הווקטור כבר מנורמל")
 
     return embedding
 
@@ -50,16 +43,15 @@ def analyze_text_differences(node):
     """
     original_text = node.text
 
-    # טקסט עם metadata כמו ש-LlamaIndex משתמש
     embed_text = node.get_content(metadata_mode=MetadataMode.EMBED)
 
-    print("🔍 ניתוח הטקסט")
+    print(" ניתוח הטקסט")
     print("-" * 50)
     print(f"אורך טקסט מקורי: {len(original_text)}")
     print(f"אורך טקסט לקידוד: {len(embed_text)}")
 
     if original_text != embed_text:
-        print("⚠️  הטקסט השתנה!")
+        print("  הטקסט השתנה!")
         print("טקסט מקורי (100 תווים ראשונים):")
         print(repr(original_text[:100]))
         print("טקסט לקידוד (100 תווים ראשונים):")
@@ -69,7 +61,7 @@ def analyze_text_differences(node):
         if hasattr(node, 'metadata') and node.metadata:
             print(f"Metadata קיים: {node.metadata}")
     else:
-        print("✅ הטקסט זהה")
+        print(" הטקסט זהה")
 
     return embed_text
 
@@ -77,13 +69,11 @@ def analyze_text_differences(node):
 # Load the vector database and embedding model
 vector_db, embedding_model = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
 
-# בדוק את סוג המודל
 print(f"🔍 מידע על המודל")
 print("-" * 50)
 print(f"סוג המודל: {type(embedding_model)}")
 print(f"שם המודל: {getattr(embedding_model, 'model_name', 'לא ידוע')}")
 
-# רשימת methods זמינים
 methods = [method for method in dir(embedding_model) if 'embed' in method.lower()]
 print(f"Methods זמינים: {methods}")
 

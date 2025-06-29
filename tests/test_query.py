@@ -11,12 +11,21 @@ class TestRetrieveContext(unittest.TestCase):
         mock_retriever = MagicMock()
         mock_vector_db.as_retriever.return_value = mock_retriever
         mock_embed_model = MagicMock()
-        mock_embed_model.get_text_embedding.return_value = np.array([1.0, 2.0])
 
-        mock_retriever.retrieve.return_value = [
-            MagicMock(get_content=lambda: "Document 1"),
-            MagicMock(get_content=lambda: "Document 2"),
-        ]
+        # Mock both text and query embedding methods
+        mock_embed_model.get_text_embedding.return_value = np.array([1.0, 2.0])
+        mock_embed_model.get_query_embedding.return_value = np.array([1.0, 2.0])
+
+        # Mock nodes with scores
+        mock_node_1 = MagicMock()
+        mock_node_1.node = MagicMock(get_content=lambda metadata_mode=None: "Document 1")
+        mock_node_1.score = 0.9  # Numerical score
+
+        mock_node_2 = MagicMock()
+        mock_node_2.node = MagicMock(get_content=lambda metadata_mode=None: "Document 2")
+        mock_node_2.score = 0.8  # Numerical score
+
+        mock_retriever.retrieve.return_value = [mock_node_1, mock_node_2]
 
         result = retrieve_context(
             query="test query",
@@ -27,10 +36,10 @@ class TestRetrieveContext(unittest.TestCase):
         )
 
         self.assertEqual(result, "Document 1\nDocument 2")
-        mock_embed_model.get_text_embedding.assert_any_call("test query")
+        mock_embed_model.get_query_embedding.assert_called_once_with("test query")
         mock_embed_model.get_text_embedding.assert_any_call("Document 1")
         mock_embed_model.get_text_embedding.assert_any_call("Document 2")
-        self.assertEqual(mock_embed_model.get_text_embedding.call_count, 3)
+        self.assertEqual(mock_embed_model.get_text_embedding.call_count, 2)
         mock_retriever.retrieve.assert_called_once()
 
     def test_retrieve_context_with_vector_query(self):
@@ -40,10 +49,16 @@ class TestRetrieveContext(unittest.TestCase):
         mock_embed_model = MagicMock()
         mock_embed_model.get_text_embedding.return_value = np.array([1.0, 2.0])
 
-        mock_retriever.retrieve.return_value = [
-            MagicMock(get_content=lambda: "Document 1"),
-            MagicMock(get_content=lambda: "Document 2"),
-        ]
+        # Mock nodes with scores
+        mock_node_1 = MagicMock()
+        mock_node_1.node = MagicMock(get_content=lambda: "Document 1")
+        mock_node_1.score = 0.9  # Numerical score
+
+        mock_node_2 = MagicMock()
+        mock_node_2.node = MagicMock(get_content=lambda: "Document 2")
+        mock_node_2.score = 0.8  # Numerical score
+
+        mock_retriever.retrieve.return_value = [mock_node_1, mock_node_2]
 
         result = retrieve_context(
             query=np.array([1.0, 2.0]),

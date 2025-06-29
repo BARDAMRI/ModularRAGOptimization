@@ -320,3 +320,116 @@
 2025-06-22 11:37:58,822 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
 2025-06-22 11:37:58,822 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
 2025-06-22 11:38:11,726 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-06-29 10:47:56,481 - WARNING - Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.
+2025-06-29 10:47:56,482 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-06-29 10:47:56,482 - ERROR - Query must be a string or a numpy.ndarray.
+2025-06-29 10:47:56,485 - WARNING - Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.
+2025-06-29 10:47:56,485 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-06-29 10:47:56,485 - INFO - Retrieved 2 nodes from vector database.
+2025-06-29 10:47:56,487 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.get_content().__getitem__()' id='6293282176'>...
+2025-06-29 10:47:56,487 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:47:56,489 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.get_content().__getitem__()' id='6293363760'>...
+2025-06-29 10:47:56,489 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:47:56,502 - WARNING - Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.
+2025-06-29 10:47:56,502 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-06-29 10:47:56,502 - INFO - Retrieved 2 nodes from vector database.
+2025-06-29 10:47:56,504 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.get_content().__getitem__()' id='6293729248'>...
+2025-06-29 10:47:56,504 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:47:56,504 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.get_content().__getitem__()' id='6293794448'>...
+2025-06-29 10:47:56,504 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:47:56,505 - INFO - Similarity comparison:
+2025-06-29 10:57:00,224 - WARNING - Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.
+2025-06-29 10:57:00,225 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-06-29 10:57:00,225 - ERROR - Query must be a string or a numpy.ndarray.
+2025-06-29 10:57:00,227 - WARNING - Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.
+2025-06-29 10:57:00,227 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-06-29 10:57:00,227 - INFO - Retrieved 2 nodes from vector database.
+2025-06-29 10:57:00,230 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.get_content().__getitem__()' id='6288039200'>...
+2025-06-29 10:57:00,230 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:57:00,231 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.get_content().__getitem__()' id='6288120784'>...
+2025-06-29 10:57:00,231 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:57:00,241 - WARNING - Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.
+2025-06-29 10:57:00,241 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-06-29 10:57:00,241 - INFO - Retrieved 2 nodes from vector database.
+2025-06-29 10:57:00,243 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.get_content().__getitem__()' id='6288404352'>...
+2025-06-29 10:57:00,243 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:57:00,243 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.get_content().__getitem__()' id='6288567856'>...
+2025-06-29 10:57:00,243 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:57:00,244 - INFO - Similarity comparison:
+2025-06-29 10:57:42,230 - WARNING - Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.
+2025-06-29 10:57:42,231 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-06-29 10:57:42,231 - INFO - Retrieved 2 nodes from vector database.
+2025-06-29 10:57:42,232 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.get_content().__getitem__()' id='6221922512'>...
+2025-06-29 10:57:42,233 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:57:42,234 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.get_content().__getitem__()' id='6221987648'>...
+2025-06-29 10:57:42,234 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:57:42,234 - INFO - Similarity comparison:
+2025-06-29 10:58:23,633 - WARNING - Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.
+2025-06-29 10:58:23,633 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-06-29 10:58:23,633 - ERROR - Query must be a string or a numpy.ndarray.
+2025-06-29 10:58:23,636 - WARNING - Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.
+2025-06-29 10:58:23,636 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-06-29 10:58:23,636 - INFO - Retrieved 2 nodes from vector database.
+2025-06-29 10:58:23,636 - WARNING - Failed to get LlamaIndex-compatible text: TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector.<locals>.<lambda>() got an unexpected keyword argument 'metadata_mode'. Falling back to node.text
+2025-06-29 10:58:23,636 - WARNING - Failed to get LlamaIndex-compatible text: TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector.<locals>.<lambda>() got an unexpected keyword argument 'metadata_mode'. Falling back to node.text
+2025-06-29 10:58:23,637 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.text.__getitem__()' id='6310036000'>...
+2025-06-29 10:58:23,637 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:58:23,638 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.text.__getitem__()' id='6310117488'>...
+2025-06-29 10:58:23,638 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:58:23,638 - INFO - Similarity comparison:
+2025-06-29 10:58:23,638 - INFO - Node 0: Manual=1.000000, LlamaIndex=0.900000, Diff=0.100000
+2025-06-29 10:58:23,638 - INFO - Node 1: Manual=1.000000, LlamaIndex=0.800000, Diff=0.200000
+2025-06-29 10:58:23,638 - INFO - Filtered 2 nodes based on similarity cutoff.
+2025-06-29 10:58:23,671 - WARNING - Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.
+2025-06-29 10:58:23,671 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-06-29 10:58:23,672 - INFO - Retrieved 2 nodes from vector database.
+2025-06-29 10:58:23,673 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.get_content().__getitem__()' id='6310855872'>...
+2025-06-29 10:58:23,673 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:58:23,674 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.get_content().__getitem__()' id='6310767648'>...
+2025-06-29 10:58:23,674 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:58:23,674 - INFO - Similarity comparison:
+2025-06-29 10:58:52,717 - WARNING - Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.
+2025-06-29 10:58:52,717 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-06-29 10:58:52,717 - INFO - Retrieved 2 nodes from vector database.
+2025-06-29 10:58:52,717 - WARNING - Failed to get LlamaIndex-compatible text: TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector.<locals>.<lambda>() got an unexpected keyword argument 'metadata_mode'. Falling back to node.text
+2025-06-29 10:58:52,718 - WARNING - Failed to get LlamaIndex-compatible text: TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector.<locals>.<lambda>() got an unexpected keyword argument 'metadata_mode'. Falling back to node.text
+2025-06-29 10:58:52,719 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.text.__getitem__()' id='6183125296'>...
+2025-06-29 10:58:52,719 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:58:52,719 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.text.__getitem__()' id='6183157568'>...
+2025-06-29 10:58:52,720 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:58:52,720 - INFO - Similarity comparison:
+2025-06-29 10:58:52,720 - INFO - Node 0: Manual=1.000000, LlamaIndex=0.900000, Diff=0.100000
+2025-06-29 10:58:52,720 - INFO - Node 1: Manual=1.000000, LlamaIndex=0.800000, Diff=0.200000
+2025-06-29 10:58:52,720 - INFO - Filtered 2 nodes based on similarity cutoff.
+2025-06-29 10:59:47,294 - WARNING - Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.
+2025-06-29 10:59:47,294 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-06-29 10:59:47,295 - INFO - Retrieved 2 nodes from vector database.
+2025-06-29 10:59:47,295 - INFO - Retrieving cached embedding for text: Document 1...
+2025-06-29 10:59:47,295 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:59:47,295 - INFO - Retrieving cached embedding for text: Document 2...
+2025-06-29 10:59:47,295 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:59:47,295 - INFO - Similarity comparison:
+2025-06-29 10:59:47,295 - INFO - Node 0: Manual=1.000000, LlamaIndex=0.900000, Diff=0.100000
+2025-06-29 10:59:47,295 - INFO - Node 1: Manual=1.000000, LlamaIndex=0.800000, Diff=0.200000
+2025-06-29 10:59:47,295 - INFO - Filtered 2 nodes based on similarity cutoff.
+2025-06-29 10:59:59,557 - WARNING - Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.
+2025-06-29 10:59:59,557 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-06-29 10:59:59,557 - INFO - Retrieved 2 nodes from vector database.
+2025-06-29 10:59:59,559 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.get_content().__getitem__()' id='6357148016'>...
+2025-06-29 10:59:59,559 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:59:59,561 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.get_content().__getitem__()' id='6357196880'>...
+2025-06-29 10:59:59,561 - INFO - Cached embedding retrieved successfully.
+2025-06-29 10:59:59,561 - INFO - Similarity comparison:
+2025-06-29 11:00:38,302 - WARNING - Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.
+2025-06-29 11:00:38,302 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-06-29 11:00:38,302 - INFO - Retrieved 2 nodes from vector database.
+2025-06-29 11:00:38,302 - WARNING - Failed to get LlamaIndex-compatible text: TestRetrieveContext.test_retrieve_context_with_vector_query.<locals>.<lambda>() got an unexpected keyword argument 'metadata_mode'. Falling back to node.text
+2025-06-29 11:00:38,302 - WARNING - Failed to get LlamaIndex-compatible text: TestRetrieveContext.test_retrieve_context_with_vector_query.<locals>.<lambda>() got an unexpected keyword argument 'metadata_mode'. Falling back to node.text
+2025-06-29 11:00:38,303 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.text.__getitem__()' id='6309913232'>...
+2025-06-29 11:00:38,303 - INFO - Cached embedding retrieved successfully.
+2025-06-29 11:00:38,304 - INFO - Retrieving cached embedding for text: <MagicMock name='mock.node.text.__getitem__()' id='6309978336'>...
+2025-06-29 11:00:38,304 - INFO - Cached embedding retrieved successfully.
+2025-06-29 11:00:38,304 - INFO - Similarity comparison:
+2025-06-29 11:00:38,304 - INFO - Node 0: Manual=1.000000, LlamaIndex=0.900000, Diff=0.100000
+2025-06-29 11:00:38,304 - INFO - Node 1: Manual=1.000000, LlamaIndex=0.800000, Diff=0.200000
+2025-06-29 11:00:38,304 - INFO - Filtered 2 nodes based on similarity cutoff.
