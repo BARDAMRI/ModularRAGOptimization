@@ -4,10 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="making the smilarity and vector tests part of test class">
+    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="removing get_document_vector">
+      <change afterPath="$PROJECT_DIR$/tests/logger.log" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/query.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/query.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utility/embedding_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/embedding_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_config.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_query.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_query.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_vector_db_and_embedding_model_creation.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -47,6 +49,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ASKED_ADD_EXTERNAL_FILES": "true",
+    "Python tests.pytest for test_config.TestConfiguration.executor": "Run",
     "Python tests.pytest for test_config.test_configuration_with_sample_query.executor": "Run",
     "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.executor": "Run",
     "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_enumerate_top_documents.executor": "Debug",
@@ -61,6 +64,8 @@
     "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_vector_query.executor": "Run",
     "Python tests.pytest for test_vector_db.TestLoadVectorDB.executor": "Run",
     "Python tests.pytest for test_vector_db.TestVectorDBEmbedding.executor": "Run",
+    "Python tests.pytest for test_vector_db_and_embedding_model_creation.TestEmbeddingComparison.executor": "Run",
+    "Python tests.pytest in test_config.py.executor": "Run",
     "Python tests.pytest in test_evaluator.py.executor": "Run",
     "Python tests.pytest in test_vector_db.py.executor": "Run",
     "Python.EmbeddingVectorStoreIndex.executor": "Debug",
@@ -89,7 +94,7 @@
       <recent name="$PROJECT_DIR$/data" />
     </key>
   </component>
-  <component name="RunManager" selected="Python tests.pytest for test_query.TestEmbeddingComparison">
+  <component name="RunManager" selected="Python tests.pytest for tests.test_configurations.TestConfiguration">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
@@ -146,7 +151,7 @@
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
-    <configuration name="pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+    <configuration name="pytest for test_vector_db_and_embedding_model_creation.TestEmbeddingComparison" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -159,11 +164,11 @@
       <option name="_new_keywords" value="&quot;&quot;" />
       <option name="_new_parameters" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;test_query.TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector&quot;" />
+      <option name="_new_target" value="&quot;test_vector_db_and_embedding_model_creation.TestEmbeddingComparison&quot;" />
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
-    <configuration name="pytest for test_query.TestRetrieveContext.test_retrieve_context_with_vector_query" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+    <configuration name="pytest for tests.test_configurations.TestConfiguration" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -176,16 +181,34 @@
       <option name="_new_keywords" value="&quot;&quot;" />
       <option name="_new_parameters" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;test_query.TestRetrieveContext.test_retrieve_context_with_vector_query&quot;" />
+      <option name="_new_target" value="&quot;tests.test_configurations.TestConfiguration&quot;" />
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest in test_configurations.py" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="ModularRAGOptimization" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_parameters" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/test_configurations.py&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
       <method v="2" />
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python tests.pytest for tests.test_configurations.TestConfiguration" />
+        <item itemvalue="Python tests.pytest in test_configurations.py" />
+        <item itemvalue="Python tests.pytest for test_vector_db_and_embedding_model_creation.TestEmbeddingComparison" />
         <item itemvalue="Python tests.pytest for test_query.TestEmbeddingComparison" />
         <item itemvalue="Python tests.pytest for test_query.TestRetrieveContext" />
-        <item itemvalue="Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_vector_query" />
-        <item itemvalue="Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector" />
       </list>
     </recent_temporary>
   </component>
@@ -533,7 +556,15 @@
       <option name="project" value="LOCAL" />
       <updated>1751187097510</updated>
     </task>
-    <option name="localTasksCounter" value="42" />
+    <task id="LOCAL-00042" summary="removing get_document_vector">
+      <option name="closed" value="true" />
+      <created>1751187153068</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1751187153068</updated>
+    </task>
+    <option name="localTasksCounter" value="43" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -549,7 +580,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
-    <MESSAGE value="moving the running to main and adding loop" />
     <MESSAGE value="adding judge model" />
     <MESSAGE value="adding judge model. putting loop in main" />
     <MESSAGE value="adding model-00001-of-00004.safetensors" />
@@ -574,7 +604,8 @@
     <MESSAGE value="finishing the vector conversion and the similarity function study. both now compatible to the ones used in the VectorStoreIndex" />
     <MESSAGE value="fixing the query tests" />
     <MESSAGE value="making the smilarity and vector tests part of test class" />
-    <option name="LAST_COMMIT_MESSAGE" value="making the smilarity and vector tests part of test class" />
+    <MESSAGE value="removing get_document_vector" />
+    <option name="LAST_COMMIT_MESSAGE" value="removing get_document_vector" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

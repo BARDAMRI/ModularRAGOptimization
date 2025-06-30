@@ -1,11 +1,16 @@
 import unittest
-from unittest.mock import MagicMock
 import numpy as np
 from llama_index.core.schema import MetadataMode
 
 from config import INDEX_SOURCE_URL
 from modules.indexer import load_vector_db
 from utility.embedding_utils import get_query_vector
+
+
+def _normalize_vector(vector):
+    """Helper method to normalize vectors"""
+    norm = np.linalg.norm(vector)
+    return vector / norm if norm != 0 else vector
 
 
 class TestEmbeddingComparison(unittest.TestCase):
@@ -33,13 +38,13 @@ class TestEmbeddingComparison(unittest.TestCase):
 
         # Method 1: Direct embedding model conversion
         reference_embedding = self.embedding_model.get_text_embedding(text_content)
-        reference_vector = self._normalize_vector(np.array(reference_embedding))
+        reference_vector = _normalize_vector(np.array(reference_embedding))
 
         # Method 2: Custom conversion (your implementation)
         custom_vector = self._custom_text_to_vector(text_content)
 
         # Method 3: Stored vector from database
-        stored_vector = self._normalize_vector(np.array(self.vector_store.data.embedding_dict[self.sample_node_id]))
+        stored_vector = _normalize_vector(np.array(self.vector_store.data.embedding_dict[self.sample_node_id]))
 
         # Test vector dimensions match
         self.assertEqual(reference_vector.shape, custom_vector.shape,
@@ -62,8 +67,8 @@ class TestEmbeddingComparison(unittest.TestCase):
     def test_cosine_similarity_function_accuracy(self):
         """Test custom cosine similarity function matches vector DB method"""
         # Get query vector
-        query_vector = self._normalize_vector(get_query_vector(self.test_query, self.embedding_model))
-        stored_vector = self._normalize_vector(np.array(self.vector_store.data.embedding_dict[self.sample_node_id]))
+        query_vector = _normalize_vector(get_query_vector(self.test_query, self.embedding_model))
+        stored_vector = _normalize_vector(np.array(self.vector_store.data.embedding_dict[self.sample_node_id]))
 
         # Method 1: Vector DB similarity score (reference)
         reference_similarity = self.sample_score
@@ -100,7 +105,7 @@ class TestEmbeddingComparison(unittest.TestCase):
 
         for i, vector in enumerate(test_vectors):
             with self.subTest(i=i):
-                normalized = self._normalize_vector(vector)
+                normalized = _normalize_vector(vector)
                 norm = np.linalg.norm(normalized)
 
                 if np.linalg.norm(vector) > 0:  # Skip zero vectors
@@ -115,13 +120,13 @@ class TestEmbeddingComparison(unittest.TestCase):
         custom_embedding = self._custom_text_to_vector(test_text)
 
         # Step 2: Get reference embedding
-        reference_embedding = self._normalize_vector(
+        reference_embedding = _normalize_vector(
             np.array(self.embedding_model.get_text_embedding(test_text))
         )
 
         # Step 3: Test query similarity pipeline
         query_text = "pipeline test"
-        query_vector = self._normalize_vector(get_query_vector(query_text, self.embedding_model))
+        query_vector = _normalize_vector(get_query_vector(query_text, self.embedding_model))
 
         custom_similarity = self._custom_cosine_similarity(query_vector, custom_embedding)
         reference_similarity = np.dot(query_vector, reference_embedding)
@@ -159,8 +164,8 @@ class TestEmbeddingComparison(unittest.TestCase):
 
     def test_similarity_score_bounds(self):
         """Test similarity scores are within expected bounds"""
-        query_vector = self._normalize_vector(get_query_vector(self.test_query, self.embedding_model))
-        stored_vector = self._normalize_vector(np.array(self.vector_store.data.embedding_dict[self.sample_node_id]))
+        query_vector = _normalize_vector(get_query_vector(self.test_query, self.embedding_model))
+        stored_vector = _normalize_vector(np.array(self.vector_store.data.embedding_dict[self.sample_node_id]))
 
         similarity = self._custom_cosine_similarity(query_vector, stored_vector)
 
@@ -188,7 +193,7 @@ class TestEmbeddingComparison(unittest.TestCase):
         # Apply your custom normalization logic
         norm = np.linalg.norm(embedding_array)
         if norm > 1.1 or norm < 0.9:  # Not normalized
-            embedding_array = self._normalize_vector(embedding_array)
+            embedding_array = _normalize_vector(embedding_array)
 
         return embedding_array
 
@@ -199,16 +204,11 @@ class TestEmbeddingComparison(unittest.TestCase):
         """
         # Example implementation - replace with your actual method
         # Ensure vectors are normalized
-        v1_norm = self._normalize_vector(vector1)
-        v2_norm = self._normalize_vector(vector2)
+        v1_norm = _normalize_vector(vector1)
+        v2_norm = _normalize_vector(vector2)
 
         # Calculate cosine similarity
         return np.dot(v1_norm, v2_norm)
-
-    def _normalize_vector(self, vector):
-        """Helper method to normalize vectors"""
-        norm = np.linalg.norm(vector)
-        return vector / norm if norm != 0 else vector
 
 
 if __name__ == "__main__":
