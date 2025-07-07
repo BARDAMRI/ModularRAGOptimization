@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 from llama_index.core.schema import MetadataMode
 
-from config import INDEX_SOURCE_URL
+from configurations.config import INDEX_SOURCE_URL
 from modules.indexer import load_vector_db
 from utility.embedding_utils import get_query_vector
 

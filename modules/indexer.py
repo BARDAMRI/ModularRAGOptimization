@@ -5,8 +5,8 @@ import requests
 from datasets import load_dataset
 from llama_index.core import GPTVectorStoreIndex, SimpleDirectoryReader, VectorStoreIndex
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from llama_index.core import Settings, StorageContext, load_index_from_storage
-from config import DATA_PATH, HF_MODEL_NAME
+from llama_index.core import StorageContext, load_index_from_storage
+from configurations.config import DATA_PATH, HF_MODEL_NAME
 from utility.logger import logger
 from typing import Tuple, Optional
 

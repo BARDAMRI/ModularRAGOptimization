@@ -2,16 +2,15 @@
 from modules.model_loader import load_model
 from modules.query import query_model
 from modules.indexer import load_vector_db
-from config import INDEX_SOURCE_URL
+from configurations.config import INDEX_SOURCE_URL
 import sys
 import termios
 from scripts.evaluator import enumerate_top_documents
 import os
 import json
-from config import NQ_SAMPLE_SIZE
+from configurations.config import NQ_SAMPLE_SIZE
 from matrics.results_logger import ResultsLogger, plot_score_distribution
 import torch
-from sentence_transformers import SentenceTransformer
 from utility.logger import logger  # Import logger from utility/logger.py
 
 tokenizer, model = load_model()

@@ -4,12 +4,26 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="removing get_document_vector">
-      <change afterPath="$PROJECT_DIR$/tests/logger.log" afterDir="false" />
+    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="Adding tests">
+      <change afterPath="$PROJECT_DIR$/combine.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/combined_project.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/configurations/config.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test_model_loader.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/types/config_enhanced.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_config.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/code_testing.py" beforeDir="false" afterPath="$PROJECT_DIR$/code_testing.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/logger.log" beforeDir="false" afterPath="$PROJECT_DIR$/logger.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/indexer.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/indexer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/model_loader.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/model_loader.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/query.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/query.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/create_public_corpus.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/create_public_corpus.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/evaluator.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/evaluator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/modelHuggingFaceDownload.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/modelHuggingFaceDownload.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/logger.log" beforeDir="false" afterPath="$PROJECT_DIR$/tests/logger.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_configurations.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_configurations.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/test_query.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_query.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_vector_db_and_embedding_model_creation.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -51,10 +65,15 @@
     "ASKED_ADD_EXTERNAL_FILES": "true",
     "Python tests.pytest for test_config.TestConfiguration.executor": "Run",
     "Python tests.pytest for test_config.test_configuration_with_sample_query.executor": "Run",
+    "Python tests.pytest for test_configurations.test_complete_rag_pipeline.executor": "Run",
     "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.executor": "Run",
     "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_enumerate_top_documents.executor": "Debug",
     "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_hill_climb_documents.executor": "Debug",
     "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_sanity_check.executor": "Run",
+    "Python tests.pytest for test_model_loader.TestModelLoader.executor": "Debug",
+    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.executor": "Run",
+    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_load_model_works.executor": "Run",
+    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_test_model_loading_works.executor": "Run",
     "Python tests.pytest for test_query.TestEmbeddingComparison.executor": "Run",
     "Python tests.pytest for test_query.TestRetrieveContext.executor": "Run",
     "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_invalid_query.executor": "Run",
@@ -66,11 +85,14 @@
     "Python tests.pytest for test_vector_db.TestVectorDBEmbedding.executor": "Run",
     "Python tests.pytest for test_vector_db_and_embedding_model_creation.TestEmbeddingComparison.executor": "Run",
     "Python tests.pytest in test_config.py.executor": "Run",
+    "Python tests.pytest in test_configurations.py.executor": "Run",
     "Python tests.pytest in test_evaluator.py.executor": "Run",
+    "Python tests.pytest in test_model_loader.py.executor": "Run",
     "Python tests.pytest in test_vector_db.py.executor": "Run",
     "Python.EmbeddingVectorStoreIndex.executor": "Debug",
     "Python.check_vector_db_store_functions.executor": "Run",
     "Python.code_testing.executor": "Run",
+    "Python.combine.executor": "Run",
     "Python.dir_tree_printer.executor": "Run",
     "Python.docsDownloader.executor": "Run",
     "Python.embedding_utils.executor": "Run",
@@ -89,12 +111,14 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/configurations" />
       <recent name="$PROJECT_DIR$/scripts" />
       <recent name="$PROJECT_DIR$/modules" />
       <recent name="$PROJECT_DIR$/data" />
     </key>
   </component>
-  <component name="RunManager" selected="Python tests.pytest for tests.test_configurations.TestConfiguration">
+  <component name="RunManager" selected="Python tests.pytest for test_model_loader.TestModelLoaderSimple">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
@@ -117,7 +141,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="pytest for test_query.TestEmbeddingComparison" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+    <configuration name="pytest for test_model_loader.TestModelLoader" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -130,11 +154,11 @@
       <option name="_new_keywords" value="&quot;&quot;" />
       <option name="_new_parameters" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;test_query.TestEmbeddingComparison&quot;" />
+      <option name="_new_target" value="&quot;test_model_loader.TestModelLoader&quot;" />
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
-    <configuration name="pytest for test_query.TestRetrieveContext" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+    <configuration name="pytest for test_model_loader.TestModelLoaderSimple" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -147,11 +171,11 @@
       <option name="_new_keywords" value="&quot;&quot;" />
       <option name="_new_parameters" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;test_query.TestRetrieveContext&quot;" />
+      <option name="_new_target" value="&quot;test_model_loader.TestModelLoaderSimple&quot;" />
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
-    <configuration name="pytest for test_vector_db_and_embedding_model_creation.TestEmbeddingComparison" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+    <configuration name="pytest for test_model_loader.TestModelLoaderSimple.test_load_model_works" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -164,11 +188,11 @@
       <option name="_new_keywords" value="&quot;&quot;" />
       <option name="_new_parameters" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;test_vector_db_and_embedding_model_creation.TestEmbeddingComparison&quot;" />
+      <option name="_new_target" value="&quot;test_model_loader.TestModelLoaderSimple.test_load_model_works&quot;" />
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
-    <configuration name="pytest for tests.test_configurations.TestConfiguration" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+    <configuration name="pytest for test_model_loader.TestModelLoaderSimple.test_test_model_loading_works" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -181,11 +205,11 @@
       <option name="_new_keywords" value="&quot;&quot;" />
       <option name="_new_parameters" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;tests.test_configurations.TestConfiguration&quot;" />
+      <option name="_new_target" value="&quot;test_model_loader.TestModelLoaderSimple.test_test_model_loading_works&quot;" />
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
-    <configuration name="pytest in test_configurations.py" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+    <configuration name="pytest in test_model_loader.py" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -198,17 +222,17 @@
       <option name="_new_keywords" value="&quot;&quot;" />
       <option name="_new_parameters" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/test_configurations.py&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/test_model_loader.py&quot;" />
       <option name="_new_targetType" value="&quot;PATH&quot;" />
       <method v="2" />
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python tests.pytest for tests.test_configurations.TestConfiguration" />
-        <item itemvalue="Python tests.pytest in test_configurations.py" />
-        <item itemvalue="Python tests.pytest for test_vector_db_and_embedding_model_creation.TestEmbeddingComparison" />
-        <item itemvalue="Python tests.pytest for test_query.TestEmbeddingComparison" />
-        <item itemvalue="Python tests.pytest for test_query.TestRetrieveContext" />
+        <item itemvalue="Python tests.pytest for test_model_loader.TestModelLoaderSimple" />
+        <item itemvalue="Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_test_model_loading_works" />
+        <item itemvalue="Python tests.pytest in test_model_loader.py" />
+        <item itemvalue="Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_load_model_works" />
+        <item itemvalue="Python tests.pytest for test_model_loader.TestModelLoader" />
       </list>
     </recent_temporary>
   </component>
@@ -564,7 +588,15 @@
       <option name="project" value="LOCAL" />
       <updated>1751187153068</updated>
     </task>
-    <option name="localTasksCounter" value="43" />
+    <task id="LOCAL-00043" summary="Adding tests">
+      <option name="closed" value="true" />
+      <created>1751286694721</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1751286694721</updated>
+    </task>
+    <option name="localTasksCounter" value="44" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -580,7 +612,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
-    <MESSAGE value="adding judge model" />
     <MESSAGE value="adding judge model. putting loop in main" />
     <MESSAGE value="adding model-00001-of-00004.safetensors" />
     <MESSAGE value="adding public corpus &quot;all-MiniLM-L6-v2&quot;  fixing the judge algorithm, and also optimizing the query function to reduce model indexing and loading time for each query." />
@@ -605,7 +636,8 @@
     <MESSAGE value="fixing the query tests" />
     <MESSAGE value="making the smilarity and vector tests part of test class" />
     <MESSAGE value="removing get_document_vector" />
-    <option name="LAST_COMMIT_MESSAGE" value="removing get_document_vector" />
+    <MESSAGE value="Adding tests" />
+    <option name="LAST_COMMIT_MESSAGE" value="Adding tests" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -614,6 +646,16 @@
           <url>file://$PROJECT_DIR$/classes/EmbeddingVectorStoreIndex.py</url>
           <line>23</line>
           <option name="timeStamp" value="12" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/tests/test_model_loader.py</url>
+          <line>79</line>
+          <option name="timeStamp" value="15" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/modules/model_loader.py</url>
+          <line>108</line>
+          <option name="timeStamp" value="17" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>

@@ -1,120 +1,546 @@
-2025-06-30 13:48:27,298 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:48:28,222 - INFO - Loaded masked language model: distilbert-base-uncased
-2025-06-30 13:48:28,222 - INFO - Loading embedding model...
-2025-06-30 13:48:30,785 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:48:30,785 - INFO - Running query: What is machine learning?
-2025-06-30 13:48:30,946 - INFO - Loading embedding model...
-2025-06-30 13:48:33,017 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:48:33,022 - INFO - Loading embedding model...
-2025-06-30 13:48:35,099 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:48:35,127 - INFO - Loading embedding model...
-2025-06-30 13:48:37,161 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:48:37,167 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:48:37,731 - INFO - Loaded masked language model: distilbert-base-uncased
-2025-06-30 13:48:37,731 - INFO - Running query: test
-2025-06-30 13:48:37,731 - INFO - Running query: test
-2025-06-30 13:48:37,731 - INFO - Loading embedding model...
-2025-06-30 13:48:39,768 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:48:39,772 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:48:40,327 - INFO - Loaded masked language model: distilbert-base-uncased
-2025-06-30 13:48:40,332 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:48:40,882 - INFO - Loaded masked language model: distilbert-base-uncased
-2025-06-30 13:48:40,885 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:48:41,437 - INFO - Loaded masked language model: distilbert-base-uncased
-2025-06-30 13:48:41,438 - INFO - Running query: 
-2025-06-30 13:48:41,438 - INFO - Running query: Hi
-2025-06-30 13:48:41,493 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:48:42,045 - INFO - Loaded masked language model: distilbert-base-uncased
-2025-06-30 13:48:42,045 - INFO - Running query: What is the capital of France?
-2025-06-30 13:48:42,100 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:48:42,739 - INFO - Loaded masked language model: distilbert-base-uncased
-2025-06-30 13:48:42,739 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:48:43,298 - INFO - Loaded masked language model: distilbert-base-uncased
-2025-06-30 13:48:43,299 - INFO - Loading embedding model...
-2025-06-30 13:48:45,377 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:48:45,378 - INFO - Loading embedding model...
-2025-06-30 13:48:47,564 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:48:47,571 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:48:48,164 - INFO - Loaded masked language model: distilbert-base-uncased
-2025-06-30 13:48:48,164 - INFO - Loading embedding model...
-2025-06-30 13:48:50,301 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:48:50,301 - INFO - Running query: What is the capital of France?
-2025-06-30 13:57:32,081 - INFO - Loading embedding model...
-2025-06-30 13:57:34,127 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:57:34,258 - INFO - Loading embedding model...
-2025-06-30 13:57:35,809 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:57:35,814 - INFO - Loading embedding model...
-2025-06-30 13:57:37,393 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:57:37,420 - INFO - Loading embedding model...
-2025-06-30 13:57:38,990 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:57:38,994 - INFO - Loading embedding model...
-2025-06-30 13:57:40,654 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:57:40,682 - INFO - Running query: test
-2025-06-30 13:57:40,682 - INFO - Running query: test
-2025-06-30 13:57:40,683 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:57:40,685 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:57:40,685 - INFO - Loaded causal language model: distilbert-base-uncased
-2025-06-30 13:57:40,686 - INFO - Running query: 
-2025-06-30 13:57:40,686 - INFO - Generated result: Response
-2025-06-30 13:57:40,686 - INFO - Running query: Hi
-2025-06-30 13:57:40,686 - INFO - Generated result: Response
-2025-06-30 13:57:40,686 - INFO - Running query: What is 2+2? #@$%
-2025-06-30 13:57:40,686 - INFO - Generated result: Response
-2025-06-30 13:57:40,688 - INFO - Running query: What is the capital of France?
-2025-06-30 13:57:40,688 - INFO - Generated result: Paris is the capital of France.
-2025-06-30 13:57:40,690 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:57:41,225 - INFO - Loaded masked language model: distilbert-base-uncased
-2025-06-30 13:57:41,225 - INFO - Loading embedding model...
-2025-06-30 13:57:42,907 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:57:42,908 - INFO - Running query: What is the capital of France?
-2025-06-30 13:59:06,073 - INFO - Loading embedding model...
-2025-06-30 13:59:08,786 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:59:08,821 - INFO - Loading embedding model...
-2025-06-30 13:59:11,213 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:59:11,219 - INFO - Loading embedding model...
-2025-06-30 13:59:13,301 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:59:13,329 - INFO - Loading embedding model...
-2025-06-30 13:59:15,363 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:59:15,370 - INFO - Loading embedding model...
-2025-06-30 13:59:17,427 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 13:59:17,457 - INFO - Running query: test
-2025-06-30 13:59:17,458 - INFO - Running query: test
-2025-06-30 13:59:17,459 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:59:17,461 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:59:17,461 - INFO - Loaded causal language model: distilbert-base-uncased
-2025-06-30 13:59:17,462 - INFO - Running query: 
-2025-06-30 13:59:17,463 - INFO - Generated result: Response
-2025-06-30 13:59:17,463 - INFO - Running query: Hi
-2025-06-30 13:59:17,463 - INFO - Generated result: Response
-2025-06-30 13:59:17,463 - INFO - Running query: What is 2+2? #@$%
-2025-06-30 13:59:17,463 - INFO - Generated result: Response
-2025-06-30 13:59:17,464 - INFO - Running query: What is the capital of France?
-2025-06-30 13:59:17,464 - INFO - Generated result: Paris is the capital of France.
-2025-06-30 13:59:17,468 - INFO - Loading LLM model and tokenizer...
-2025-06-30 13:59:18,050 - INFO - Loaded masked language model: distilbert-base-uncased
-2025-06-30 13:59:18,050 - INFO - Loading embedding model...
-2025-06-30 13:59:20,107 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 14:28:30,689 - INFO - Loading embedding model...
-2025-06-30 14:28:30,689 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 14:28:30,714 - INFO - Loading embedding model...
-2025-06-30 14:28:30,715 - INFO - Loading embedding model...
-2025-06-30 14:28:30,715 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 14:28:30,717 - INFO - Loading embedding model...
-2025-06-30 14:28:32,718 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 14:28:32,724 - INFO - Loading embedding model...
-2025-06-30 14:28:32,724 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 14:28:32,726 - INFO - Loading embedding model...
-2025-06-30 14:28:32,726 - INFO - Loaded embedding model: sentence-transformers/all-MiniLM-L6-v2
-2025-06-30 14:28:32,728 - INFO - Running query: test
-2025-06-30 14:28:32,728 - INFO - Running query: test
-2025-06-30 14:28:32,730 - INFO - Loading LLM model and tokenizer...
-2025-06-30 14:28:32,731 - INFO - Loading LLM model and tokenizer...
-2025-06-30 14:28:32,731 - INFO - Loaded causal language model: distilbert-base-uncased
-2025-06-30 14:28:32,732 - INFO - Running query: 
-2025-06-30 14:28:32,732 - INFO - Generated result: Response
-2025-06-30 14:28:32,732 - INFO - Running query: Hi
-2025-06-30 14:28:32,732 - INFO - Generated result: Response
-2025-06-30 14:28:32,733 - INFO - Running query: What is 2+2? #@$%
-2025-06-30 14:28:32,733 - INFO - Generated result: Response
-2025-06-30 14:28:32,734 - INFO - Running query: What is the capital of France?
-2025-06-30 14:28:32,734 - INFO - Generated result: Paris is the capital of France.
+2025-07-07 21:23:03,902 - INFO - 💻 Using CPU (no GPU available)
+2025-07-07 21:23:03,904 - INFO - 🚀 CUDA GPU detected
+2025-07-07 21:23:03,906 - INFO - 🔧 CPU forced via config
+2025-07-07 21:23:03,908 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:23:03,910 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:23:03,910 - INFO - Added padding token to tokenizer.
+2025-07-07 21:23:03,910 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:23:03,911 - ERROR - ❌ Failed to load model: Complete failure
+2025-07-07 21:23:03,911 - INFO - 🔄 Attempting fallback loading...
+2025-07-07 21:23:03,911 - ERROR - ❌ Fallback also failed: Complete failure
+2025-07-07 21:23:03,912 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:23:03,913 - INFO - Added padding token to tokenizer.
+2025-07-07 21:23:03,913 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:23:03,913 - INFO - ✅ Loaded model for CUDA with torch.float16
+2025-07-07 21:29:38,159 - INFO - 💻 Using CPU (no GPU available)
+2025-07-07 21:29:38,161 - INFO - 🚀 CUDA GPU detected
+2025-07-07 21:29:38,163 - INFO - 🔧 CPU forced via config
+2025-07-07 21:29:38,164 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:29:38,166 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:29:38,167 - INFO - Added padding token to tokenizer.
+2025-07-07 21:29:38,167 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:29:38,167 - ERROR - ❌ Failed to load model: Complete failure
+2025-07-07 21:29:38,167 - INFO - 🔄 Attempting fallback loading...
+2025-07-07 21:29:38,167 - ERROR - ❌ Fallback also failed: Complete failure
+2025-07-07 21:29:38,169 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:29:38,169 - INFO - Added padding token to tokenizer.
+2025-07-07 21:29:38,169 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:29:38,169 - INFO - ✅ Loaded model for CUDA with torch.float16
+2025-07-07 21:30:26,746 - INFO - 💻 Using CPU (no GPU available)
+2025-07-07 21:30:26,748 - INFO - 🚀 CUDA GPU detected
+2025-07-07 21:30:26,751 - INFO - 🔧 CPU forced via config
+2025-07-07 21:30:26,752 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:30:26,754 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:30:26,755 - INFO - Added padding token to tokenizer.
+2025-07-07 21:30:26,755 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:30:26,755 - ERROR - ❌ Failed to load model: Complete failure
+2025-07-07 21:30:26,755 - INFO - 🔄 Attempting fallback loading...
+2025-07-07 21:30:26,755 - ERROR - ❌ Fallback also failed: Complete failure
+2025-07-07 21:30:26,757 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:30:26,757 - INFO - Added padding token to tokenizer.
+2025-07-07 21:30:26,757 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:30:26,757 - INFO - ✅ Loaded model for CUDA with torch.float16
+2025-07-07 21:30:36,345 - INFO - 💻 Using CPU (no GPU available)
+2025-07-07 21:30:36,347 - INFO - 🚀 CUDA GPU detected
+2025-07-07 21:30:36,349 - INFO - 🔧 CPU forced via config
+2025-07-07 21:30:36,350 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:30:36,352 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:30:36,352 - INFO - Added padding token to tokenizer.
+2025-07-07 21:30:36,352 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:30:36,352 - ERROR - ❌ Failed to load model: Complete failure
+2025-07-07 21:30:36,352 - INFO - 🔄 Attempting fallback loading...
+2025-07-07 21:30:36,353 - ERROR - ❌ Fallback also failed: Complete failure
+2025-07-07 21:30:36,355 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:30:36,355 - INFO - Added padding token to tokenizer.
+2025-07-07 21:30:36,355 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:30:36,355 - INFO - ✅ Loaded model for CUDA with torch.float16
+2025-07-07 21:32:07,258 - INFO - 💻 Using CPU (no GPU available)
+2025-07-07 21:32:07,261 - INFO - 🚀 CUDA GPU detected
+2025-07-07 21:32:07,262 - INFO - 🔧 CPU forced via config
+2025-07-07 21:32:07,264 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:32:07,267 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:32:07,267 - INFO - Added padding token to tokenizer.
+2025-07-07 21:32:07,267 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:32:07,267 - ERROR - ❌ Failed to load model: Complete failure
+2025-07-07 21:32:07,267 - INFO - 🔄 Attempting fallback loading...
+2025-07-07 21:32:07,267 - ERROR - ❌ Fallback also failed: Complete failure
+2025-07-07 21:32:07,269 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:32:07,269 - INFO - Added padding token to tokenizer.
+2025-07-07 21:32:07,269 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:32:07,269 - INFO - ✅ Loaded model for CUDA with torch.float16
+2025-07-07 21:32:12,815 - INFO - 💻 Using CPU (no GPU available)
+2025-07-07 21:32:12,817 - INFO - 🚀 CUDA GPU detected
+2025-07-07 21:32:12,819 - INFO - 🔧 CPU forced via config
+2025-07-07 21:32:12,822 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:32:12,824 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:32:12,824 - INFO - Added padding token to tokenizer.
+2025-07-07 21:32:12,824 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:32:12,824 - ERROR - ❌ Failed to load model: Complete failure
+2025-07-07 21:32:12,824 - INFO - 🔄 Attempting fallback loading...
+2025-07-07 21:32:12,824 - ERROR - ❌ Fallback also failed: Complete failure
+2025-07-07 21:32:12,826 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:32:12,826 - INFO - Added padding token to tokenizer.
+2025-07-07 21:32:12,826 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:32:12,826 - INFO - ✅ Loaded model for CUDA with torch.float16
+2025-07-07 21:36:28,933 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 21:36:28,934 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:36:28,954 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:36:29,647 - INFO - Added padding token to tokenizer.
+2025-07-07 21:36:29,647 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:36:31,113 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 21:36:31,509 - INFO - 📍 Model moved to mps
+2025-07-07 21:36:31,511 - INFO - ⚡ Skipping torch.compile (MPS compatibility)
+2025-07-07 21:36:31,511 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 21:36:31,512 - INFO - 📋 Model loading test results:
+2025-07-07 21:36:31,512 - INFO -   ✅ can_generate: True
+2025-07-07 21:36:31,512 - INFO -   ℹ️ model_type: GPT2LMHeadModel
+2025-07-07 21:36:31,512 - INFO -   ⚠️ is_causal_lm: False
+2025-07-07 21:36:31,512 - INFO -   ℹ️ device: mps:0
+2025-07-07 21:36:31,512 - INFO -   ℹ️ dtype: torch.float32
+2025-07-07 21:36:31,512 - INFO -   ℹ️ parameter_count: 124439808
+2025-07-07 21:36:31,512 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 21:36:31,512 - INFO - 🎉 Model supports text generation!
+2025-07-07 21:36:36,964 - INFO - ✅ Test generation on mps:0: 'Hello mathematik.'
+2025-07-07 21:36:36,965 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 21:36:36,996 - INFO - 💻 Using CPU (no GPU available)
+2025-07-07 21:36:36,998 - INFO - 🚀 CUDA GPU detected
+2025-07-07 21:36:37,002 - INFO - 🔧 CPU forced via config
+2025-07-07 21:36:37,005 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:36:37,007 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:36:37,007 - INFO - Added padding token to tokenizer.
+2025-07-07 21:36:37,007 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:36:37,008 - ERROR - ❌ Failed to load model: Complete failure
+2025-07-07 21:36:37,008 - INFO - 🔄 Attempting fallback loading...
+2025-07-07 21:36:37,008 - ERROR - ❌ Fallback also failed: Complete failure
+2025-07-07 21:36:37,012 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:36:37,012 - INFO - Added padding token to tokenizer.
+2025-07-07 21:36:37,012 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:36:37,013 - INFO - ✅ Loaded model for CUDA with torch.float16
+2025-07-07 21:37:47,001 - INFO - 💻 Using CPU (no GPU available)
+2025-07-07 21:37:47,003 - INFO - 🚀 CUDA GPU detected
+2025-07-07 21:37:47,004 - INFO - 🔧 CPU forced via config
+2025-07-07 21:37:47,006 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:37:47,007 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:37:47,008 - INFO - Added padding token to tokenizer.
+2025-07-07 21:37:47,008 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:37:47,008 - ERROR - ❌ Failed to load model: Complete failure
+2025-07-07 21:37:47,008 - INFO - 🔄 Attempting fallback loading...
+2025-07-07 21:37:47,008 - ERROR - ❌ Fallback also failed: Complete failure
+2025-07-07 21:37:47,010 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:37:47,010 - INFO - Added padding token to tokenizer.
+2025-07-07 21:37:47,010 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:37:47,011 - INFO - ✅ Loaded model for CUDA with torch.float16
+2025-07-07 21:46:19,022 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:46:19,037 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:46:19,502 - INFO - Added padding token to tokenizer.
+2025-07-07 21:46:19,502 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:46:20,155 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 21:46:20,298 - INFO - 📍 Model moved to mps
+2025-07-07 21:46:20,299 - INFO - ⚡ Skipping torch.compile (MPS compatibility)
+2025-07-07 21:46:20,299 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 21:51:22,392 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:51:22,405 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:51:22,751 - INFO - Added padding token to tokenizer.
+2025-07-07 21:51:22,751 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:51:23,413 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 21:51:23,536 - INFO - 📍 Model moved to mps
+2025-07-07 21:51:23,536 - INFO - ⚡ Skipping torch.compile (MPS compatibility)
+2025-07-07 21:51:23,536 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 21:53:14,952 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:53:14,952 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:53:14,952 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:53:15,507 - INFO - Added padding token to tokenizer.
+2025-07-07 21:53:15,507 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:53:16,528 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 21:53:16,725 - INFO - 📍 Model moved to mps
+2025-07-07 21:53:16,726 - INFO - ⚡ Skipping torch.compile (MPS compatibility)
+2025-07-07 21:53:16,726 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 21:53:16,997 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-07-07 21:53:19,225 - INFO - Parsing source path: wikipedia:20220301.en
+2025-07-07 21:53:19,225 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-07-07 21:53:19,225 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-07-07 21:53:32,059 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-07-07 21:53:32,157 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:53:32,157 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:53:32,157 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:53:32,462 - INFO - Added padding token to tokenizer.
+2025-07-07 21:53:32,462 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:53:33,476 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 21:53:33,831 - INFO - 📍 Model moved to mps
+2025-07-07 21:53:33,832 - INFO - ⚡ Skipping torch.compile (MPS compatibility)
+2025-07-07 21:53:33,832 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 21:53:34,149 - INFO - Starting GPU-optimized query process.
+2025-07-07 21:53:34,149 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-07-07 21:53:34,250 - INFO - Retrieved 5 nodes from vector database.
+2025-07-07 21:53:34,262 - INFO - Retrieving cached embedding for text: file_path: /Users/bardamri/PycharmProjects/Modular...
+2025-07-07 21:53:34,460 - INFO - Cached embedding retrieved successfully.
+2025-07-07 21:53:34,460 - INFO - Retrieving cached embedding for text: file_path: /Users/bardamri/PycharmProjects/Modular...
+2025-07-07 21:53:34,473 - INFO - Cached embedding retrieved successfully.
+2025-07-07 21:53:34,473 - INFO - Retrieving cached embedding for text: file_path: /Users/bardamri/PycharmProjects/Modular...
+2025-07-07 21:53:34,486 - INFO - Cached embedding retrieved successfully.
+2025-07-07 21:53:34,486 - INFO - Retrieving cached embedding for text: file_path: /Users/bardamri/PycharmProjects/Modular...
+2025-07-07 21:53:34,499 - INFO - Cached embedding retrieved successfully.
+2025-07-07 21:53:34,500 - INFO - Retrieving cached embedding for text: file_path: /Users/bardamri/PycharmProjects/Modular...
+2025-07-07 21:53:34,516 - INFO - Cached embedding retrieved successfully.
+2025-07-07 21:53:34,516 - INFO - Similarity comparison:
+2025-07-07 21:53:34,516 - INFO - Node 0: Manual=0.648704, LlamaIndex=0.648704, Diff=0.000000
+2025-07-07 21:53:34,517 - INFO - Node 1: Manual=0.495442, LlamaIndex=0.495442, Diff=0.000000
+2025-07-07 21:53:34,517 - INFO - Node 2: Manual=0.472346, LlamaIndex=0.472346, Diff=0.000000
+2025-07-07 21:53:34,517 - INFO - Node 3: Manual=0.454839, LlamaIndex=0.454839, Diff=0.000000
+2025-07-07 21:53:34,517 - INFO - Node 4: Manual=0.445018, LlamaIndex=0.445018, Diff=0.000000
+2025-07-07 21:53:34,517 - INFO - Filtered 1 nodes based on similarity cutoff.
+2025-07-07 21:53:37,986 - INFO - Evaluating the quality of the answer.
+2025-07-07 21:53:37,987 - INFO - Quality score calculated: 1.0
+2025-07-07 21:53:37,987 - INFO - GPU-optimized query completed successfully.
+2025-07-07 21:53:38,581 - INFO - Loading vector database from source: url, source_path: wikipedia:20220301.en
+2025-07-07 21:53:40,476 - INFO - Parsing source path: wikipedia:20220301.en
+2025-07-07 21:53:40,477 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-07-07 21:53:40,477 - INFO - Loading existing vector database from storage/wikipedia_20220301.en...
+2025-07-07 21:53:53,074 - INFO - Loaded existing vector database for 'wikipedia_20220301.en' from storage/wikipedia_20220301.en.
+2025-07-07 21:53:54,881 - INFO - Starting GPU-optimized query process.
+2025-07-07 21:53:54,882 - INFO - Retrieving context for the query with LlamaIndex compatibility.
+2025-07-07 21:53:54,995 - INFO - Retrieved 5 nodes from vector database.
+2025-07-07 21:53:55,007 - INFO - Retrieving cached embedding for text: file_path: /Users/bardamri/PycharmProjects/Modular...
+2025-07-07 21:53:55,226 - INFO - Cached embedding retrieved successfully.
+2025-07-07 21:53:55,226 - INFO - Retrieving cached embedding for text: file_path: /Users/bardamri/PycharmProjects/Modular...
+2025-07-07 21:53:55,239 - INFO - Cached embedding retrieved successfully.
+2025-07-07 21:53:55,239 - INFO - Retrieving cached embedding for text: file_path: /Users/bardamri/PycharmProjects/Modular...
+2025-07-07 21:53:55,252 - INFO - Cached embedding retrieved successfully.
+2025-07-07 21:53:55,252 - INFO - Retrieving cached embedding for text: file_path: /Users/bardamri/PycharmProjects/Modular...
+2025-07-07 21:53:55,265 - INFO - Cached embedding retrieved successfully.
+2025-07-07 21:53:55,265 - INFO - Retrieving cached embedding for text: file_path: /Users/bardamri/PycharmProjects/Modular...
+2025-07-07 21:53:55,281 - INFO - Cached embedding retrieved successfully.
+2025-07-07 21:53:55,281 - INFO - Similarity comparison:
+2025-07-07 21:53:55,281 - INFO - Node 0: Manual=0.648704, LlamaIndex=0.648704, Diff=0.000000
+2025-07-07 21:53:55,281 - INFO - Node 1: Manual=0.495442, LlamaIndex=0.495442, Diff=0.000000
+2025-07-07 21:53:55,282 - INFO - Node 2: Manual=0.472346, LlamaIndex=0.472346, Diff=0.000000
+2025-07-07 21:53:55,282 - INFO - Node 3: Manual=0.454839, LlamaIndex=0.454839, Diff=0.000000
+2025-07-07 21:53:55,282 - INFO - Node 4: Manual=0.445018, LlamaIndex=0.445018, Diff=0.000000
+2025-07-07 21:53:55,282 - INFO - Filtered 1 nodes based on similarity cutoff.
+2025-07-07 21:53:58,357 - INFO - Evaluating the quality of the answer.
+2025-07-07 21:53:58,358 - INFO - Quality score calculated: 1.0
+2025-07-07 21:53:58,358 - INFO - GPU-optimized query completed successfully.
+2025-07-07 21:53:58,360 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:54:00,641 - INFO - 💻 Using CPU (no GPU available)
+2025-07-07 21:54:00,643 - INFO - 🚀 CUDA GPU detected
+2025-07-07 21:54:00,644 - INFO - 🔧 CPU forced via config
+2025-07-07 21:54:00,647 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:54:00,649 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:54:00,649 - INFO - Added padding token to tokenizer.
+2025-07-07 21:54:00,649 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:54:00,649 - ERROR - ❌ Failed to load model: Complete failure
+2025-07-07 21:54:00,649 - INFO - 🔄 Attempting fallback loading...
+2025-07-07 21:54:00,649 - ERROR - ❌ Fallback also failed: Complete failure
+2025-07-07 21:54:00,651 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:54:00,651 - INFO - Added padding token to tokenizer.
+2025-07-07 21:54:00,651 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:54:00,651 - INFO - ✅ Loaded model for CUDA with torch.float16
+2025-07-07 21:56:29,400 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 21:56:29,400 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:56:29,412 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:56:29,932 - INFO - Added padding token to tokenizer.
+2025-07-07 21:56:29,932 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:56:30,956 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 21:56:31,133 - INFO - 📍 Model moved to mps
+2025-07-07 21:56:31,134 - INFO - ⚡ Skipping torch.compile (MPS compatibility)
+2025-07-07 21:56:31,134 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 21:56:31,134 - INFO - 📋 Model loading test results:
+2025-07-07 21:56:31,134 - INFO -   ✅ can_generate: True
+2025-07-07 21:56:31,134 - INFO -   ℹ️ model_type: GPT2LMHeadModel
+2025-07-07 21:56:31,134 - INFO -   ⚠️ is_causal_lm: False
+2025-07-07 21:56:31,134 - INFO -   ℹ️ device: mps:0
+2025-07-07 21:56:31,134 - INFO -   ℹ️ dtype: torch.float32
+2025-07-07 21:56:31,134 - INFO -   ℹ️ parameter_count: 124439808
+2025-07-07 21:56:31,134 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 21:56:31,134 - INFO - 🎉 Model supports text generation!
+2025-07-07 21:56:31,392 - INFO - ✅ Test generation on mps:0: 'Hello mathematik.'
+2025-07-07 21:56:31,392 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 21:56:31,408 - INFO - 💻 Using CPU (no GPU available)
+2025-07-07 21:56:31,409 - INFO - 🚀 CUDA GPU detected
+2025-07-07 21:56:31,411 - INFO - 🔧 CPU forced via config
+2025-07-07 21:56:31,412 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:56:31,414 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:56:31,414 - INFO - Added padding token to tokenizer.
+2025-07-07 21:56:31,414 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:56:31,414 - ERROR - ❌ Failed to load model: Complete failure
+2025-07-07 21:56:31,414 - INFO - 🔄 Attempting fallback loading...
+2025-07-07 21:56:31,414 - ERROR - ❌ Fallback also failed: Complete failure
+2025-07-07 21:56:31,417 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:56:31,417 - INFO - Added padding token to tokenizer.
+2025-07-07 21:56:31,417 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:56:31,417 - INFO - ✅ Loaded model for CUDA with torch.float32
+2025-07-07 21:57:49,912 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 21:57:49,913 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:57:49,924 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:57:50,289 - INFO - Added padding token to tokenizer.
+2025-07-07 21:57:50,289 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:57:51,025 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 21:57:51,139 - INFO - 📍 Model moved to mps
+2025-07-07 21:57:51,140 - INFO - ⚡ Skipping torch.compile (MPS compatibility)
+2025-07-07 21:57:51,140 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 21:57:51,140 - INFO - 📋 Model loading test results:
+2025-07-07 21:57:51,140 - INFO -   ✅ can_generate: True
+2025-07-07 21:57:51,140 - INFO -   ℹ️ model_type: GPT2LMHeadModel
+2025-07-07 21:57:51,140 - INFO -   ⚠️ is_causal_lm: False
+2025-07-07 21:57:51,140 - INFO -   ℹ️ device: mps:0
+2025-07-07 21:57:51,140 - INFO -   ℹ️ dtype: torch.float32
+2025-07-07 21:57:51,140 - INFO -   ℹ️ parameter_count: 124439808
+2025-07-07 21:57:51,140 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 21:57:51,140 - INFO - 🎉 Model supports text generation!
+2025-07-07 21:57:51,424 - INFO - ✅ Test generation on mps:0: 'Hello mathematik.'
+2025-07-07 21:57:51,424 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 21:57:51,440 - INFO - 💻 Using CPU (no GPU available)
+2025-07-07 21:57:51,443 - INFO - 🚀 CUDA GPU detected
+2025-07-07 21:57:51,444 - INFO - 🔧 CPU forced via config
+2025-07-07 21:57:51,447 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:57:51,448 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:57:51,449 - INFO - Added padding token to tokenizer.
+2025-07-07 21:57:51,449 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:57:51,449 - ERROR - ❌ Failed to load model: Complete failure
+2025-07-07 21:57:51,449 - INFO - 🔄 Attempting fallback loading...
+2025-07-07 21:57:51,449 - ERROR - ❌ Fallback also failed: Complete failure
+2025-07-07 21:57:51,452 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:57:51,452 - INFO - Added padding token to tokenizer.
+2025-07-07 21:57:51,452 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:57:51,452 - INFO - ✅ Loaded model for CUDA with torch.float32
+2025-07-07 21:58:42,213 - INFO - 💻 Using CPU (no GPU available)
+2025-07-07 21:58:42,215 - INFO - 🚀 CUDA GPU detected
+2025-07-07 21:58:42,217 - INFO - 🔧 CPU forced via config
+2025-07-07 21:58:42,219 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:58:42,221 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:58:42,221 - INFO - Added padding token to tokenizer.
+2025-07-07 21:58:42,221 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:58:42,221 - ERROR - ❌ Failed to load model: Complete failure
+2025-07-07 21:58:42,221 - INFO - 🔄 Attempting fallback loading...
+2025-07-07 21:58:42,221 - ERROR - ❌ Fallback also failed: Complete failure
+2025-07-07 21:58:42,223 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:58:42,223 - INFO - Added padding token to tokenizer.
+2025-07-07 21:58:42,223 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:58:42,223 - INFO - ✅ Loaded model for CUDA with torch.float32
+2025-07-07 21:59:46,613 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 21:59:46,613 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:59:46,624 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:59:47,010 - INFO - Added padding token to tokenizer.
+2025-07-07 21:59:47,010 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:59:47,635 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 21:59:47,748 - INFO - 📍 Model moved to mps
+2025-07-07 21:59:47,748 - INFO - ⚡ Skipping torch.compile (MPS compatibility)
+2025-07-07 21:59:47,748 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 21:59:47,748 - INFO - 📋 Model loading test results:
+2025-07-07 21:59:47,748 - INFO -   ✅ can_generate: True
+2025-07-07 21:59:47,748 - INFO -   ℹ️ model_type: GPT2LMHeadModel
+2025-07-07 21:59:47,748 - INFO -   ⚠️ is_causal_lm: False
+2025-07-07 21:59:47,748 - INFO -   ℹ️ device: mps:0
+2025-07-07 21:59:47,748 - INFO -   ℹ️ dtype: torch.float32
+2025-07-07 21:59:47,748 - INFO -   ℹ️ parameter_count: 124439808
+2025-07-07 21:59:47,749 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 21:59:47,749 - INFO - 🎉 Model supports text generation!
+2025-07-07 21:59:48,004 - INFO - ✅ Test generation on mps:0: 'Hello mathematik.'
+2025-07-07 21:59:48,004 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 21:59:48,010 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:59:48,012 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:59:48,012 - INFO - Added padding token to tokenizer.
+2025-07-07 21:59:48,012 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:59:48,012 - INFO - ✅ Loaded model for CPU
+2025-07-07 21:59:48,013 - INFO - 📍 Model moved to cpu
+2025-07-07 22:08:13,827 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 22:08:13,830 - INFO - Loading Model distilgpt2...
+2025-07-07 22:08:13,846 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 22:08:16,908 - INFO - Added padding token to tokenizer.
+2025-07-07 22:08:16,908 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:08:23,402 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 22:08:23,527 - INFO - 📍 Model moved to mps
+2025-07-07 22:08:23,527 - INFO - ⚡ Skipping torch.compile (MPS compatibility)
+2025-07-07 22:08:23,527 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 22:08:23,527 - INFO - 📋 Model loading test results:
+2025-07-07 22:08:23,528 - INFO -   ✅ can_generate: True
+2025-07-07 22:08:23,528 - INFO -   ℹ️ model_type: GPT2LMHeadModel
+2025-07-07 22:08:23,528 - INFO -   ⚠️ is_causal_lm: False
+2025-07-07 22:08:23,528 - INFO -   ℹ️ device: mps:0
+2025-07-07 22:08:23,528 - INFO -   ℹ️ dtype: torch.float32
+2025-07-07 22:08:23,528 - INFO -   ℹ️ parameter_count: 81912576
+2025-07-07 22:08:23,528 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 22:08:23,528 - INFO - 🎉 Model supports text generation!
+2025-07-07 22:08:24,214 - INFO - ✅ Test generation on mps:0: 'Hello The first time I saw'
+2025-07-07 22:08:24,214 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 22:08:24,220 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 22:08:24,222 - INFO - Loading Model distilgpt2...
+2025-07-07 22:08:24,222 - INFO - Added padding token to tokenizer.
+2025-07-07 22:08:24,222 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:08:24,222 - INFO - ✅ Loaded model for CPU
+2025-07-07 22:08:24,222 - INFO - 📍 Model moved to cpu
+2025-07-07 22:09:20,240 - INFO - Loading Model distilgpt2...
+2025-07-07 22:09:23,602 - INFO - Added padding token to tokenizer.
+2025-07-07 22:09:24,118 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:09:32,686 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 22:09:32,686 - INFO - Loading Model distilgpt2...
+2025-07-07 22:09:32,700 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 22:09:33,189 - INFO - Added padding token to tokenizer.
+2025-07-07 22:09:33,190 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:09:33,765 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 22:09:33,989 - INFO - 📍 Model moved to mps
+2025-07-07 22:09:33,989 - INFO - ⚡ Skipping torch.compile (MPS compatibility)
+2025-07-07 22:09:33,989 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 22:09:33,990 - INFO - 📋 Model loading test results:
+2025-07-07 22:09:33,990 - INFO -   ✅ can_generate: True
+2025-07-07 22:09:33,990 - INFO -   ℹ️ model_type: GPT2LMHeadModel
+2025-07-07 22:09:33,990 - INFO -   ⚠️ is_causal_lm: False
+2025-07-07 22:09:33,990 - INFO -   ℹ️ device: mps:0
+2025-07-07 22:09:33,990 - INFO -   ℹ️ dtype: torch.float32
+2025-07-07 22:09:33,990 - INFO -   ℹ️ parameter_count: 81912576
+2025-07-07 22:09:33,990 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 22:09:33,990 - INFO - 🎉 Model supports text generation!
+2025-07-07 22:09:34,286 - INFO - ✅ Test generation on mps:0: 'Hello The first time I saw'
+2025-07-07 22:09:34,286 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 22:09:34,296 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 22:09:36,748 - INFO - Loading Model distilgpt2...
+2025-07-07 22:09:36,749 - INFO - Added padding token to tokenizer.
+2025-07-07 22:09:36,749 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:09:36,749 - INFO - ✅ Loaded model for CPU
+2025-07-07 22:09:36,751 - INFO - 📍 Model moved to cpu
+2025-07-07 22:10:10,562 - INFO - ✅ Loaded model for CPU
+2025-07-07 22:10:12,898 - INFO - 📍 Model moved to cpu
+2025-07-07 22:13:19,689 - INFO - Loading Model distilgpt2...
+2025-07-07 22:13:19,689 - INFO - Added padding token to tokenizer.
+2025-07-07 22:13:19,689 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:13:19,689 - INFO - ✅ Loaded model for CPU
+2025-07-07 22:13:19,689 - INFO - 📍 Model moved to cpu
+2025-07-07 22:13:19,690 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 22:13:27,775 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 22:13:27,777 - INFO - Loading Model distilgpt2...
+2025-07-07 22:13:27,777 - INFO - Added padding token to tokenizer.
+2025-07-07 22:13:27,777 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:13:27,777 - INFO - ✅ Loaded model for CPU
+2025-07-07 22:13:27,778 - INFO - 📍 Model moved to cpu
+2025-07-07 22:13:27,778 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 22:13:27,781 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 22:13:27,781 - INFO - 📋 Model loading test results:
+2025-07-07 22:13:27,781 - INFO -   ✅ can_generate: True
+2025-07-07 22:13:27,781 - INFO - 🎉 Model supports text generation!
+2025-07-07 22:13:27,781 - ERROR - ❌ Model loading test failed: 'dict' object has no attribute 'to'
+2025-07-07 22:14:49,211 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 22:14:49,213 - INFO - Loading Model distilgpt2...
+2025-07-07 22:14:49,213 - INFO - Added padding token to tokenizer.
+2025-07-07 22:14:49,213 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:14:49,213 - INFO - ✅ Loaded model for CPU
+2025-07-07 22:14:49,214 - INFO - 📍 Model moved to cpu
+2025-07-07 22:14:49,214 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 22:15:36,974 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 22:15:36,976 - INFO - Loading Model distilgpt2...
+2025-07-07 22:15:36,976 - INFO - Added padding token to tokenizer.
+2025-07-07 22:15:36,976 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:15:36,976 - INFO - ✅ Loaded model for CPU
+2025-07-07 22:15:36,976 - INFO - 📍 Model moved to cpu
+2025-07-07 22:15:36,976 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 22:15:36,983 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 22:15:36,983 - INFO - 📋 Model loading test results:
+2025-07-07 22:15:36,983 - INFO -   ✅ can_generate: True
+2025-07-07 22:15:36,983 - INFO - 🎉 Model supports text generation!
+2025-07-07 22:15:36,983 - ERROR - ❌ Model loading test failed: 'dict' object has no attribute 'to'
+2025-07-07 22:17:14,503 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 22:17:14,505 - INFO - Loading Model distilgpt2...
+2025-07-07 22:17:14,505 - INFO - Added padding token to tokenizer.
+2025-07-07 22:17:14,506 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:17:14,506 - INFO - ✅ Loaded model for CPU
+2025-07-07 22:17:14,506 - INFO - 📍 Model moved to cpu
+2025-07-07 22:17:14,506 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 22:17:14,512 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 22:17:14,512 - INFO - 📋 Model loading test results:
+2025-07-07 22:17:14,512 - INFO -   ✅ can_generate: True
+2025-07-07 22:17:14,512 - INFO - 🎉 Model supports text generation!
+2025-07-07 22:17:14,512 - ERROR - ❌ Model loading test failed: 'dict' object has no attribute 'to'
+2025-07-07 22:17:58,752 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 22:17:58,753 - INFO - Loading Model distilgpt2...
+2025-07-07 22:17:58,768 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 22:17:59,165 - INFO - Added padding token to tokenizer.
+2025-07-07 22:17:59,165 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:18:00,011 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 22:18:00,292 - INFO - 📍 Model moved to mps
+2025-07-07 22:18:00,293 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 22:18:00,293 - INFO - 📋 Model loading test results:
+2025-07-07 22:18:00,293 - INFO -   ✅ can_generate: True
+2025-07-07 22:18:00,293 - INFO -   ℹ️ model_type: GPT2LMHeadModel
+2025-07-07 22:18:00,293 - INFO -   ⚠️ is_causal_lm: False
+2025-07-07 22:18:00,293 - INFO -   ℹ️ device: mps:0
+2025-07-07 22:18:00,293 - INFO -   ℹ️ dtype: torch.float32
+2025-07-07 22:18:00,293 - INFO -   ℹ️ parameter_count: 81912576
+2025-07-07 22:18:00,293 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 22:18:00,293 - INFO - 🎉 Model supports text generation!
+2025-07-07 22:18:00,980 - INFO - ✅ Test generation on mps:0: 'Hello The first time I saw'
+2025-07-07 22:18:00,980 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 22:18:51,718 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 22:18:51,718 - INFO - Loading Model distilgpt2...
+2025-07-07 22:18:51,729 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 22:18:52,133 - INFO - Added padding token to tokenizer.
+2025-07-07 22:18:52,133 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:18:52,615 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 22:18:52,727 - INFO - 📍 Model moved to mps
+2025-07-07 22:18:52,727 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 22:18:52,727 - INFO - 📋 Model loading test results:
+2025-07-07 22:18:52,727 - INFO -   ✅ can_generate: True
+2025-07-07 22:18:52,727 - INFO -   ℹ️ model_type: GPT2LMHeadModel
+2025-07-07 22:18:52,727 - INFO -   ⚠️ is_causal_lm: False
+2025-07-07 22:18:52,727 - INFO -   ℹ️ device: mps:0
+2025-07-07 22:18:52,728 - INFO -   ℹ️ dtype: torch.float32
+2025-07-07 22:18:52,728 - INFO -   ℹ️ parameter_count: 81912576
+2025-07-07 22:18:52,728 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 22:18:52,728 - INFO - 🎉 Model supports text generation!
+2025-07-07 22:18:53,071 - INFO - ✅ Test generation on mps:0: 'Hello The first time I saw'
+2025-07-07 22:18:53,071 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 22:18:53,077 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 22:18:53,079 - INFO - Loading Model distilgpt2...
+2025-07-07 22:18:53,079 - INFO - Added padding token to tokenizer.
+2025-07-07 22:18:53,079 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:18:53,079 - INFO - ✅ Loaded model for CPU
+2025-07-07 22:18:53,079 - INFO - 📍 Model moved to cpu
+2025-07-07 22:18:53,079 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 22:18:53,086 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 22:18:53,086 - INFO - 📋 Model loading test results:
+2025-07-07 22:18:53,086 - INFO -   ✅ can_generate: True
+2025-07-07 22:18:53,086 - INFO - 🎉 Model supports text generation!
+2025-07-07 22:18:53,086 - ERROR - ❌ Model loading test failed: 'dict' object has no attribute 'to'
+2025-07-07 22:19:37,531 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 22:19:37,531 - INFO - Loading Model distilgpt2...
+2025-07-07 22:19:37,543 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 22:19:37,877 - INFO - Added padding token to tokenizer.
+2025-07-07 22:19:37,877 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:19:38,386 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 22:19:38,502 - INFO - 📍 Model moved to mps
+2025-07-07 22:19:38,502 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 22:19:38,502 - INFO - 📋 Model loading test results:
+2025-07-07 22:19:38,502 - INFO -   ✅ can_generate: True
+2025-07-07 22:19:38,502 - INFO -   ℹ️ model_type: GPT2LMHeadModel
+2025-07-07 22:19:38,502 - INFO -   ⚠️ is_causal_lm: False
+2025-07-07 22:19:38,502 - INFO -   ℹ️ device: mps:0
+2025-07-07 22:19:38,502 - INFO -   ℹ️ dtype: torch.float32
+2025-07-07 22:19:38,502 - INFO -   ℹ️ parameter_count: 81912576
+2025-07-07 22:19:38,502 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 22:19:38,502 - INFO - 🎉 Model supports text generation!
+2025-07-07 22:19:38,777 - INFO - ✅ Test generation on mps:0: 'Hello The first time I saw'
+2025-07-07 22:19:38,777 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 22:19:48,681 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 22:19:48,683 - INFO - Loading Model distilgpt2...
+2025-07-07 22:19:48,684 - INFO - Added padding token to tokenizer.
+2025-07-07 22:19:48,684 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:19:48,684 - INFO - ✅ Loaded model for CPU
+2025-07-07 22:19:48,684 - INFO - 📍 Model moved to cpu
+2025-07-07 22:19:48,684 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 22:19:48,689 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 22:19:48,689 - INFO - Loading Model distilgpt2...
+2025-07-07 22:19:48,700 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 22:19:49,076 - INFO - Added padding token to tokenizer.
+2025-07-07 22:19:49,076 - INFO - Tokenizer loaded successfully.
+2025-07-07 22:19:49,567 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 22:19:49,679 - INFO - 📍 Model moved to mps
+2025-07-07 22:19:49,679 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 22:19:49,680 - INFO - 📋 Model loading test results:
+2025-07-07 22:19:49,680 - INFO -   ✅ can_generate: True
+2025-07-07 22:19:49,680 - INFO -   ℹ️ model_type: GPT2LMHeadModel
+2025-07-07 22:19:49,680 - INFO -   ⚠️ is_causal_lm: False
+2025-07-07 22:19:49,680 - INFO -   ℹ️ device: mps:0
+2025-07-07 22:19:49,680 - INFO -   ℹ️ dtype: torch.float32
+2025-07-07 22:19:49,680 - INFO -   ℹ️ parameter_count: 81912576
+2025-07-07 22:19:49,680 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 22:19:49,680 - INFO - 🎉 Model supports text generation!
+2025-07-07 22:19:49,965 - INFO - ✅ Test generation on mps:0: 'Hello The first time I saw'
+2025-07-07 22:19:49,965 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon

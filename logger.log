@@ -29,3 +29,57 @@
 2025-06-22 10:29:34,147 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
 2025-06-22 10:29:34,147 - INFO - Indexing documents from data/wikipedia_20220301.en...
 2025-06-22 10:30:21,593 - INFO - Indexed 1000 documents and saved to storage/wikipedia_20220301.en.
+2025-07-07 21:34:32,984 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 21:34:32,984 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:34:33,000 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:34:33,377 - INFO - Added padding token to tokenizer.
+2025-07-07 21:34:33,377 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:34:34,482 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 21:34:34,820 - INFO - 📍 Model moved to mps
+2025-07-07 21:34:34,821 - INFO - ⚡ Skipping torch.compile (MPS compatibility)
+2025-07-07 21:34:34,821 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 21:34:34,821 - INFO - 📋 Model loading test results:
+2025-07-07 21:34:34,821 - INFO -   ✅ can_generate: True
+2025-07-07 21:34:34,821 - INFO -   ℹ️ model_type: GPT2LMHeadModel
+2025-07-07 21:34:34,821 - INFO -   ⚠️ is_causal_lm: False
+2025-07-07 21:34:34,821 - INFO -   ℹ️ device: mps:0
+2025-07-07 21:34:34,821 - INFO -   ℹ️ dtype: torch.float32
+2025-07-07 21:34:34,821 - INFO -   ℹ️ parameter_count: 124439808
+2025-07-07 21:34:34,821 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 21:34:34,821 - INFO - 🎉 Model supports text generation!
+2025-07-07 21:34:37,599 - INFO - ✅ Test generation on mps:0: 'Hello mathematik.'
+2025-07-07 21:34:37,599 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 21:34:37,610 - INFO - 💻 Using CPU (no GPU available)
+2025-07-07 21:34:37,612 - INFO - 🚀 CUDA GPU detected
+2025-07-07 21:34:37,613 - INFO - 🔧 CPU forced via config
+2025-07-07 21:34:37,615 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:34:37,616 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:34:37,616 - INFO - Added padding token to tokenizer.
+2025-07-07 21:34:37,616 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:34:37,616 - ERROR - ❌ Failed to load model: Complete failure
+2025-07-07 21:34:37,616 - INFO - 🔄 Attempting fallback loading...
+2025-07-07 21:34:37,616 - ERROR - ❌ Fallback also failed: Complete failure
+2025-07-07 21:34:37,618 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:34:37,618 - INFO - Added padding token to tokenizer.
+2025-07-07 21:34:37,618 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:34:37,618 - INFO - ✅ Loaded model for CUDA with torch.float16
+2025-07-07 21:43:22,876 - INFO - 🧪 Testing GPU-optimized model loading...
+2025-07-07 21:43:22,877 - INFO - Loading Model microsoft/DialoGPT-small...
+2025-07-07 21:43:22,888 - INFO - 🚀 MPS (Apple Silicon GPU) detected and enabled
+2025-07-07 21:43:23,267 - INFO - Added padding token to tokenizer.
+2025-07-07 21:43:23,267 - INFO - Tokenizer loaded successfully.
+2025-07-07 21:43:23,993 - INFO - ✅ Loaded model for MPS (Apple Silicon)
+2025-07-07 21:43:24,122 - INFO - 📍 Model moved to mps
+2025-07-07 21:43:24,122 - INFO - ⚡ Skipping torch.compile (MPS compatibility)
+2025-07-07 21:43:24,122 - INFO - ✅ Loaded AutoModelForCausalLM (supports text generation)
+2025-07-07 21:43:24,122 - INFO - 📋 Model loading test results:
+2025-07-07 21:43:24,122 - INFO -   ✅ can_generate: True
+2025-07-07 21:43:24,122 - INFO -   ℹ️ model_type: GPT2LMHeadModel
+2025-07-07 21:43:24,122 - INFO -   ⚠️ is_causal_lm: False
+2025-07-07 21:43:24,122 - INFO -   ℹ️ device: mps:0
+2025-07-07 21:43:24,122 - INFO -   ℹ️ dtype: torch.float32
+2025-07-07 21:43:24,122 - INFO -   ℹ️ parameter_count: 124439808
+2025-07-07 21:43:24,122 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon
+2025-07-07 21:43:24,122 - INFO - 🎉 Model supports text generation!
+2025-07-07 21:43:24,439 - INFO - ✅ Test generation on mps:0: 'Hello mathematik.'
+2025-07-07 21:43:24,439 - INFO - 📊 MPS: Memory monitoring limited on Apple Silicon

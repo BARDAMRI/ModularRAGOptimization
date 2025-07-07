@@ -1,7 +1,7 @@
 # create_public_corpus.py
 import os
 from datasets import load_dataset
-from config import PUBLIC_CORPUS_DATASET, PUBLIC_CORPUS_DIR
+from configurations.config import PUBLIC_CORPUS_DATASET, PUBLIC_CORPUS_DIR
 
 # Load a small public corpus from the "wikitext" dataset
 dataset = load_dataset("wikitext", PUBLIC_CORPUS_DATASET, split="train")

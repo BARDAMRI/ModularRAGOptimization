@@ -1,7 +1,7 @@
 # modelHuggingFaceDownload.py
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from config import LLAMA_MODEL_NAME
-from config import LLAMA_MODEL_DIR
+from configurations.config import LLAMA_MODEL_NAME
+from configurations.config import LLAMA_MODEL_DIR
 # Download the model and tokenizer
 tokenizer = AutoTokenizer.from_pretrained(LLAMA_MODEL_NAME)
 model = AutoModelForCausalLM.from_pretrained(LLAMA_MODEL_NAME, torch_dtype="auto")

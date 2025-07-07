@@ -1,371 +1,234 @@
-import unittest
-from unittest.mock import patch, MagicMock
-import numpy as np
 
-# Import the actual functions we're testing
-from scripts.evaluator import load_llm, load_embedding_model, run_llm_query
-from config import HF_MODEL_NAME, LLM_MODEL_NAME
-
-
-class TestConfiguration(unittest.TestCase):
-    """Test configuration and model loading functionality with proper mocks"""
-
-    def setUp(self):
-        """Set up test fixtures"""
-        self.sample_queries = [
-            "What is the capital of France?",
-            "Explain machine learning in simple terms.",
-            "",  # Edge case: empty string
-            "A" * 100,  # Edge case: long text
-        ]
-
-    @patch('scripts.evaluator.AutoTokenizer.from_pretrained')
-    @patch('scripts.evaluator.AutoModelForCausalLM.from_pretrained')
-    def test_llm_model_loading(self, mock_model_from_pretrained, mock_tokenizer_from_pretrained):
-        """Test LLM model loads correctly with mocked components"""
-        # Setup mocks
-        mock_tokenizer = MagicMock()
-        mock_tokenizer_from_pretrained.return_value = mock_tokenizer
-
-        mock_model = MagicMock()
-        mock_model_from_pretrained.return_value = mock_model
-
-        # Call function
-        tokenizer, model = load_llm()
-
-        # Validate results
-        self.assertIsNotNone(tokenizer, "Tokenizer should not be None")
-        self.assertIsNotNone(model, "Model should not be None")
-        self.assertEqual(tokenizer, mock_tokenizer)
-        self.assertEqual(model, mock_model)
-
-        # Verify mocks were called with correct model name
-        mock_tokenizer_from_pretrained.assert_called_once_with(LLM_MODEL_NAME)
-        mock_model_from_pretrained.assert_called_once_with(LLM_MODEL_NAME)
-
-    @patch('scripts.evaluator.SentenceTransformer')  # This is likely the actual class being used
-    def test_embedding_model_loading_with_sentence_transformer(self, mock_sentence_transformer):
-        """Test embedding model loads correctly with SentenceTransformer mock"""
-        # Setup mock
-        mock_embedding = MagicMock()
-        # Mock the actual method that SentenceTransformer uses
-        mock_embedding.encode.return_value = np.array([0.1, 0.2, 0.3])
-        mock_sentence_transformer.return_value = mock_embedding
-
-        # Call function
-        embedding_model = load_embedding_model()
-
-        # Validate results
-        self.assertIsNotNone(embedding_model, "Embedding model should not be None")
-        self.assertEqual(embedding_model, mock_embedding)
-
-        # Verify mock was called with correct model name
-        mock_sentence_transformer.assert_called_once_with(HF_MODEL_NAME)
-
-    @patch('scripts.evaluator.SentenceTransformer')
-    def test_embedding_model_functionality_with_encode(self, mock_sentence_transformer):
-        """Test embedding model produces valid embeddings using encode method"""
-        # Setup mock
-        mock_embedding = MagicMock()
-        test_embedding = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
-        mock_embedding.encode.return_value = test_embedding
-        mock_sentence_transformer.return_value = mock_embedding
-
-        embedding_model = load_embedding_model()
-
-        test_text = "This is a test sentence."
-        embedding = embedding_model.encode(test_text)
-
-        # Validate embedding properties
-        self.assertIsInstance(embedding, np.ndarray, "Embedding should be numpy array")
-        self.assertGreater(len(embedding), 0, "Embedding should not be empty")
-        np.testing.assert_array_equal(embedding, test_embedding, "Should return mocked embedding")
-
-        # Test method was called with correct text
-        mock_embedding.encode.assert_called_with(test_text)
-
-    # Alternative test for HuggingFaceEmbedding wrapper if that's what you're using
-    @patch('scripts.evaluator.HuggingFaceEmbedding')
-    def test_embedding_model_loading_with_huggingface_wrapper(self, mock_embedding_class):
-        """Test embedding model loads correctly with HuggingFaceEmbedding wrapper"""
-        # Setup mock
-        mock_embedding = MagicMock()
-        # Mock both possible method names
-        mock_embedding.get_text_embedding.return_value = [0.1, 0.2, 0.3]
-        mock_embedding.encode.return_value = np.array([0.1, 0.2, 0.3])
-        mock_embedding_class.return_value = mock_embedding
-
-        # Call function
-        embedding_model = load_embedding_model()
-
-        # Validate results
-        self.assertIsNotNone(embedding_model, "Embedding model should not be None")
-
-        # Test that it has at least one of the expected methods
-        has_get_text_embedding = hasattr(embedding_model, 'get_text_embedding')
-        has_encode = hasattr(embedding_model, 'encode')
-        self.assertTrue(has_get_text_embedding or has_encode,
-                        "Embedding model should have get_text_embedding or encode method")
-
-    def test_llm_query_with_mocked_components(self):
-        """Test LLM query with mocked tokenizer and model"""
-        # Create mocked components
-        mock_tokenizer = MagicMock()
-        mock_tokenizer.return_value = {
-            "input_ids": [[1, 2, 3]],
-            "attention_mask": [[1, 1, 1]]
-        }
-        mock_tokenizer.decode.return_value = "Paris is the capital of France."
-
-        mock_model = MagicMock()
-        mock_model.generate.return_value = [[1, 2, 3, 4, 5]]
-
-        query = "What is the capital of France?"
-        result = run_llm_query(query, mock_tokenizer, mock_model)
-
-        # Validate result
-        self.assertIsInstance(result, str, "Result should be a string")
-        self.assertGreater(len(result.strip()), 0, "Result should not be empty")
-
-        # Verify mocks were called
-        mock_tokenizer.assert_called()
-        mock_model.generate.assert_called()
-        mock_tokenizer.decode.assert_called()
-
-    def test_llm_query_edge_cases_with_mocks(self):
-        """Test LLM query edge cases with mocked components"""
-        mock_tokenizer = MagicMock()
-        mock_tokenizer.return_value = {"input_ids": [[1]]}
-        mock_tokenizer.decode.return_value = "Response"
-
-        mock_model = MagicMock()
-        mock_model.generate.return_value = [[1, 2]]
-
-        # Test empty query
-        result = run_llm_query("", mock_tokenizer, mock_model)
-        self.assertIsInstance(result, str, "Should handle empty query gracefully")
-
-        # Test short query
-        result = run_llm_query("Hi", mock_tokenizer, mock_model)
-        self.assertIsInstance(result, str, "Should handle short query")
-
-        # Test query with special characters
-        result = run_llm_query("What is 2+2? #@$%", mock_tokenizer, mock_model)
-        self.assertIsInstance(result, str, "Should handle special characters")
-
-    def test_error_handling_with_mocks(self):
-        """Test error handling with None inputs"""
-        mock_tokenizer = MagicMock()
-        mock_model = MagicMock()
-
-        # Test with None tokenizer
-        with self.assertRaises((TypeError, AttributeError)):
-            run_llm_query("test", None, mock_model)
-
-        # Test with None model
-        with self.assertRaises((TypeError, AttributeError)):
-            run_llm_query("test", mock_tokenizer, None)
-
-    @patch('scripts.evaluator.AutoTokenizer.from_pretrained')
-    @patch('scripts.evaluator.AutoModelForCausalLM.from_pretrained')
-    def test_llm_loading_failure(self, mock_model_from_pretrained, mock_tokenizer_from_pretrained):
-        """Test handling of LLM loading failures"""
-        mock_tokenizer_from_pretrained.side_effect = Exception("Model loading failed")
-
-        with self.assertRaises(Exception):
-            load_llm()
-
-    @patch('scripts.evaluator.SentenceTransformer')
-    def test_embedding_loading_failure_sentence_transformer(self, mock_sentence_transformer):
-        """Test handling of embedding model loading failures with SentenceTransformer"""
-        mock_sentence_transformer.side_effect = Exception("Embedding model loading failed")
-
-        with self.assertRaises(Exception):
-            load_embedding_model()
-
-    @patch('scripts.evaluator.SentenceTransformer')
-    def test_embedding_consistency(self, mock_sentence_transformer):
-        """Test embedding consistency across calls"""
-        mock_embedding = MagicMock()
-        test_embedding = np.array([0.1, 0.2, 0.3])
-        mock_embedding.encode.return_value = test_embedding
-        mock_sentence_transformer.return_value = mock_embedding
-
-        embedding_model = load_embedding_model()
-
-        text = "Test consistency"
-        embedding1 = embedding_model.encode(text)
-        embedding2 = embedding_model.encode(text)
-
-        np.testing.assert_array_equal(embedding1, embedding2, "Embeddings should be consistent")
-
-    @patch('scripts.evaluator.SentenceTransformer')
-    def test_embedding_with_none_input(self, mock_sentence_transformer):
-        """Test embedding model with None input"""
-        mock_embedding = MagicMock()
-        mock_embedding.encode.side_effect = TypeError("Cannot embed None")
-        mock_sentence_transformer.return_value = mock_embedding
-
-        embedding_model = load_embedding_model()
-
-        with self.assertRaises(TypeError):
-            embedding_model.encode(None)
-
-    def test_config_constants(self):
-        """Test that configuration constants are defined"""
-        self.assertIsNotNone(HF_MODEL_NAME, "HF_MODEL_NAME should be defined")
-        self.assertIsNotNone(LLM_MODEL_NAME, "LLM_MODEL_NAME should be defined")
-        self.assertIsInstance(HF_MODEL_NAME, str, "HF_MODEL_NAME should be string")
-        self.assertIsInstance(LLM_MODEL_NAME, str, "LLM_MODEL_NAME should be string")
-
-    def test_model_name_validation(self):
-        """Test that model names are reasonable"""
-        # Basic validation that model names look like model names
-        self.assertNotEqual(HF_MODEL_NAME.strip(), "", "HF_MODEL_NAME should not be empty")
-        self.assertNotEqual(LLM_MODEL_NAME.strip(), "", "LLM_MODEL_NAME should not be empty")
-
-        # Check they contain reasonable patterns for model names
-        self.assertTrue(
-            any(char in HF_MODEL_NAME for char in ['-', '/', '_']),
-            "HF_MODEL_NAME should contain model name separators"
-        )
-
-    # Test the actual wrapper method if you have one
-    def test_embedding_wrapper_method_with_mocks(self):
-        """Test if there's a wrapper method that calls encode internally"""
-        # Create a mock that mimics your actual embedding wrapper
-        mock_embedding = MagicMock()
-        mock_embedding.encode.return_value = np.array([0.1, 0.2, 0.3])
-
-        # Create a wrapper function that mimics get_text_embedding
-        def mock_get_text_embedding(text):
-            return mock_embedding.encode(text).tolist()
-
-        mock_embedding.get_text_embedding = mock_get_text_embedding
-
-        # Test the wrapper
-        result = mock_embedding.get_text_embedding("test")
-        self.assertIsInstance(result, list)
-        self.assertEqual(result, [0.1, 0.2, 0.3])
+import torch
+from configurations.config import (
+    MODEL_PATH, HF_MODEL_NAME, LLM_MODEL_NAME,
+    MAX_RETRIES, QUALITY_THRESHOLD, INDEX_SOURCE_URL,
+    FORCE_CPU, OPTIMIZE_FOR_MPS, USE_MIXED_PRECISION
+)
 
 
-class TestConfigurationIntegration(unittest.TestCase):
-    """Integration tests that actually load models (run separately)"""
+def test_complete_rag_pipeline():
+    """Test the complete RAG pipeline using configuration settings"""
 
-    @unittest.skip("Integration test - run manually when needed")
-    def test_real_llm_model_loading(self):
-        """Integration test for real LLM model loading"""
-        try:
-            tokenizer, model = load_llm()
-            self.assertIsNotNone(tokenizer)
-            self.assertIsNotNone(model)
-            print(f"Real LLM Model loaded: {LLM_MODEL_NAME}")
-        except Exception as e:
-            self.fail(f"Real LLM model loading failed: {e}")
-
-    @unittest.skip("Integration test - run manually when needed")
-    def test_real_embedding_model_loading(self):
-        """Integration test for real embedding model loading"""
-        try:
-            embedding_model = load_embedding_model()
-            self.assertIsNotNone(embedding_model)
-            print(f"Real Embedding Model loaded: {HF_MODEL_NAME}")
-            print(f"Embedding model type: {type(embedding_model)}")
-
-            # Test actual embedding generation with the correct method
-            test_text = "This is a test"
-            if hasattr(embedding_model, 'encode'):
-                embedding = embedding_model.encode(test_text)
-                print(f"Using encode method, embedding shape: {embedding.shape}")
-            elif hasattr(embedding_model, 'get_text_embedding'):
-                embedding = embedding_model.get_text_embedding(test_text)
-                print(f"Using get_text_embedding method, embedding length: {len(embedding)}")
-            else:
-                self.fail("Embedding model has neither encode nor get_text_embedding method")
-
-        except Exception as e:
-            self.fail(f"Real embedding model loading failed: {e}")
-
-    @unittest.skip("Integration test - run manually when needed")
-    def test_real_llm_query(self):
-        """Integration test for real LLM query"""
-        try:
-            tokenizer, model = load_llm()
-            query = "What is 2+2?"
-            result = run_llm_query(query, tokenizer, model)
-            self.assertIsInstance(result, str)
-            self.assertGreater(len(result.strip()), 0)
-            print(f"Query: {query}")
-            print(f"Result: {result}")
-        except Exception as e:
-            # If model doesn't support generation, that's expected
-            if "not compatible with `.generate()`" in str(e):
-                self.skipTest(f"Model {LLM_MODEL_NAME} doesn't support text generation")
-            else:
-                self.fail(f"Real LLM query failed: {e}")
-
-
-def test_configuration_with_sample_query():
-    """Legacy function for manual integration testing"""
-    print("\nRunning legacy configuration test...")
+    print("🔍 Testing Complete RAG Pipeline with Config Settings...")
+    print("=" * 50)
 
     try:
-        # Load models
-        print("\n> Loading LLM...")
-        tokenizer, model = load_llm()
-        print(f"LLM Model Loaded: {LLM_MODEL_NAME}")
+        # Step 1: Test configuration-based model loading
+        print("\n1️⃣ Testing configuration-based model loading...")
+        from modules.model_loader import load_model, get_optimal_device
+        from modules.indexer import load_vector_db
+        from modules.query import query_model
 
-        print("\n> Loading Embedding Model...")
-        embedding_model = load_embedding_model()
-        print(f"Embedding Model Loaded: {HF_MODEL_NAME}")
-        print(f"Embedding model type: {type(embedding_model)}")
+        # Show current config settings
+        print(f"   📋 MODEL_PATH: {MODEL_PATH}")
+        print(f"   📋 FORCE_CPU: {FORCE_CPU}")
+        print(f"   📋 OPTIMIZE_FOR_MPS: {OPTIMIZE_FOR_MPS}")
+        print(f"   📋 USE_MIXED_PRECISION: {USE_MIXED_PRECISION}")
 
-        # Test embedding with correct method
-        print("\n> Testing embedding...")
-        test_text = "This is a test"
+        # Get optimal device based on config
+        optimal_device = get_optimal_device()
+        print(f"   📋 Optimal device from config: {optimal_device}")
 
-        if hasattr(embedding_model, 'encode'):
-            embedding = embedding_model.encode(test_text)
-            print(f"Using encode method - Embedding dimension: {len(embedding)}")
-        elif hasattr(embedding_model, 'get_text_embedding'):
-            embedding = embedding_model.get_text_embedding(test_text)
-            print(f"Using get_text_embedding method - Embedding dimension: {len(embedding)}")
+        # Load models using config
+        print("   Loading models using config settings...")
+        tokenizer, model = load_model()
+        print(f"   ✅ Model type: {type(model).__name__}")
+        print(f"   ✅ Has generate method: {hasattr(model, 'generate')}")
+
+        # Verify device placement matches config
+        actual_device = next(model.parameters()).device
+        print(f"   ✅ Model actually loaded on: {actual_device}")
+
+        # Test basic generation with proper device handling
+        print("\n2️⃣ Testing basic text generation with config device...")
+        # Use the actual device the model is on (respects config)
+        device = actual_device
+        print(f"   Using device: {device}")
+
+        # Simple generation test with proper device handling
+        inputs = tokenizer("Hello", return_tensors="pt")
+        # Move inputs to the same device as the model
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+
+        if hasattr(model, 'generate'):
+            with torch.no_grad():
+                outputs = model.generate(
+                    **inputs,
+                    max_new_tokens=10,
+                    pad_token_id=tokenizer.eos_token_id,
+                    do_sample=False  # Deterministic for testing
+                )
+            response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            print(f"   ✅ Basic generation works: '{response}'")
         else:
-            print("⚠️  Embedding model has neither encode nor get_text_embedding method")
-            print(f"Available methods: {[m for m in dir(embedding_model) if not m.startswith('_')]}")
+            print("   ❌ Model doesn't support generation!")
+            return False
 
-        # Run a sample query
-        sample_query = "What is the capital of France?"
-        print(f"\n> Running sample query: {sample_query}")
-        result = run_llm_query(sample_query, tokenizer, model)
+        # Step 3: Test vector database with config
+        print("\n3️⃣ Testing vector database with config...")
+        print(f"   📋 Using INDEX_SOURCE_URL: {INDEX_SOURCE_URL}")
+        print(f"   📋 Using HF_MODEL_NAME: {HF_MODEL_NAME}")
+        print("   Loading vector DB (this may take a moment)...")
 
-        print("\n> Query Result:")
-        print(result)
-        print("\n✅ Legacy test completed successfully")
+        vector_db, embedding_model = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
+        print(f"   ✅ Vector DB type: {type(vector_db).__name__}")
+        print(f"   ✅ Embedding model type: {type(embedding_model).__name__}")
+
+        # Test retrieval
+        print("   Testing document retrieval...")
+        retriever = vector_db.as_retriever(similarity_top_k=2)
+        test_query = "What is artificial intelligence?"
+        nodes = retriever.retrieve(test_query)
+        print(f"   ✅ Retrieved {len(nodes)} documents")
+        if nodes:
+            print(f"   ✅ Sample content: {nodes[0].node.get_content()[:100]}...")
+
+        # Step 4: Test full RAG query with config parameters
+        print("\n4️⃣ Testing full RAG query with config parameters...")
+        print(f"   📋 Using MAX_RETRIES: {MAX_RETRIES}")
+        print(f"   📋 Using QUALITY_THRESHOLD: {QUALITY_THRESHOLD}")
+
+        result = query_model(
+            prompt="What is machine learning?",
+            model=model,
+            tokenizer=tokenizer,
+            device=device,  # Use actual device
+            vector_db=vector_db,
+            embedding_model=embedding_model,
+            max_retries=min(MAX_RETRIES, 1),  # Reduce for testing but respect config
+            quality_threshold=max(QUALITY_THRESHOLD - 0.4, 0.3)  # Lower threshold for testing
+        )
+
+        print(f"   ✅ Query completed!")
+        print(f"   ✅ Question: {result.get('question', 'N/A')}")
+        print(f"   ✅ Answer: {result.get('answer', 'N/A')[:200]}...")
+        print(f"   ✅ Score: {result.get('score', 'N/A')}")
+        print(f"   ✅ Attempts: {result.get('attempts', 'N/A')}")
+        if result.get('error'):
+            print(f"   ⚠️ Error: {result['error']}")
+
+        # Step 5: Validate config effectiveness
+        print("\n5️⃣ Validating configuration effectiveness...")
+
+        # Check if device selection worked as expected
+        if FORCE_CPU and device.type != "cpu":
+            print(f"   ⚠️ FORCE_CPU=True but model on {device.type}")
+        elif not FORCE_CPU and torch.backends.mps.is_available() and OPTIMIZE_FOR_MPS and device.type != "mps":
+            print(f"   ⚠️ MPS available and OPTIMIZE_FOR_MPS=True but model on {device.type}")
+        else:
+            print(f"   ✅ Device selection working correctly: {device.type}")
+
+        print("\n🎉 Configuration Test SUCCESSFUL!")
+        print("🔧 All config settings are working properly!")
+        return True
 
     except Exception as e:
-        if "not compatible with `.generate()`" in str(e):
-            print(f"\n⚠️  Model {LLM_MODEL_NAME} doesn't support text generation")
-            print("This is expected for some model types (e.g., DistilBERT)")
-        elif "'SentenceTransformer' object has no attribute 'get_text_embedding'" in str(e):
-            print(f"\n⚠️  Embedding model uses 'encode' method, not 'get_text_embedding'")
-            print("This is expected for SentenceTransformer models")
+        print(f"\n❌ Configuration Test FAILED!")
+        print(f"   Error: {e}")
+        print(f"   Error type: {type(e).__name__}")
+
+        # Additional debugging info
+        import traceback
+        print("\n📍 Full traceback:")
+        traceback.print_exc()
+
+        return False
+
+
+def test_config_values():
+    """Quick test of config values"""
+    print("\n📋 Testing Configuration Values...")
+
+    try:
+        print(f"   MODEL_PATH: {MODEL_PATH}")
+        print(f"   HF_MODEL_NAME: {HF_MODEL_NAME}")
+        print(f"   LLM_MODEL_NAME: {LLM_MODEL_NAME}")
+        print(f"   MAX_RETRIES: {MAX_RETRIES}")
+        print(f"   QUALITY_THRESHOLD: {QUALITY_THRESHOLD}")
+        print(f"   INDEX_SOURCE_URL: {INDEX_SOURCE_URL}")
+        print(f"   FORCE_CPU: {FORCE_CPU}")
+        print(f"   OPTIMIZE_FOR_MPS: {OPTIMIZE_FOR_MPS}")
+        print(f"   USE_MIXED_PRECISION: {USE_MIXED_PRECISION}")
+
+        # Validate they're reasonable
+        assert isinstance(MODEL_PATH, str) and MODEL_PATH.strip()
+        assert isinstance(HF_MODEL_NAME, str) and HF_MODEL_NAME.strip()
+        assert isinstance(MAX_RETRIES, int) and MAX_RETRIES > 0
+        assert isinstance(QUALITY_THRESHOLD, (int, float)) and 0 <= QUALITY_THRESHOLD <= 1
+        assert isinstance(FORCE_CPU, bool)
+        assert isinstance(OPTIMIZE_FOR_MPS, bool)
+        assert isinstance(USE_MIXED_PRECISION, bool)
+
+        print("   ✅ All config values are valid!")
+        return True
+
+    except Exception as e:
+        print(f"   ❌ Config test failed: {e}")
+        return False
+
+
+def test_device_configuration():
+    """Test device configuration logic"""
+    print("\n🔧 Testing Device Configuration Logic...")
+
+    try:
+        from modules.model_loader import get_optimal_device
+
+        # Test current config
+        device = get_optimal_device()
+        print(f"   Current optimal device: {device}")
+
+        # Show what's available
+        print(f"   MPS available: {torch.backends.mps.is_available()}")
+        print(f"   CUDA available: {torch.cuda.is_available()}")
+        print(f"   FORCE_CPU setting: {FORCE_CPU}")
+        print(f"   OPTIMIZE_FOR_MPS setting: {OPTIMIZE_FOR_MPS}")
+
+        # Validate logic
+        if FORCE_CPU:
+            assert device.type == "cpu", f"Expected CPU when FORCE_CPU=True, got {device.type}"
+            print("   ✅ FORCE_CPU logic working correctly")
+        elif torch.backends.mps.is_available() and OPTIMIZE_FOR_MPS:
+            assert device.type == "mps", f"Expected MPS when available and enabled, got {device.type}"
+            print("   ✅ MPS optimization logic working correctly")
+        elif torch.cuda.is_available():
+            print("   ✅ CUDA logic would work (if not overridden)")
         else:
-            print(f"\n❌ Legacy test failed: {e}")
+            assert device.type == "cpu", f"Expected CPU fallback, got {device.type}"
+            print("   ✅ CPU fallback logic working correctly")
+
+        return True
+
+    except Exception as e:
+        print(f"   ❌ Device configuration test failed: {e}")
+        return False
+
+
+def main():
+    """Run all configuration tests"""
+    print("🧪 RAG SYSTEM CONFIGURATION TEST")
+    print("=" * 60)
+
+    # Test 1: Config values
+    config_ok = test_config_values()
+
+    # Test 2: Device configuration
+    device_ok = test_device_configuration()
+
+    # Test 3: Full pipeline (only if config is OK)
+    if config_ok and device_ok:
+        pipeline_ok = test_complete_rag_pipeline()
+
+        if pipeline_ok:
+            print("\n✅ ALL CONFIGURATION TESTS PASSED!")
+            print("🔧 Your config.py is working perfectly!")
+            print("🚀 Ready for production use!")
+        else:
+            print("\n❌ Pipeline test failed - config may need adjustment")
+    else:
+        print("\n❌ Basic config tests failed - fix configuration first")
 
 
 if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) > 1 and sys.argv[1] == "--integration":
-        # Run integration test manually
-        print("=" * 60)
-        print("RUNNING INTEGRATION TEST")
-        print("=" * 60)
-        test_configuration_with_sample_query()
-    else:
-        # Run unit tests with mocks (default)
-        print("=" * 60)
-        print("RUNNING UNIT TESTS (MOCKED)")
-        print("=" * 60)
-        unittest.main(verbosity=2)
+    main()

@@ -4,8 +4,7 @@ import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizer, PreTrainedModel, AutoModelForCausalLM
 from sentence_transformers import SentenceTransformer
-from config import HF_MODEL_NAME, LLM_MODEL_NAME
-from modules.query import retrieve_context
+from configurations.config import HF_MODEL_NAME, LLM_MODEL_NAME
 from utility.logger import logger
 
 

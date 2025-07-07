@@ -1,16 +1,9 @@
-from llama_index.core.indices.base import BaseIndex
-from config import INDEX_SOURCE_URL
-from modules.indexer import load_vector_db
-from llama_index.core import VectorStoreIndex
-
 # ============== Getting the type of the vector_db. ============
 
 from llama_index.core.indices.base import BaseIndex
-from config import INDEX_SOURCE_URL
+from configurations.config import INDEX_SOURCE_URL
 from modules.indexer import load_vector_db
 from llama_index.core import VectorStoreIndex
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
 
 # ============ Getting the type of the vector_db. ============
 vector_db, embedding_space = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
