@@ -4,26 +4,19 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="Adding tests">
-      <change afterPath="$PROJECT_DIR$/combine.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/combined_project.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/configurations/config.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/test_model_loader.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/types/config_enhanced.py" afterDir="false" />
+    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="fixing some tests and moving to gpu where possible">
+      <change afterPath="$PROJECT_DIR$/utility/cache.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utility/performance.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/code_testing.py" beforeDir="false" afterPath="$PROJECT_DIR$/code_testing.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/logger.log" beforeDir="false" afterPath="$PROJECT_DIR$/logger.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/combined_project.py" beforeDir="false" afterPath="$PROJECT_DIR$/combined_project.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/indexer.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/indexer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/model_loader.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/model_loader.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/query.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/query.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/create_public_corpus.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/create_public_corpus.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/evaluator.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/evaluator.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/modelHuggingFaceDownload.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/modelHuggingFaceDownload.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/logger.log" beforeDir="false" afterPath="$PROJECT_DIR$/tests/logger.log" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_configurations.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_configurations.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_query.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_query.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_indexer.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_indexer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_model_loader.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_model_loader.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utility/embedding_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/embedding_utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -70,8 +63,10 @@
     "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_enumerate_top_documents.executor": "Debug",
     "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_hill_climb_documents.executor": "Debug",
     "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_sanity_check.executor": "Run",
+    "Python tests.pytest for test_indexer.TestIndexerFunctions.executor": "Run",
     "Python tests.pytest for test_model_loader.TestModelLoader.executor": "Debug",
     "Python tests.pytest for test_model_loader.TestModelLoaderSimple.executor": "Run",
+    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_load_model_internal_logic_works.executor": "Run",
     "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_load_model_works.executor": "Run",
     "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_test_model_loading_works.executor": "Run",
     "Python tests.pytest for test_query.TestEmbeddingComparison.executor": "Run",
@@ -87,7 +82,9 @@
     "Python tests.pytest in test_config.py.executor": "Run",
     "Python tests.pytest in test_configurations.py.executor": "Run",
     "Python tests.pytest in test_evaluator.py.executor": "Run",
+    "Python tests.pytest in test_indexer.py.executor": "Run",
     "Python tests.pytest in test_model_loader.py.executor": "Run",
+    "Python tests.pytest in test_query.py.executor": "Run",
     "Python tests.pytest in test_vector_db.py.executor": "Run",
     "Python.EmbeddingVectorStoreIndex.executor": "Debug",
     "Python.check_vector_db_store_functions.executor": "Run",
@@ -141,7 +138,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="pytest for test_model_loader.TestModelLoader" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+    <configuration name="pytest for test_indexer.TestIndexerFunctions" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -154,7 +151,7 @@
       <option name="_new_keywords" value="&quot;&quot;" />
       <option name="_new_parameters" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;test_model_loader.TestModelLoader&quot;" />
+      <option name="_new_target" value="&quot;test_indexer.TestIndexerFunctions&quot;" />
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
@@ -175,7 +172,7 @@
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
-    <configuration name="pytest for test_model_loader.TestModelLoaderSimple.test_load_model_works" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+    <configuration name="pytest for test_model_loader.TestModelLoaderSimple.test_load_model_internal_logic_works" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -188,11 +185,11 @@
       <option name="_new_keywords" value="&quot;&quot;" />
       <option name="_new_parameters" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;test_model_loader.TestModelLoaderSimple.test_load_model_works&quot;" />
+      <option name="_new_target" value="&quot;test_model_loader.TestModelLoaderSimple.test_load_model_internal_logic_works&quot;" />
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
-    <configuration name="pytest for test_model_loader.TestModelLoaderSimple.test_test_model_loading_works" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+    <configuration name="pytest for test_model_loader.TestModelLoaderSimple.test_monitor_gpu_memory_works" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -205,11 +202,11 @@
       <option name="_new_keywords" value="&quot;&quot;" />
       <option name="_new_parameters" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;test_model_loader.TestModelLoaderSimple.test_test_model_loading_works&quot;" />
+      <option name="_new_target" value="&quot;test_model_loader.TestModelLoaderSimple.test_monitor_gpu_memory_works&quot;" />
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
-    <configuration name="pytest in test_model_loader.py" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+    <configuration name="pytest in test_indexer.py" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -222,17 +219,17 @@
       <option name="_new_keywords" value="&quot;&quot;" />
       <option name="_new_parameters" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/test_model_loader.py&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/test_indexer.py&quot;" />
       <option name="_new_targetType" value="&quot;PATH&quot;" />
       <method v="2" />
     </configuration>
     <recent_temporary>
       <list>
         <item itemvalue="Python tests.pytest for test_model_loader.TestModelLoaderSimple" />
-        <item itemvalue="Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_test_model_loading_works" />
-        <item itemvalue="Python tests.pytest in test_model_loader.py" />
-        <item itemvalue="Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_load_model_works" />
-        <item itemvalue="Python tests.pytest for test_model_loader.TestModelLoader" />
+        <item itemvalue="Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_monitor_gpu_memory_works" />
+        <item itemvalue="Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_load_model_internal_logic_works" />
+        <item itemvalue="Python tests.pytest in test_indexer.py" />
+        <item itemvalue="Python tests.pytest for test_indexer.TestIndexerFunctions" />
       </list>
     </recent_temporary>
   </component>
@@ -596,7 +593,15 @@
       <option name="project" value="LOCAL" />
       <updated>1751286694721</updated>
     </task>
-    <option name="localTasksCounter" value="44" />
+    <task id="LOCAL-00044" summary="fixing some tests and moving to gpu where possible">
+      <option name="closed" value="true" />
+      <created>1751916047549</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1751916047549</updated>
+    </task>
+    <option name="localTasksCounter" value="45" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -612,7 +617,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
-    <MESSAGE value="adding judge model. putting loop in main" />
     <MESSAGE value="adding model-00001-of-00004.safetensors" />
     <MESSAGE value="adding public corpus &quot;all-MiniLM-L6-v2&quot;  fixing the judge algorithm, and also optimizing the query function to reduce model indexing and loading time for each query." />
     <MESSAGE value="changing the gitignore to block the data files of the llm. removing them also from the tracking by deleting cache" />
@@ -637,7 +641,8 @@
     <MESSAGE value="making the smilarity and vector tests part of test class" />
     <MESSAGE value="removing get_document_vector" />
     <MESSAGE value="Adding tests" />
-    <option name="LAST_COMMIT_MESSAGE" value="Adding tests" />
+    <MESSAGE value="fixing some tests and moving to gpu where possible" />
+    <option name="LAST_COMMIT_MESSAGE" value="fixing some tests and moving to gpu where possible" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -648,14 +653,14 @@
           <option name="timeStamp" value="12" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/tests/test_model_loader.py</url>
-          <line>79</line>
-          <option name="timeStamp" value="15" />
+          <url>file://$PROJECT_DIR$/modules/model_loader.py</url>
+          <line>155</line>
+          <option name="timeStamp" value="17" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/modules/model_loader.py</url>
-          <line>108</line>
-          <option name="timeStamp" value="17" />
+          <line>84</line>
+          <option name="timeStamp" value="22" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>

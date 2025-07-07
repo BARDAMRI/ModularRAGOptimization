@@ -66,20 +66,19 @@ class TestModelLoaderSimple(unittest.TestCase):
         mock_load_model.assert_called_once()
         print("✅ load_model works: function callable and returns correct types")
 
+    @patch('modules.model_loader.torch.compile', side_effect=lambda m, **kwargs: m)
     @patch('modules.model_loader.AutoTokenizer.from_pretrained')
     @patch('modules.model_loader.AutoModelForCausalLM.from_pretrained')
     @patch('modules.model_loader.get_optimal_device', return_value=torch.device("cpu"))
-    def test_load_model_internal_logic_works(self, mock_device, mock_model_class, mock_tokenizer_class):
+    def test_load_model_internal_logic_works(self, mock_device, mock_model_class, mock_tokenizer_class, mock_compile):
         """Test load_model internal logic without actually loading heavy models"""
-        # Setup lightweight mocks
         mock_tokenizer_class.return_value = self.mock_tokenizer
         mock_model_class.return_value = self.mock_model
-        self.mock_model.to = MagicMock(return_value=self.mock_model)
+        self.mock_model.to.return_value = self.mock_model
 
-        # This will be fast because we're mocking the heavy operations
+        from modules.model_loader import load_model
         tokenizer, model = load_model()
 
-        # Verify the logic worked
         self.assertIsNotNone(tokenizer)
         self.assertIsNotNone(model)
         self.assertEqual(tokenizer.pad_token, tokenizer.eos_token)
@@ -105,7 +104,7 @@ class TestModelLoaderSimple(unittest.TestCase):
         """Test that monitor_gpu_memory logs correctly for MPS"""
         monitor_gpu_memory()
 
-        mock_logger.info.assert_called_with("📊 MPS: Memory monitoring limited on Apple Silicon")
+        mock_logger.info.assert_called_with("MPS: Memory monitoring limited on Apple Silicon")
         print("✅ monitor_gpu_memory works: logged MPS message")
 
     def test_test_model_loading_works(self):

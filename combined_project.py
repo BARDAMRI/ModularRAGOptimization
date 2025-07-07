@@ -161,51 +161,93 @@ print(dir(vector_db))  # Lists all attributes and methods of vector_db
 
 # === File: main.py ===
 # main.py
-from modules.model_loader import load_model
+from modules.model_loader import load_model, get_optimal_device
 from modules.query import query_model
 from modules.indexer import load_vector_db
-from configurations.config import INDEX_SOURCE_URL
+from configurations.config import INDEX_SOURCE_URL, NQ_SAMPLE_SIZE
 import sys
 import termios
 from scripts.evaluator import enumerate_top_documents
 import os
 import json
-from configurations.config import NQ_SAMPLE_SIZE
 from matrics.results_logger import ResultsLogger, plot_score_distribution
 import torch
-from utility.logger import logger  # Import logger from utility/logger.py
+from utility.logger import logger
 
-tokenizer, model = load_model()
+# Import performance monitoring and caching
+try:
+    from utility.performance import (
+        monitor_performance,
+        performance_report,
+        performance_monitor,
+        track_performance
+    )
+    from utility.cache import cache_stats, clear_all_caches
+
+    PERFORMANCE_AVAILABLE = True
+    CACHE_AVAILABLE = True
+except ImportError:
+    logger.warning("Performance monitoring or caching not available")
+    PERFORMANCE_AVAILABLE = False
+    CACHE_AVAILABLE = False
 
 
+    def monitor_performance(name):
+        from contextlib import contextmanager
+        @contextmanager
+        def dummy_context():
+            yield
+
+        return dummy_context()
+
+
+    def track_performance(name=None):
+        def decorator(func):
+            return func
+
+        return decorator
+
+
+    def performance_report():
+        print("Performance monitoring not available")
+
+
+    def cache_stats():
+        print("Cache monitoring not available")
+
+
+    def clear_all_caches():
+        print("Cache clearing not available")
+
+# Load model and tokenizer at startup with performance monitoring
+with monitor_performance("startup_model_loading"):
+    tokenizer, model = load_model()
+
+
+@track_performance("gpu_profiling")
 def profile_gpu():
     """
     Profiles GPU utilization and memory usage.
     """
     if torch.cuda.is_available():
-        print("\n> GPU Utilization:")
+        print("\nGPU Utilization:")
         print(torch.cuda.memory_summary(device="cuda"))
     else:
-        print("\n> No GPU detected.")
+        print("\nNo GPU detected.")
 
 
 def check_device():
     """
     Checks and prints the available device for PyTorch (MPS, CUDA, or CPU).
     """
-    if torch.backends.mps.is_available():
+    device = get_optimal_device()
+    if device.type == "mps":
         print("MPS backend is available. Using MPS for acceleration.")
-        return "mps"
-    elif torch.cuda.is_available():
+    elif device.type == "cuda":
         print("CUDA backend is available. Using CUDA for acceleration.")
-        return "cuda"
     else:
         print("No GPU detected. Using CPU.")
-        return "cpu"
-
-
-# Example usage:
-device = check_device()
+    return device
 
 
 def flush_input():
@@ -221,62 +263,74 @@ def flush_input():
     try:
         termios.tcflush(sys.stdin, termios.TCIFLUSH)
     except Exception as e:
-        print(f"\n> Error received during input flush: {e} ")
+        print(f"\nError received during input flush: {e} ")
 
 
+@track_performance("complete_query_evaluation")
 def run_query_evaluation():
+    """Run query evaluation with performance monitoring."""
     logger.info("Starting query evaluation...")
     profile_gpu()
 
-    logger.info("Loading external Vector DB...")
-    vector_db, embedding_model = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
+    with monitor_performance("vector_db_loading"):
+        logger.info("Loading external Vector DB...")
+        vector_db, embedding_model = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
 
-    run_mode = input("\n🛠️ Run in enumeration mode? (y/n): ").strip().lower()
+    run_mode = input("\nRun in enumeration mode? (y/n): ").strip().lower()
+
     if run_mode == "y":
-        from scripts.evaluator import hill_climb_documents
+        with monitor_performance("enumeration_mode_execution"):
+            from scripts.evaluator import hill_climb_documents
 
-        mode_choice = input("\n🧪 Select mode: (e)numeration / (h)ill climbing: ").strip().lower()
-        results_logger = ResultsLogger(top_k=5, mode="hill" if mode_choice == "h" else "enum")
-        nq_file_path = "data/user_query_datasets/natural-questions-master/nq_open/NQ-open.dev.jsonl"
+            mode_choice = input("\nSelect mode: (e)numeration / (h)ill climbing: ").strip().lower()
+            results_logger = ResultsLogger(top_k=5, mode="hill" if mode_choice == "h" else "enum")
+            nq_file_path = "data/user_query_datasets/natural-questions-master/nq_open/NQ-open.dev.jsonl"
 
-        if not os.path.exists(nq_file_path):
-            logger.error(f"NQ file not found at: {nq_file_path}")
-            return
+            if not os.path.exists(nq_file_path):
+                logger.error(f"NQ file not found at: {nq_file_path}")
+                return
 
-        with open(nq_file_path, "r") as f:
-            for i, line in enumerate(f):
-                if i >= NQ_SAMPLE_SIZE:
-                    break
-                data = json.loads(line)
-                query = data.get("question")
-                logger.info(f"Running for NQ Query #{i + 1}: {query}")
+            with open(nq_file_path, "r") as f:
+                for i, line in enumerate(f):
+                    if i >= NQ_SAMPLE_SIZE:
+                        break
+                    data = json.loads(line)
+                    query = data.get("question")
+                    logger.info(f"Running for NQ Query #{i + 1}: {query}")
 
-                if mode_choice == "h":
-                    result = hill_climb_documents(i, NQ_SAMPLE_SIZE, query, vector_db, model, tokenizer,
-                                                  embedding_model, top_k=5)
-                    results_logger.log(result)
-                elif mode_choice == "e":
-                    result = enumerate_top_documents(i, NQ_SAMPLE_SIZE, query, vector_db, embedding_model, top_k=5)
-                    results_logger.log(result)
+                    with monitor_performance(f"query_processing_{i + 1}"):
+                        if mode_choice == "h":
+                            result = hill_climb_documents(i, NQ_SAMPLE_SIZE, query, vector_db, model, tokenizer,
+                                                          embedding_model, top_k=5)
+                            results_logger.log(result)
+                        elif mode_choice == "e":
+                            result = enumerate_top_documents(i, NQ_SAMPLE_SIZE, query, vector_db, embedding_model,
+                                                             top_k=5)
+                            results_logger.log(result)
 
         return
     else:
         logger.info("Entering interactive query mode...")
+        device = check_device()
+
         while True:
             flush_input()
-            user_prompt = input("\n💬 Enter your query: ")
+            user_prompt = input("\nEnter your query: ")
             if user_prompt.lower() == "exit":
                 logger.info("Exiting application.")
                 break
 
-            result = query_model(user_prompt, model, tokenizer, device, vector_db, embedding_model, max_retries=3,
-                                 quality_threshold=0.5)
+            with monitor_performance("interactive_query"):
+                result = query_model(user_prompt, model, tokenizer, device, vector_db, embedding_model, max_retries=3,
+                                     quality_threshold=0.5)
+
             if result["error"]:
                 logger.error(f"Error: {result['error']}")
             else:
                 logger.info(f"Question: {result['question']}, Answer: {result['answer'].strip()}")
 
 
+@track_performance("results_analysis")
 def run_analysis():
     """
     Runs analysis on logged results, summarizing scores and plotting score distributions.
@@ -289,12 +343,114 @@ def run_analysis():
     plot_score_distribution()  # Show histogram of score distribution
 
 
+@track_performance("development_test")
+def run_development_test():
+    """Quick development test with comprehensive monitoring."""
+    print("Development Mode")
+    print("=" * 40)
+
+    # System info
+    device = check_device()
+    profile_gpu()
+
+    # Quick model test
+    print("\nTesting model capabilities...")
+    from modules.model_loader import get_model_capabilities
+    capabilities = get_model_capabilities(model)
+    for key, value in capabilities.items():
+        print(f"  {key}: {value}")
+
+    # Quick vector DB test
+    print("\nTesting vector database...")
+    with monitor_performance("dev_vector_db_test"):
+        vector_db, embedding_model = load_vector_db("url", INDEX_SOURCE_URL)
+        print(f"Vector DB loaded: {type(vector_db).__name__}")
+
+    # Quick query test
+    print("\nTesting query processing...")
+    test_query = "What is artificial intelligence?"
+    with monitor_performance("dev_query_test"):
+        result = query_model(test_query, model, tokenizer, device, vector_db, embedding_model)
+
+    print(f"Test query result: {result['answer'][:100]}...")
+    print(f"Score: {result['score']}")
+
+    print("\nDevelopment test completed")
+
+
+def main():
+    """Main function with performance monitoring and error handling."""
+    logger.info("Application started with performance monitoring.")
+
+    try:
+        # Handle command line arguments
+        if "--clear-cache" in sys.argv:
+            if CACHE_AVAILABLE:
+                clear_all_caches()
+            else:
+                print("Cache functionality not available")
+
+        if "--analyze" in sys.argv:
+            run_analysis()
+        elif "--performance" in sys.argv:
+            if PERFORMANCE_AVAILABLE:
+                performance_report()
+            else:
+                print("Performance monitoring not available")
+        elif "--cache-stats" in sys.argv:
+            if CACHE_AVAILABLE:
+                cache_stats()
+            else:
+                print("Cache monitoring not available")
+        elif "--dev" in sys.argv:
+            run_development_test()
+        else:
+            run_query_evaluation()
+
+    except KeyboardInterrupt:
+        logger.info("Application interrupted by user")
+    except Exception as e:
+        logger.error(f"Application error: {e}")
+        raise
+    finally:
+        # Print final reports
+        if PERFORMANCE_AVAILABLE:
+            print("\nFinal Performance Report:")
+            performance_report()
+
+            # Save metrics for later analysis
+            try:
+                os.makedirs("results", exist_ok=True)
+                performance_monitor.save_metrics("results/performance_metrics.json")
+            except Exception as e:
+                logger.warning(f"Failed to save performance metrics: {e}")
+
+        if CACHE_AVAILABLE:
+            print("\nFinal Cache Statistics:")
+            cache_stats()
+
+
+def print_help():
+    """Print help information for command line usage."""
+    print("RAG System - Command Line Usage")
+    print("=" * 40)
+    print("python main.py                 - Run interactive RAG system")
+    print("python main.py --analyze       - Analyze logged results")
+    print("python main.py --performance   - Show performance report")
+    print("python main.py --cache-stats   - Show cache statistics")
+    print("python main.py --clear-cache   - Clear all caches")
+    print("python main.py --dev           - Run development test")
+    print("python main.py --help          - Show this help")
+    print("\nDuring interactive mode:")
+    print("  Type 'exit' to quit")
+    print("  Type your questions normally")
+
+
 if __name__ == "__main__":
-    logger.info("Application started.")
-    if "--analyze" in sys.argv:
-        run_analysis()
+    if "--help" in sys.argv:
+        print_help()
     else:
-        run_query_evaluation()
+        main()
 
 
 # === File: configurations/config.py ===
@@ -303,8 +459,9 @@ if __name__ == "__main__":
 
 # === MODEL CONFIGURATION ===
 # ✅ Use a proper text generation model instead of DistilBERT
-MODEL_PATH = "microsoft/DialoGPT-small"  # Good for conversations, lightweight
+MODEL_PATH = "distilgpt2"
 # Alternative options (uncomment one if you prefer):
+# MODEL_PATH = "microsoft/DialoGPT-small"  # Good for conversations, lightweight. 30% more complex than distilgpt2.
 # MODEL_PATH = "gpt2"  # Classic, reliable
 # MODEL_PATH = "distilgpt2"  # Faster, smaller version
 
@@ -336,6 +493,13 @@ NQ_SAMPLE_SIZE = 5
 DEFAULT_HF_DATASET = "wikipedia"
 DEFAULT_HF_CONFIG = "20220301.en"
 INDEX_SOURCE_URL = "wikipedia:20220301.en"
+
+# === GPU OPTIMIZATION SETTINGS ===
+FORCE_CPU = False  # Set to True to force CPU usage
+OPTIMIZE_FOR_MPS = True  # Apple Silicon optimizations
+MAX_GPU_MEMORY_GB = 8  # Adjust based on your hardware
+USE_MIXED_PRECISION = False  # Enable for CUDA, disable for MPS
+
 
 # === File: types/config_enhanced.py ===
 import os
@@ -603,7 +767,6 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizer, PreTrainedModel, AutoModelForCausalLM
 from sentence_transformers import SentenceTransformer
 from configurations.config import HF_MODEL_NAME, LLM_MODEL_NAME
-from modules.query import retrieve_context
 from utility.logger import logger
 
 
@@ -921,7 +1084,7 @@ tokenizer.save_pretrained(LLAMA_MODEL_DIR)
 print("> Model downloaded successfully!")
 
 # === File: modules/query.py ===
-# query.py
+# modules/query.py
 import numpy as np
 from typing import Union, Optional, Dict
 from llama_index.core import VectorStoreIndex
@@ -932,7 +1095,43 @@ import heapq
 from transformers import AutoModelForCausalLM, GPT2TokenizerFast
 from configurations.config import MAX_RETRIES, QUALITY_THRESHOLD, MAX_NEW_TOKENS
 from utility.embedding_utils import get_query_vector
-from utility.logger import logger  # Import logger
+from utility.logger import logger
+
+# Import performance monitoring and caching
+try:
+    from utility.performance import monitor_performance, track_performance
+    from utility.cache import cache_query_result
+
+    PERFORMANCE_AVAILABLE = True
+    CACHE_AVAILABLE = True
+except ImportError:
+    logger.warning("Performance monitoring or caching not available")
+    PERFORMANCE_AVAILABLE = False
+    CACHE_AVAILABLE = False
+
+
+    # Create dummy decorators
+    def monitor_performance(name):
+        from contextlib import contextmanager
+        @contextmanager
+        def dummy_context():
+            yield
+
+        return dummy_context()
+
+
+    def track_performance(name=None):
+        def decorator(func):
+            return func
+
+        return decorator
+
+
+    def cache_query_result(model_name):
+        def decorator(func):
+            return func
+
+        return decorator
 
 
 def vector_similarity(vector1: np.ndarray, vector2: np.ndarray) -> float:
@@ -949,16 +1148,17 @@ def vector_similarity(vector1: np.ndarray, vector2: np.ndarray) -> float:
     Returns:
         float: Cosine similarity score between the two vectors.
     """
-    logger.info("Calculating cosine similarity between two vectors.")
-    norm1 = np.linalg.norm(vector1)
-    norm2 = np.linalg.norm(vector2)
-    if norm1 == 0.0 or norm2 == 0.0:
-        logger.warning(
-            f"One or both vectors are zero vectors, returning similarity as 0.0. vector1: {vector1} vector2: {vector2}")
-        return 0.0  # or float('nan') depending on use case
-    similarity = np.dot(vector1, vector2) / (norm1 * norm2)
-    logger.info(f"Cosine similarity calculated: {similarity}")
-    return similarity
+    with monitor_performance("vector_similarity_calculation"):
+        logger.info("Calculating cosine similarity between two vectors.")
+        norm1 = np.linalg.norm(vector1)
+        norm2 = np.linalg.norm(vector2)
+        if norm1 == 0.0 or norm2 == 0.0:
+            logger.warning(
+                f"One or both vectors are zero vectors, returning similarity as 0.0. vector1: {vector1} vector2: {vector2}")
+            return 0.0
+        similarity = np.dot(vector1, vector2) / (norm1 * norm2)
+        logger.info(f"Cosine similarity calculated: {similarity}")
+        return similarity
 
 
 def get_llamaindex_compatible_text(node) -> str:
@@ -992,22 +1192,24 @@ def get_cached_embedding_llamaindex_style(text: str, embed_model: HuggingFaceEmb
     Returns:
         np.ndarray: Cached embedding vector for the text.
     """
-    logger.info(f"Retrieving cached embedding for text: {text[:50]}...")
+    with monitor_performance("llamaindex_embedding_retrieval"):
+        logger.info(f"Retrieving cached embedding for text: {text[:50]}...")
 
-    # Use get_text_embedding (not get_query_embedding) to match document encoding
-    embedding = embed_model.get_text_embedding(text)
-    embedding_array = np.array(embedding)
+        # Use get_text_embedding (not get_query_embedding) to match document encoding
+        embedding = embed_model.get_text_embedding(text)
+        embedding_array = np.array(embedding)
 
-    # Check if the model returns normalized vectors
-    norm = np.linalg.norm(embedding_array)
-    if norm > 1.1 or norm < 0.9:  # Not normalized
-        embedding_array = embedding_array / norm
-        logger.debug("Applied manual normalization to embedding")
+        # Check if the model returns normalized vectors
+        norm = np.linalg.norm(embedding_array)
+        if norm > 1.1 or norm < 0.9:  # Not normalized
+            embedding_array = embedding_array / norm
+            logger.debug("Applied manual normalization to embedding")
 
-    logger.info("Cached embedding retrieved successfully.")
-    return embedding_array
+        logger.info("Cached embedding retrieved successfully.")
+        return embedding_array
 
 
+@track_performance("context_retrieval")
 def retrieve_context_aligned_to_llama_index(
         query: Union[str, np.ndarray],
         vector_db: VectorStoreIndex,
@@ -1034,8 +1236,9 @@ def retrieve_context_aligned_to_llama_index(
         raise TypeError("Query must be a string or a numpy.ndarray.")
 
     # Use LlamaIndex's native retriever first
-    retriever = vector_db.as_retriever(similarity_top_k=top_k)
-    nodes_with_scores = retriever.retrieve(query)
+    with monitor_performance("llamaindex_retrieval"):
+        retriever = vector_db.as_retriever(similarity_top_k=top_k)
+        nodes_with_scores = retriever.retrieve(query)
 
     if not nodes_with_scores:
         logger.warning("No nodes retrieved from the vector DB.")
@@ -1049,48 +1252,52 @@ def retrieve_context_aligned_to_llama_index(
         if embed_model is None:
             logger.error("embed_model is required for converting string queries to vectors.")
             raise ValueError("embed_model is required for converting string queries to vectors.")
-        query_vector = get_query_vector(query, embed_model)
+        with monitor_performance("query_vector_generation"):
+            query_vector = get_query_vector(query, embed_model)
     elif isinstance(query, np.ndarray):
         query_vector = query
 
     # Extract nodes and their LlamaIndex-compatible text
-    nodes = [node_with_score.node for node_with_score in nodes_with_scores]
-    llamaindex_texts = [get_llamaindex_compatible_text(node) for node in nodes]
+    with monitor_performance("text_extraction_and_embedding"):
+        nodes = [node_with_score.node for node_with_score in nodes_with_scores]
+        llamaindex_texts = [get_llamaindex_compatible_text(node) for node in nodes]
 
-    # Get embeddings using LlamaIndex's exact method
-    document_embeddings = np.array([
-        get_cached_embedding_llamaindex_style(text, embed_model)
-        for text in llamaindex_texts
-    ])
+        # Get embeddings using LlamaIndex's exact method
+        document_embeddings = np.array([
+            get_cached_embedding_llamaindex_style(text, embed_model)
+            for text in llamaindex_texts
+        ])
 
     # Get LlamaIndex's original scores for comparison
     llamaindex_scores = [node_with_score.score for node_with_score in nodes_with_scores]
 
     # Calculate similarities manually to verify/compare
     if query_vector is not None and document_embeddings is not None:
-        # Manual similarity calculation (should match LlamaIndex's results)
-        manual_similarities = np.dot(document_embeddings, query_vector) / (
-                np.linalg.norm(document_embeddings, axis=1) * np.linalg.norm(query_vector)
-        )
+        with monitor_performance("manual_similarity_calculation"):
+            # Manual similarity calculation (should match LlamaIndex's results)
+            manual_similarities = np.dot(document_embeddings, query_vector) / (
+                    np.linalg.norm(document_embeddings, axis=1) * np.linalg.norm(query_vector)
+            )
 
-        logger.info("Similarity comparison:")
-        for i, (manual_sim, llamaindex_sim) in enumerate(zip(manual_similarities, llamaindex_scores)):
-            diff = abs(manual_sim - llamaindex_sim)
-            logger.info(f"Node {i}: Manual={manual_sim:.6f}, LlamaIndex={llamaindex_sim:.6f}, Diff={diff:.6f}")
+            logger.info("Similarity comparison:")
+            for i, (manual_sim, llamaindex_sim) in enumerate(zip(manual_similarities, llamaindex_scores)):
+                diff = abs(manual_sim - llamaindex_sim)
+                logger.info(f"Node {i}: Manual={manual_sim:.6f}, LlamaIndex={llamaindex_sim:.6f}, Diff={diff:.6f}")
 
-        # Use manual similarities for filtering (they should match LlamaIndex's)
-        similarity_scores = manual_similarities
+            # Use manual similarities for filtering (they should match LlamaIndex's)
+            similarity_scores = manual_similarities
     else:
         logger.warning("Query vector or document embeddings are None, using LlamaIndex scores.")
         similarity_scores = llamaindex_scores
 
     # Get the actual content for each node (not the metadata-enhanced text)
-    node_contents = [node.get_content() for node in nodes]
+    with monitor_performance("content_extraction_and_filtering"):
+        node_contents = [node.get_content() for node in nodes]
 
-    # Create scored pairs and filter
-    scored_nodes = list(zip(similarity_scores, node_contents))
-    top_nodes = heapq.nlargest(top_k, scored_nodes, key=lambda x: x[0])
-    filtered_nodes = [content for score, content in top_nodes if score >= similarity_cutoff]
+        # Create scored pairs and filter
+        scored_nodes = list(zip(similarity_scores, node_contents))
+        top_nodes = heapq.nlargest(top_k, scored_nodes, key=lambda x: x[0])
+        filtered_nodes = [content for score, content in top_nodes if score >= similarity_cutoff]
 
     logger.info(f"Filtered {len(filtered_nodes)} nodes based on similarity cutoff.")
     return "\n".join(filtered_nodes)
@@ -1106,13 +1313,14 @@ def retrieve_context(
 ) -> str:
     """
     Original retrieve_context function - kept for backward compatibility.
-    Use retrieve_context_improved for better LlamaIndex compatibility.
+    Use retrieve_context_aligned_to_llama_index for better LlamaIndex compatibility.
     """
     logger.warning(
-        "Using original retrieve_context. Consider using retrieve_context_improved for better compatibility.")
+        "Using original retrieve_context. Consider using retrieve_context_aligned_to_llama_index for better compatibility.")
     return retrieve_context_aligned_to_llama_index(query, vector_db, embed_model, top_k, similarity_cutoff)
 
 
+@track_performance("answer_quality_evaluation")
 def evaluate_answer_quality(
         answer: str,
         question: str,
@@ -1140,44 +1348,8 @@ def evaluate_answer_quality(
     return score
 
 
-def rephrase_query(
-        original_prompt: str,
-        previous_answer: str,
-        model: AutoModelForCausalLM,
-        tokenizer: GPT2TokenizerFast,
-        device: torch.device
-) -> str:
-    """
-    Rephrases the original query based on the previous answer to improve the response.
-
-    Args:
-        original_prompt (str): Original query prompt.
-        previous_answer (str): Previous answer generated by the model.
-        model (AutoModelForCausalLM): Language model used for rephrasing.
-        tokenizer (GPT2TokenizerFast): Tokenizer for processing text.
-        device (torch.device): Device to run the rephrasing on.
-
-    Returns:
-        str: Rephrased query.
-    """
-    logger.info("Rephrasing the query based on the previous answer.")
-    rephrase_prompt = (
-        f"Original question: {original_prompt}\n"
-        f"The previous answer was: {previous_answer}\n"
-        f"Improve the original question to get a better answer:"
-    )
-    inputs = tokenizer(rephrase_prompt, return_tensors="pt", truncation=True, max_length=1020).to(device)
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=MAX_NEW_TOKENS,
-        do_sample=True,
-        temperature=0.7
-    )
-    rephrased_query = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
-    logger.info("Query rephrased successfully.")
-    return rephrased_query
-
-
+@cache_query_result("distilgpt2")
+@track_performance("complete_query_processing")
 def query_model(
         prompt: str,
         model: AutoModelForCausalLM,
@@ -1190,7 +1362,8 @@ def query_model(
         use_improved_retrieval: bool = True
 ) -> Dict[str, Union[str, float, int, None]]:
     """
-    Queries the language model with the given prompt and retrieves an answer.
+    GPU-optimized queries the language model with the given prompt and retrieves an answer.
+    Now includes performance monitoring and caching.
 
     Args:
         prompt (str): Query prompt.
@@ -1206,7 +1379,14 @@ def query_model(
     Returns:
         Dict[str, Union[str, float, int, None]]: Dictionary containing the query result.
     """
-    logger.info("Starting query process with the model.")
+    logger.info("Starting GPU-optimized query process.")
+
+    # Ensure model is on the correct device
+    model_device = next(model.parameters()).device
+    if model_device != device:
+        logger.info(f"Moving model from {model_device} to {device}")
+        model = model.to(device)
+
     try:
         answer: str = ""
         score: float = 0.0
@@ -1215,69 +1395,152 @@ def query_model(
 
         while attempt <= max_retries:
             try:
+                # Context retrieval (runs on CPU - that's fine)
                 if vector_db is not None:
                     if use_improved_retrieval:
-                        retrieved_context = retrieve_context_aligned_to_llama_index(current_prompt, vector_db,
-                                                                                    embedding_model)
+                        retrieved_context = retrieve_context_aligned_to_llama_index(
+                            current_prompt, vector_db, embedding_model
+                        )
                     else:
-                        retrieved_context = retrieve_context(current_prompt, vector_db, embedding_model)
-                    augmented_prompt = f"Context: {retrieved_context}\n\nQuestion: {current_prompt}\nAnswer:"
+                        retrieved_context = retrieve_context(
+                            current_prompt, vector_db, embedding_model
+                        )
+
+                    with monitor_performance("prompt_construction"):
+                        augmented_prompt = f"Context: {retrieved_context}\n\nQuestion: {current_prompt}\nAnswer:"
                 else:
                     augmented_prompt = current_prompt
 
-                inputs = tokenizer(augmented_prompt, return_tensors="pt", truncation=True, max_length=1020 ).to(device)
-                outputs = model.generate(
-                    **inputs,
-                    max_new_tokens=MAX_NEW_TOKENS,
-                    do_sample=True,
-                    temperature=0.7,
-                    pad_token_id=tokenizer.eos_token_id
-                )
-                answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+                # GPU-optimized tokenization
+                with monitor_performance("tokenization"):
+                    inputs = tokenizer(
+                        augmented_prompt,
+                        return_tensors="pt",
+                        truncation=True,
+                        max_length=900,  # Conservative for MPS stability
+                        padding=True
+                    )
 
-                score = evaluate_answer_quality(answer, current_prompt, model, tokenizer, device)
+                    # Move inputs to device efficiently
+                    inputs = {k: v.to(device, non_blocking=True) for k, v in inputs.items()}
+
+                # GPU generation with device-specific optimizations
+                with monitor_performance("text_generation"):
+                    with torch.no_grad():  # Save GPU memory
+                        if device.type == "mps":
+                            # MPS-optimized generation
+                            outputs = model.generate(
+                                **inputs,
+                                max_new_tokens=min(MAX_NEW_TOKENS, 50),  # Conservative for MPS
+                                do_sample=True,
+                                temperature=0.7,
+                                pad_token_id=tokenizer.eos_token_id,
+                                use_cache=True,
+                            )
+                        elif device.type == "cuda":
+                            # CUDA-optimized generation
+                            outputs = model.generate(
+                                **inputs,
+                                max_new_tokens=MAX_NEW_TOKENS,
+                                do_sample=True,
+                                temperature=0.7,
+                                top_p=0.9,
+                                pad_token_id=tokenizer.eos_token_id,
+                                use_cache=True,
+                                attention_mask=inputs.get('attention_mask')
+                            )
+                        else:
+                            # CPU generation
+                            outputs = model.generate(
+                                **inputs,
+                                max_new_tokens=MAX_NEW_TOKENS,
+                                do_sample=True,
+                                temperature=0.7,
+                                pad_token_id=tokenizer.eos_token_id
+                            )
+
+                # Move output back to CPU for decoding (more efficient)
+                with monitor_performance("answer_processing"):
+                    outputs = outputs.cpu()
+                    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+                    score = evaluate_answer_quality(answer, current_prompt, model, tokenizer, device)
 
                 if score >= quality_threshold or attempt == max_retries:
-                    logger.info("Query process completed successfully.")
+                    logger.info("GPU-optimized query completed successfully.")
                     return {
                         "question": prompt,
                         "answer": answer,
                         "score": score,
                         "attempts": attempt + 1,
-                        "error": None
+                        "error": None,
+                        "device_used": str(device)
                     }
 
                 current_prompt = rephrase_query(current_prompt, answer, model, tokenizer, device)
                 attempt += 1
-            except ValueError as err:
-                logger.error(f"Error during query process: {err}")
+
+            except RuntimeError as err:
+                # Handle GPU memory issues gracefully
+                if "MPS" in str(err) or "out of memory" in str(err).lower():
+                    logger.warning(f"GPU memory issue: {err}")
+
+                    # Clear GPU cache
+                    if device.type == "mps":
+                        torch.mps.empty_cache()
+                    elif device.type == "cuda":
+                        torch.cuda.empty_cache()
+
+                    # Fallback to CPU for this generation
+                    logger.info("Falling back to CPU for this generation")
+                    model_cpu = model.cpu()
+                    inputs_cpu = {k: v.cpu() for k, v in inputs.items()}
+
+                    with torch.no_grad():
+                        outputs = model_cpu.generate(
+                            **inputs_cpu,
+                            max_new_tokens=MAX_NEW_TOKENS,
+                            do_sample=True,
+                            temperature=0.7,
+                            pad_token_id=tokenizer.eos_token_id
+                        )
+
+                    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+                    # Move model back to GPU
+                    model = model_cpu.to(device)
+
+                    return {
+                        "question": prompt,
+                        "answer": answer,
+                        "score": 1.0,
+                        "attempts": attempt + 1,
+                        "error": f"GPU fallback: {str(err)}",
+                        "device_used": "cpu_fallback"
+                    }
+                else:
+                    raise err
+
+            except Exception as err:
+                logger.error(f"Error during GPU query process: {err}")
                 return {
                     "question": prompt,
-                    "answer": answer,
-                    "score": score,
+                    "answer": f"Error: {str(err)}",
+                    "score": 0.0,
                     "attempts": attempt + 1,
                     "error": str(err)
                 }
 
-        if not answer.strip():
-            logger.error("Model did not generate a response.")
-            return {
-                "question": prompt,
-                "answer": "Model did not generate a response.",
-                "score": 0.0,
-                "attempts": attempt + 1,
-                "error": "Empty response from model"
-            }
-
-        logger.info("Query process completed successfully.")
         return {
-            "final_answer": answer,
-            "final_score": score,
+            "question": prompt,
+            "answer": answer or "No answer generated",
+            "score": score,
             "attempts": attempt + 1,
-            "final_prompt": current_prompt
+            "error": None,
+            "device_used": str(device)
         }
-    except ValueError as err:
-        logger.error(f"Error during query process: {err}")
+
+    except Exception as err:
+        logger.error(f"Error during GPU query process: {err}")
         return {
             "question": prompt,
             "answer": "Error during generation.",
@@ -1287,8 +1550,59 @@ def query_model(
         }
 
 
+@track_performance("query_rephrasing")
+def rephrase_query(
+        original_prompt: str,
+        previous_answer: str,
+        model: AutoModelForCausalLM,
+        tokenizer: GPT2TokenizerFast,
+        device: torch.device
+) -> str:
+    """
+    GPU-optimized query rephrasing based on the previous answer to improve the response.
+
+    Args:
+        original_prompt (str): Original query prompt.
+        previous_answer (str): Previous answer generated by the model.
+        model (AutoModelForCausalLM): Language model used for rephrasing.
+        tokenizer (GPT2TokenizerFast): Tokenizer for processing text.
+        device (torch.device): Device to run the rephrasing on.
+
+    Returns:
+        str: Rephrased query.
+    """
+    logger.info("GPU-optimized query rephrasing.")
+    rephrase_prompt = (
+        f"Original question: {original_prompt}\n"
+        f"The previous answer was: {previous_answer}\n"
+        f"Improve the original question to get a better answer:"
+    )
+
+    with monitor_performance("rephrase_tokenization"):
+        inputs = tokenizer(
+            rephrase_prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=800
+        ).to(device)
+
+    with monitor_performance("rephrase_generation"):
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=MAX_NEW_TOKENS,
+                do_sample=True,
+                temperature=0.7,
+                pad_token_id=tokenizer.eos_token_id
+            )
+
+    outputs = outputs.cpu()
+    rephrased_query = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
+    logger.info("Query rephrased successfully.")
+    return rephrased_query
+
 # === File: modules/indexer.py ===
-# indexer.py
+# modules/indexer.py
 import os
 from urllib.parse import urlparse
 import requests
@@ -1300,7 +1614,33 @@ from configurations.config import DATA_PATH, HF_MODEL_NAME
 from utility.logger import logger
 from typing import Tuple, Optional
 
+# Import performance monitoring
+try:
+    from utility.performance import monitor_performance, track_performance
 
+    PERFORMANCE_AVAILABLE = True
+except ImportError:
+    logger.warning("Performance monitoring not available")
+    PERFORMANCE_AVAILABLE = False
+
+
+    def monitor_performance(name):
+        from contextlib import contextmanager
+        @contextmanager
+        def dummy_context():
+            yield
+
+        return dummy_context()
+
+
+    def track_performance(name=None):
+        def decorator(func):
+            return func
+
+        return decorator
+
+
+@track_performance("source_path_parsing")
 def parse_source_path(source_path: str) -> Tuple[str, str]:
     """
     Parses the source path to determine its type and extract relevant information.
@@ -1328,6 +1668,7 @@ def parse_source_path(source_path: str) -> Tuple[str, str]:
         raise ValueError(f"Unsupported source path format: {source_path}")
 
 
+@track_performance("huggingface_dataset_download")
 def download_and_save_from_hf(dataset_name: str, config: str, target_dir: str, max_docs: int = 1000) -> None:
     """
     Downloads a dataset from Hugging Face and saves it locally as text files in batches.
@@ -1342,22 +1683,26 @@ def download_and_save_from_hf(dataset_name: str, config: str, target_dir: str, m
         None
     """
     logger.info(f"Downloading dataset '{dataset_name}' with config '{config}' from Hugging Face...")
-    dataset = load_dataset(dataset_name, config, split="train", trust_remote_code=True)
-    os.makedirs(target_dir, exist_ok=True)
 
-    batch_size = 100
-    batch = []
-    for i, item in enumerate(dataset):
-        if i >= max_docs:
-            break
-        text = item["text"].strip()
-        if text:
-            batch.append((i, text))
-        if len(batch) == batch_size or i == max_docs - 1:
-            for doc_id, doc_text in batch:
-                with open(os.path.join(target_dir, f"doc_{doc_id}.txt"), "w", encoding="utf-8") as f:
-                    f.write(doc_text)
-            batch.clear()
+    with monitor_performance("dataset_loading"):
+        dataset = load_dataset(dataset_name, config, split="train", trust_remote_code=True)
+        os.makedirs(target_dir, exist_ok=True)
+
+    with monitor_performance("dataset_processing_and_saving"):
+        batch_size = 100
+        batch = []
+        for i, item in enumerate(dataset):
+            if i >= max_docs:
+                break
+            text = item["text"].strip()
+            if text:
+                batch.append((i, text))
+            if len(batch) == batch_size or i == max_docs - 1:
+                for doc_id, doc_text in batch:
+                    with open(os.path.join(target_dir, f"doc_{doc_id}.txt"), "w", encoding="utf-8") as f:
+                        f.write(doc_text)
+                batch.clear()
+
     logger.info(f"Saved {min(max_docs, len(dataset))} documents to {target_dir}")
 
 
@@ -1386,6 +1731,7 @@ def validate_url(url: str) -> bool:
     return True
 
 
+@track_performance("url_download")
 def download_and_save_from_url(url: str, target_dir: str) -> None:
     """
     Downloads text data from a URL and saves it locally using streaming.
@@ -1402,42 +1748,51 @@ def download_and_save_from_url(url: str, target_dir: str) -> None:
     os.makedirs(target_dir, exist_ok=True)
     file_path = os.path.join(target_dir, "corpus.txt")
 
-    with requests.get(url, stream=True) as response:
-        if response.status_code != 200:
-            logger.error(f"Failed to download from {url}, status code: {response.status_code}")
-            raise Exception(f"Failed to download from {url}, status code: {response.status_code}")
-        with open(file_path, "w", encoding="utf-8") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk.decode("utf-8"))
+    with monitor_performance("url_streaming_download"):
+        with requests.get(url, stream=True) as response:
+            if response.status_code != 200:
+                logger.error(f"Failed to download from {url}, status code: {response.status_code}")
+                raise Exception(f"Failed to download from {url}, status code: {response.status_code}")
+            with open(file_path, "w", encoding="utf-8") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk.decode("utf-8"))
+
     logger.info(f"Downloaded and saved corpus to {file_path}")
 
 
-def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> (
-        VectorStoreIndex, HuggingFaceEmbedding):
+@track_performance("complete_vector_db_loading")
+def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> Tuple[
+    VectorStoreIndex, HuggingFaceEmbedding]:
     """
     Loads or creates a vector database for document retrieval with optimized embedding model caching.
+    Now includes comprehensive performance monitoring.
 
     Args:
         source (str): Source type ('local' or 'url').
         source_path (Optional[str]): Path to the data source.
 
     Returns:
-        GPTVectorStoreIndex: Loaded or newly created vector database.
+        Tuple[VectorStoreIndex, HuggingFaceEmbedding]: Loaded or newly created vector database and embedding model.
     """
     logger.info(f"Loading vector database from source: {source}, source_path: {source_path}")
-    embedding_model = HuggingFaceEmbedding(model_name=HF_MODEL_NAME)
-    if not hasattr(load_vector_db, "_embed_model"):
-        load_vector_db._embed_model = embedding_model
+
+    with monitor_performance("embedding_model_initialization"):
+        embedding_model = HuggingFaceEmbedding(model_name=HF_MODEL_NAME)
+        if not hasattr(load_vector_db, "_embed_model"):
+            load_vector_db._embed_model = embedding_model
+
     if source == "url":
         if source_path is None:
             logger.error("source_path must be provided for 'url' source.")
             raise ValueError(
                 "source_path must be provided for 'url' source. Please insert into config.py a INDEX_SOURCE_URL "
                 "variable with valid data")
-        source_type, corpus_name = parse_source_path(source_path)
-        corpus_dir = os.path.join("data", corpus_name)
-        storage_dir = os.path.join("storage", corpus_name)
+
+        with monitor_performance("source_path_processing"):
+            source_type, corpus_name = parse_source_path(source_path)
+            corpus_dir = os.path.join("data", corpus_name)
+            storage_dir = os.path.join("storage", corpus_name)
 
         if not os.path.exists(corpus_dir):
             logger.info(f"Downloading corpus into {corpus_dir}...")
@@ -1448,42 +1803,157 @@ def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> 
                 download_and_save_from_url(source_path, corpus_dir)
 
         if os.path.exists(storage_dir):
-            logger.info(f"Loading existing vector database from {storage_dir}...")
-            storage_context = StorageContext.from_defaults(persist_dir=storage_dir)
-            vector_db = load_index_from_storage(storage_context, embed_model=embedding_model)
-            logger.info(f"Loaded existing vector database for '{corpus_name}' from {storage_dir}.")
-            return vector_db, embedding_model
+            with monitor_performance("existing_index_loading"):
+                logger.info(f"Loading existing vector database from {storage_dir}...")
+                storage_context = StorageContext.from_defaults(persist_dir=storage_dir)
+                vector_db = load_index_from_storage(storage_context, embed_model=embedding_model)
+                logger.info(f"Loaded existing vector database for '{corpus_name}' from {storage_dir}.")
+                return vector_db, embedding_model
 
         else:
-            logger.info(f"Indexing documents from {corpus_dir}...")
-            documents = SimpleDirectoryReader(corpus_dir).load_data()
-            vector_db = GPTVectorStoreIndex.from_documents(
-                documents,
-                store_nodes_override=True,
-                embed_model=embedding_model
-            )
-            vector_db.storage_context.persist(persist_dir=storage_dir)
-            logger.info(f"Indexed {len(documents)} documents and saved to {storage_dir}.")
-            return vector_db, embedding_model
+            with monitor_performance("document_reading"):
+                logger.info(f"Indexing documents from {corpus_dir}...")
+                documents = SimpleDirectoryReader(corpus_dir).load_data()
+
+            with monitor_performance("vector_index_creation"):
+                vector_db = GPTVectorStoreIndex.from_documents(
+                    documents,
+                    store_nodes_override=True,
+                    embed_model=embedding_model
+                )
+
+            with monitor_performance("index_persistence"):
+                vector_db.storage_context.persist(persist_dir=storage_dir)
+                logger.info(f"Indexed {len(documents)} documents and saved to {storage_dir}.")
+                return vector_db, embedding_model
 
     else:
+        # Local loading with performance monitoring
         storage_dir = "storage"
         if os.path.exists(storage_dir):
-            logger.info("Loading existing local vector database from 'storage/'.")
-            storage_context = StorageContext.from_defaults(persist_dir=storage_dir)
-            vector_db = load_index_from_storage(storage_context, embed_model=embedding_model)
-            logger.info("Loaded existing local vector database from 'storage/'.")
+            with monitor_performance("local_existing_index_loading"):
+                logger.info("Loading existing local vector database from 'storage/'.")
+                storage_context = StorageContext.from_defaults(persist_dir=storage_dir)
+                vector_db = load_index_from_storage(storage_context, embed_model=embedding_model)
+                logger.info("Loaded existing local vector database from 'storage/'.")
+                return vector_db, embedding_model
+
+        with monitor_performance("local_document_reading"):
+            logger.info("Indexing documents from local data path...")
+            documents = SimpleDirectoryReader(DATA_PATH).load_data()
+
+        with monitor_performance("local_vector_index_creation"):
+            vector_db = GPTVectorStoreIndex.from_documents(documents, embed_model=embedding_model)
+
+        with monitor_performance("local_index_persistence"):
+            vector_db.storage_context.persist(persist_dir=storage_dir)
+            logger.info("Indexed and saved new local corpus to 'storage/'.")
             return vector_db, embedding_model
 
-        logger.info("Indexing documents from local data path...")
-        documents = SimpleDirectoryReader(DATA_PATH).load_data()
-        vector_db = GPTVectorStoreIndex.from_documents(documents, embed_model=embedding_model)
-        vector_db.storage_context.persist(persist_dir=storage_dir)
-        logger.info("Indexed and saved new local corpus to 'storage/'.")
-        return vector_db, embedding_model
+
+@track_performance("index_optimization")
+def optimize_index(vector_db: VectorStoreIndex) -> VectorStoreIndex:
+    """
+    Optimize an existing vector index for better performance.
+
+    Args:
+        vector_db (VectorStoreIndex): The vector database to optimize
+
+    Returns:
+        VectorStoreIndex: Optimized vector database
+    """
+    logger.info("Optimizing vector index...")
+
+    with monitor_performance("index_compaction"):
+        # Perform any index-specific optimizations here
+        # This is a placeholder for actual optimization logic
+        logger.info("Index optimization completed")
+
+    return vector_db
+
+
+@track_performance("index_statistics")
+def get_index_statistics(vector_db: VectorStoreIndex) -> dict:
+    """
+    Get statistics about the vector index.
+
+    Args:
+        vector_db (VectorStoreIndex): The vector database to analyze
+
+    Returns:
+        dict: Dictionary containing index statistics
+    """
+    logger.info("Gathering index statistics...")
+
+    try:
+        # Get basic statistics
+        docstore = vector_db.docstore
+        vector_store = vector_db.vector_store
+
+        stats = {
+            'total_documents': len(docstore.docs) if hasattr(docstore, 'docs') else 0,
+            'index_type': type(vector_db).__name__,
+            'embedding_model': HF_MODEL_NAME,
+            'vector_store_type': type(vector_store).__name__ if vector_store else 'Unknown'
+        }
+
+        # Try to get vector store specific stats
+        if hasattr(vector_store, 'data') and hasattr(vector_store.data, 'embedding_dict'):
+            stats['total_embeddings'] = len(vector_store.data.embedding_dict)
+
+            # Calculate average embedding dimension
+            if vector_store.data.embedding_dict:
+                first_embedding = next(iter(vector_store.data.embedding_dict.values()))
+                stats['embedding_dimension'] = len(first_embedding)
+
+        logger.info(f"Index statistics: {stats}")
+        return stats
+
+    except Exception as e:
+        logger.warning(f"Failed to gather complete statistics: {e}")
+        return {
+            'total_documents': 0,
+            'index_type': type(vector_db).__name__,
+            'embedding_model': HF_MODEL_NAME,
+            'error': str(e)
+        }
+
+
+def rebuild_index(source: str = "local", source_path: Optional[str] = None, force: bool = False) -> Tuple[
+    VectorStoreIndex, HuggingFaceEmbedding]:
+    """
+    Rebuild the vector index from scratch.
+
+    Args:
+        source (str): Source type ('local' or 'url')
+        source_path (Optional[str]): Path to the data source
+        force (bool): Whether to force rebuild even if index exists
+
+    Returns:
+        Tuple[VectorStoreIndex, HuggingFaceEmbedding]: Newly created vector database and embedding model
+    """
+    logger.info("Rebuilding vector index from scratch...")
+
+    # Determine storage directory
+    if source == "url" and source_path:
+        _, corpus_name = parse_source_path(source_path)
+        storage_dir = os.path.join("storage", corpus_name)
+    else:
+        storage_dir = "storage"
+
+    # Remove existing index if forcing rebuild
+    if force and os.path.exists(storage_dir):
+        import shutil
+        with monitor_performance("index_removal"):
+            shutil.rmtree(storage_dir)
+            logger.info(f"Removed existing index at {storage_dir}")
+
+    # Load vector database (will create new since we removed existing)
+    return load_vector_db(source, source_path)
 
 
 # === File: modules/model_loader.py ===
+# modules/model_loader.py - Complete version with performance monitoring
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForSequenceClassification,
@@ -1492,109 +1962,300 @@ from transformers import (
     AutoConfig,
 )
 import torch
-from configurations.config import MODEL_PATH
+from configurations.config import MODEL_PATH, FORCE_CPU, OPTIMIZE_FOR_MPS, USE_MIXED_PRECISION
 from typing import Tuple
 from utility.logger import logger
 
+# Import performance monitoring (create these files if you haven't yet)
+try:
+    from utility.performance import monitor_performance, track_performance
 
+    PERFORMANCE_AVAILABLE = True
+except ImportError:
+    logger.warning("Performance monitoring not available. Install with: pip install psutil")
+    PERFORMANCE_AVAILABLE = False
+
+
+    # Create dummy decorators if performance module not available
+    def monitor_performance(name):
+        from contextlib import contextmanager
+        @contextmanager
+        def dummy_context():
+            yield
+
+        return dummy_context()
+
+
+    def track_performance(name=None):
+        def decorator(func):
+            return func
+
+        return decorator
+
+
+def get_optimal_device():
+    """
+    Determine the best available device for model execution.
+
+    Checks device availability in priority order: FORCE_CPU config -> MPS -> CUDA -> CPU fallback.
+
+    Returns:
+        torch.device: The optimal device object (cpu, mps, or cuda)
+    """
+    with monitor_performance("device_detection"):
+        if FORCE_CPU:
+            logger.info("CPU forced via config")
+            return torch.device("cpu")
+
+        if torch.backends.mps.is_available() and OPTIMIZE_FOR_MPS:
+            logger.info("MPS (Apple Silicon GPU) detected and enabled")
+            return torch.device("mps")
+        elif torch.cuda.is_available():
+            logger.info("CUDA GPU detected")
+            return torch.device("cuda")
+        else:
+            logger.info("Using CPU (no GPU available)")
+            return torch.device("cpu")
+
+
+@track_performance("complete_model_loading")
 def load_model() -> Tuple[AutoTokenizer, torch.nn.Module]:
+    """
+    Load and optimize a language model with GPU acceleration support and performance monitoring.
+
+    Automatically detects the best available device (MPS/CUDA/CPU) and applies
+    device-specific optimizations for maximum performance and compatibility.
+
+    Returns:
+        Tuple[AutoTokenizer, torch.nn.Module]: A tuple containing:
+            - tokenizer: The loaded tokenizer with padding token configured
+            - model: The loaded and optimized model on the appropriate device
+
+    Raises:
+        Exception: If model loading fails on all attempted methods
+    """
     logger.info(f"Loading Model {MODEL_PATH}...")
 
-    # Load tokenizer first
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+    # Get optimal device with performance tracking
+    device = get_optimal_device()
 
-    # Add padding token if it doesn't exist (common issue with DialoGPT)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-        logger.info("Added padding token to tokenizer.")
-
-    logger.info("Tokenizer loaded successfully.")
+    # Load tokenizer with performance tracking
+    with monitor_performance("tokenizer_loading"):
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+            logger.info("Added padding token to tokenizer.")
+        logger.info("Tokenizer loaded successfully.")
 
     # Try to load as CausalLM first (for text generation)
     try:
-        model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
-        logger.info("✅ Loaded AutoModelForCausalLM (supports text generation).")
+        with monitor_performance("model_download_and_instantiation"):
+            # Device-specific model loading
+            if device.type == "mps":
+                # MPS-optimized loading
+                model = AutoModelForCausalLM.from_pretrained(
+                    MODEL_PATH,
+                    torch_dtype=torch.float32,  # MPS requires float32
+                    low_cpu_mem_usage=True,
+                    device_map=None  # Don't use device_map with MPS
+                )
+                logger.info("Loaded model for MPS (Apple Silicon)")
 
-        # Apply optimizations
-        if torch.__version__.startswith("2"):
-            try:
-                model = torch.compile(model)
-                logger.info("Model optimized using torch.compile.")
-            except Exception as e:
-                logger.warning(f"torch.compile failed: {e}")
+            elif device.type == "cuda":
+                # CUDA-optimized loading
+                torch_dtype = torch.float16 if USE_MIXED_PRECISION else torch.float32
+                model = AutoModelForCausalLM.from_pretrained(
+                    MODEL_PATH,
+                    torch_dtype=torch_dtype,
+                    low_cpu_mem_usage=True,
+                    device_map="auto" if torch.cuda.device_count() > 1 else None
+                )
+                logger.info(f"Loaded model for CUDA with {torch_dtype}")
 
+            else:
+                # CPU loading
+                model = AutoModelForCausalLM.from_pretrained(
+                    MODEL_PATH,
+                    torch_dtype=torch.float32,
+                    low_cpu_mem_usage=True
+                )
+                logger.info("Loaded model for CPU")
+
+        # Move model to device with performance tracking
+        with monitor_performance("model_to_device"):
+            if device.type != "cuda" or not hasattr(model, 'hf_device_map'):
+                # Only move manually if not using device_map
+                model = model.to(device)
+                logger.info(f"Model moved to {device}")
+
+        # Apply optimizations with performance tracking
+        with monitor_performance("model_optimization"):
+            # Skip torch.compile for MPS as it can cause issues
+            if (torch.__version__.startswith("2") and
+                    device.type != "mps" and
+                    not getattr(torch.backends, 'mps_compile_disabled', False)):
+                try:
+                    model = torch.compile(model, mode="reduce-overhead")
+                    logger.info("Model optimized with torch.compile")
+                except Exception as e:
+                    logger.warning(f"torch.compile failed: {e}")
+            elif device.type == "mps":
+                logger.info("Skipping torch.compile (MPS compatibility)")
+            else:
+                logger.info("torch.compile skipped")
+
+        logger.info("Loaded AutoModelForCausalLM (supports text generation)")
         return tokenizer, model
 
     except Exception as e:
-        logger.warning(f"Failed to load as CausalLM: {e}")
+        logger.error(f"Failed to load model: {e}")
 
-        # Fallback: Try sequence classification
+        # Fallback attempt with performance tracking
+        logger.info("Attempting fallback loading...")
         try:
-            config = AutoConfig.from_pretrained(MODEL_PATH)
-            architectures = getattr(config, "architectures", [])
-
-            if any("SequenceClassification" in arch for arch in architectures):
-                model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
-                logger.info("✅ Loaded AutoModelForSequenceClassification.")
-            else:
-                # Last resort: generic model (won't support generation)
-                model = AutoModel.from_pretrained(MODEL_PATH)
-                logger.warning("⚠️ Loaded generic AutoModel (does NOT support text generation).")
-                logger.warning("This model can only be used for embeddings/understanding, not generation.")
-
+            with monitor_performance("fallback_model_loading"):
+                model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
+                model = model.to(device)
+            logger.info("Fallback loading successful")
             return tokenizer, model
-
         except Exception as e2:
-            logger.error(f"Failed to load model with any method: {e2}")
+            logger.error(f"Fallback also failed: {e2}")
             raise e2
 
 
+@track_performance("model_capabilities_analysis")
 def get_model_capabilities(model) -> dict:
     """
-    Check what the loaded model can do
+    Analyze and report the capabilities and configuration of a loaded model.
+
+    Args:
+        model: The loaded PyTorch model to analyze
+
+    Returns:
+        dict: Dictionary containing model information:
+            - can_generate (bool): Whether model supports text generation
+            - model_type (str): Class name of the model
+            - is_causal_lm (bool): Whether it's a causal language model
+            - device (str): Device the model is currently on
+            - dtype (str): Data type of model parameters
+            - parameter_count (int): Total number of model parameters
     """
-    capabilities = {
-        'can_generate': hasattr(model, 'generate'),
-        'model_type': type(model).__name__,
-        'is_causal_lm': 'CausalLM' in type(model).__name__,
-        'is_sequence_classification': 'SequenceClassification' in type(model).__name__,
-    }
+    with monitor_performance("capability_analysis"):
+        # Get the first parameter to extract device and dtype info
+        try:
+            first_param = next(iter(model.parameters()))
+            device = str(first_param.device)
+            dtype = str(first_param.dtype)
+        except StopIteration:
+            # Handle case where model has no parameters
+            device = "unknown"
+            dtype = "unknown"
 
-    return capabilities
+        # Count total parameters
+        parameter_count = sum(p.numel() for p in model.parameters())
+
+        capabilities = {
+            'can_generate': hasattr(model, 'generate'),
+            'model_type': type(model).__name__,
+            'is_causal_lm': 'CausalLM' in type(model).__name__,
+            'device': device,
+            'dtype': dtype,
+            'parameter_count': parameter_count,
+        }
+
+        return capabilities
 
 
+@track_performance("gpu_memory_monitoring")
+def monitor_gpu_memory():
+    """
+    Monitor and log current GPU memory usage.
+
+    Provides device-specific memory information:
+    - MPS: Limited monitoring capabilities (Apple Silicon limitation)
+    - CUDA: Detailed memory allocation and reservation info
+    - CPU: No GPU memory to monitor
+
+    Logs memory usage information at INFO level.
+    """
+    if torch.backends.mps.is_available():
+        # MPS doesn't have detailed memory reporting yet
+        logger.info("MPS: Memory monitoring limited on Apple Silicon")
+    elif torch.cuda.is_available():
+        allocated = torch.cuda.memory_allocated() / 1024 ** 3
+        reserved = torch.cuda.memory_reserved() / 1024 ** 3
+        logger.info(f"CUDA Memory: {allocated:.2f}GB allocated, {reserved:.2f}GB reserved")
+    else:
+        logger.info("CPU: No GPU memory to monitor")
+
+
+@track_performance("complete_model_test")
 def test_model_loading():
     """
-    Test function to verify model loading works correctly
+    Comprehensive test function to verify GPU-optimized model loading and generation.
+
+    Performs the following tests:
+    1. Loads model and tokenizer with GPU optimization
+    2. Analyzes and reports model capabilities
+    3. Monitors memory usage before and after operations
+    4. Tests actual text generation on the selected device
+    5. Validates that text generation works correctly
+
+    Returns:
+        bool: True if model loading and text generation succeed, False otherwise
+
+    Logs detailed information about each test step and any encountered issues.
     """
-    logger.info("Testing model loading...")
+    logger.info("Testing GPU-optimized model loading...")
 
     try:
-        tokenizer, model = load_model()
-        capabilities = get_model_capabilities(model)
+        # Load model and tokenizer
+        with monitor_performance("test_model_loading"):
+            tokenizer, model = load_model()
+
+        # Analyze capabilities
+        with monitor_performance("test_capabilities_analysis"):
+            capabilities = get_model_capabilities(model)
 
         logger.info("Model loading test results:")
         for key, value in capabilities.items():
-            status = "✅" if value else "❌"
+            if key == 'can_generate':
+                status = "PASS" if value else "FAIL"
+            elif key == 'is_causal_lm':
+                status = "PASS" if value else "WARN"
+            else:
+                status = "INFO"
             logger.info(f"  {status} {key}: {value}")
 
+        # Monitor memory after loading
+        monitor_gpu_memory()
+
         if capabilities['can_generate']:
-            logger.info("🎉 Model supports text generation!")
+            logger.info("Model supports text generation")
 
-            # Quick generation test
-            test_input = tokenizer("Hello", return_tensors="pt")
-            with torch.no_grad():
-                outputs = model.generate(
-                    **test_input,
-                    max_new_tokens=5,
-                    pad_token_id=tokenizer.eos_token_id
-                )
-            result = tokenizer.decode(outputs[0], skip_special_tokens=True)
-            logger.info(f"  Test generation: '{result}'")
+            # Quick generation test with performance tracking
+            with monitor_performance("test_text_generation"):
+                device = next(model.parameters()).device
+                test_input = tokenizer("Hello", return_tensors="pt")
 
+                # Move inputs to same device as model
+                test_input = {k: v.to(device) for k, v in test_input.items()}
+
+                with torch.no_grad():
+                    outputs = model.generate(
+                        **test_input,
+                        max_new_tokens=5,
+                        pad_token_id=tokenizer.eos_token_id,
+                        do_sample=False
+                    )
+
+                result = tokenizer.decode(outputs[0], skip_special_tokens=True)
+                logger.info(f"Test generation on {device}: '{result}'")
+
+            # Check memory after generation
+            monitor_gpu_memory()
         else:
-            logger.warning("⚠️ Model does NOT support text generation.")
-            logger.warning("Consider switching to a different model in config.py")
+            logger.warning("Model does NOT support text generation")
 
         return capabilities['can_generate']
 
@@ -1603,21 +2264,171 @@ def test_model_loading():
         return False
 
 
-if __name__ == "__main__":
-    # Run test when this file is executed directly
-    test_model_loading()
+def benchmark_model_performance(num_iterations: int = 5):
+    """
+    Benchmark model performance across multiple iterations.
+
+    Args:
+        num_iterations (int): Number of iterations to run for benchmarking
+
+    Returns:
+        dict: Benchmark results with timing statistics
+    """
+    logger.info(f"Starting model performance benchmark ({num_iterations} iterations)")
+
+    results = {
+        'loading_times': [],
+        'generation_times': [],
+        'total_times': []
+    }
+
+    for i in range(num_iterations):
+        logger.info(f"Iteration {i + 1}/{num_iterations}")
+
+        # Clear any cached models (if applicable)
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        elif torch.backends.mps.is_available():
+            torch.mps.empty_cache()
+
+        # Time complete loading process
+        start_time = torch.cuda.Event(enable_timing=True) if torch.cuda.is_available() else None
+        end_time = torch.cuda.Event(enable_timing=True) if torch.cuda.is_available() else None
+
+        if start_time:
+            start_time.record()
+        else:
+            import time
+            start_cpu = time.time()
+
+        # Load model
+        with monitor_performance(f"benchmark_iteration_{i + 1}"):
+            tokenizer, model = load_model()
+
+            # Quick generation test
+            device = next(model.parameters()).device
+            test_input = tokenizer("Hello world", return_tensors="pt")
+            test_input = {k: v.to(device) for k, v in test_input.items()}
+
+            with torch.no_grad():
+                outputs = model.generate(
+                    **test_input,
+                    max_new_tokens=10,
+                    pad_token_id=tokenizer.eos_token_id
+                )
+
+        if end_time:
+            end_time.record()
+            torch.cuda.synchronize()
+            iteration_time = start_time.elapsed_time(end_time) / 1000  # Convert to seconds
+        else:
+            iteration_time = time.time() - start_cpu
+
+        results['total_times'].append(iteration_time)
+        logger.info(f"  Iteration {i + 1} completed in {iteration_time:.2f}s")
+
+    # Calculate statistics
+    total_times = results['total_times']
+    benchmark_stats = {
+        'iterations': num_iterations,
+        'avg_time': sum(total_times) / len(total_times),
+        'min_time': min(total_times),
+        'max_time': max(total_times),
+        'total_time': sum(total_times)
+    }
+
+    logger.info("Benchmark Results:")
+    logger.info(f"  Average time: {benchmark_stats['avg_time']:.2f}s")
+    logger.info(f"  Min time: {benchmark_stats['min_time']:.2f}s")
+    logger.info(f"  Max time: {benchmark_stats['max_time']:.2f}s")
+    logger.info(f"  Total time: {benchmark_stats['total_time']:.2f}s")
+
+    return benchmark_stats
+
+
+def get_device_info():
+    """
+    Get comprehensive device information for debugging and optimization.
+
+    Returns:
+        dict: Device information including capabilities and memory
+    """
+    device_info = {
+        'cpu_count': torch.get_num_threads(),
+        'cuda_available': torch.cuda.is_available(),
+        'mps_available': torch.backends.mps.is_available(),
+        'optimal_device': str(get_optimal_device())
+    }
+
+    if torch.cuda.is_available():
+        device_info.update({
+            'cuda_device_count': torch.cuda.device_count(),
+            'cuda_device_name': torch.cuda.get_device_name(0),
+            'cuda_memory_total': torch.cuda.get_device_properties(0).total_memory / 1024 ** 3,
+            'cuda_compute_capability': torch.cuda.get_device_capability(0)
+        })
+
+    if torch.backends.mps.is_available():
+        device_info.update({
+            'mps_device': 'Apple Silicon GPU detected'
+        })
+
+    return device_info
+
+
+def print_system_info():
+    """Print comprehensive system information for debugging."""
+    logger.info("System Information:")
+
+    device_info = get_device_info()
+    for key, value in device_info.items():
+        logger.info(f"  {key}: {value}")
+
+    logger.info(f"  PyTorch version: {torch.__version__}")
+    logger.info(f"  Model path: {MODEL_PATH}")
+    logger.info(f"  Force CPU: {FORCE_CPU}")
+    logger.info(f"  Optimize for MPS: {OPTIMIZE_FOR_MPS}")
+    logger.info(f"  Use mixed precision: {USE_MIXED_PRECISION}")
 
 
 # === File: utility/embedding_utils.py ===
+# utility/embedding_utils.py
 import numpy as np
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
+# Import performance monitoring and caching
+try:
+    from utility.cache import cache_embedding
+    from utility.performance import monitor_performance
 
-# from logger import logger
+    CACHE_AVAILABLE = True
+    PERFORMANCE_AVAILABLE = True
+except ImportError as e:
+    CACHE_AVAILABLE = False
+    PERFORMANCE_AVAILABLE = False
 
+
+    def cache_embedding(model_name):
+        def decorator(func):
+            return func
+
+        return decorator
+
+
+    def monitor_performance(name):
+        from contextlib import contextmanager
+        @contextmanager
+        def dummy_context():
+            yield
+
+        return dummy_context()
+
+
+@cache_embedding("sentence-transformers/all-MiniLM-L6-v2")
 def get_query_vector(text: str, embed_model: HuggingFaceEmbedding) -> np.ndarray:
     """
     Converts a query's text into a vector embedding using the specified embedding model.
+    Now includes caching and performance monitoring.
 
     Args:
         text (str): The input query text.
@@ -1626,11 +2437,339 @@ def get_query_vector(text: str, embed_model: HuggingFaceEmbedding) -> np.ndarray
     Returns:
         np.ndarray: The vector embedding of the query text.
     """
-    # logger.info(f"Generating query vector for text: {text[:30]}...")
-    vector = embed_model.get_query_embedding(text)
-    # logger.info("Query vector generated successfully.")
+    with monitor_performance("embedding_generation"):
+        vector = embed_model.get_query_embedding(text)
     return np.array(vector, dtype=np.float32)
 
+
+def get_text_embedding(text: str, embed_model: HuggingFaceEmbedding) -> np.ndarray:
+    """
+    Get text embedding for documents (not queries).
+
+    Args:
+        text (str): The input text.
+        embed_model (HuggingFaceEmbedding): The embedding model.
+
+    Returns:
+        np.ndarray: The vector embedding of the text.
+    """
+    with monitor_performance("text_embedding_generation"):
+        vector = embed_model.get_text_embedding(text)
+    return np.array(vector, dtype=np.float32)
+
+
+def calculate_cosine_similarity(vector1: np.ndarray, vector2: np.ndarray) -> float:
+    """
+    Calculate cosine similarity between two vectors.
+
+    Args:
+        vector1 (np.ndarray): First vector
+        vector2 (np.ndarray): Second vector
+
+    Returns:
+        float: Cosine similarity score
+    """
+    with monitor_performance("cosine_similarity_calculation"):
+        # Normalize vectors
+        norm1 = np.linalg.norm(vector1)
+        norm2 = np.linalg.norm(vector2)
+
+        if norm1 == 0.0 or norm2 == 0.0:
+            return 0.0
+
+        return np.dot(vector1, vector2) / (norm1 * norm2)
+
+
+def batch_embed_texts(texts: list, embed_model: HuggingFaceEmbedding) -> np.ndarray:
+    """
+    Embed multiple texts efficiently.
+
+    Args:
+        texts (list): List of texts to embed
+        embed_model (HuggingFaceEmbedding): The embedding model
+
+    Returns:
+        np.ndarray: Array of embeddings
+    """
+    with monitor_performance("batch_embedding"):
+        embeddings = []
+        for text in texts:
+            embedding = get_text_embedding(text, embed_model)
+            embeddings.append(embedding)
+        return np.array(embeddings)
+
+
+# === File: utility/cache.py ===
+# utility/cache.py
+import json
+import pickle
+import hashlib
+import time
+import os
+from pathlib import Path
+from typing import Any, Optional, Dict
+import numpy as np
+from utility.logger import logger
+
+
+class SmartCache:
+    """Intelligent caching system for RAG operations"""
+
+    def __init__(self, cache_dir: str = "cache", ttl_seconds: int = 3600):
+        self.cache_dir = Path(cache_dir)
+        try:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)  # Create parent directories too
+        except Exception as e:
+            logger.warning(f"Failed to create cache directory {cache_dir}: {e}")
+            # Fallback to a simple cache directory in current path
+            self.cache_dir = Path("temp_cache")
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+        self.ttl_seconds = ttl_seconds
+        self.metadata_file = self.cache_dir / "metadata.json"
+        self.metadata = self._load_metadata()
+
+    def _load_metadata(self) -> Dict:
+        """Load cache metadata"""
+        if self.metadata_file.exists():
+            try:
+                return json.loads(self.metadata_file.read_text())
+            except:
+                logger.warning("Cache metadata corrupted, starting fresh")
+        return {}
+
+    def _save_metadata(self):
+        """Save cache metadata"""
+        self.metadata_file.write_text(json.dumps(self.metadata, indent=2))
+
+    def _hash_key(self, key: str) -> str:
+        """Create hash for cache key"""
+        return hashlib.md5(key.encode()).hexdigest()
+
+    def _is_expired(self, cache_key: str) -> bool:
+        """Check if cache entry is expired"""
+        if cache_key not in self.metadata:
+            return True
+        created_time = self.metadata[cache_key].get('created', 0)
+        return time.time() - created_time > self.ttl_seconds
+
+    def get(self, key: str, default=None) -> Any:
+        """Get value from cache"""
+        cache_key = self._hash_key(key)
+        cache_file = self.cache_dir / f"{cache_key}.pkl"
+
+        if not cache_file.exists() or self._is_expired(cache_key):
+            logger.debug(f"Cache miss: {key[:50]}...")
+            return default
+
+        try:
+            with open(cache_file, 'rb') as f:
+                value = pickle.load(f)
+            logger.debug(f"Cache hit: {key[:50]}...")
+            return value
+        except Exception as e:
+            logger.warning(f"Cache read error: {e}")
+            return default
+
+    def set(self, key: str, value: Any):
+        """Set value in cache"""
+        cache_key = self._hash_key(key)
+        cache_file = self.cache_dir / f"{cache_key}.pkl"
+
+        try:
+            with open(cache_file, 'wb') as f:
+                pickle.dump(value, f)
+
+            self.metadata[cache_key] = {
+                'original_key': key[:100],  # Store first 100 chars for debugging
+                'created': time.time(),
+                'size_bytes': cache_file.stat().st_size
+            }
+            self._save_metadata()
+            logger.debug(f"Cached: {key[:50]}...")
+
+        except Exception as e:
+            logger.warning(f"Cache write error: {e}")
+
+    def clear(self):
+        """Clear all cache"""
+        for file in self.cache_dir.glob("*.pkl"):
+            file.unlink()
+        self.metadata = {}
+        self._save_metadata()
+        logger.info("Cache cleared")
+
+    def get_stats(self) -> Dict:
+        """Get cache statistics"""
+        total_size = sum(item.get('size_bytes', 0) for item in self.metadata.values())
+        return {
+            'entries': len(self.metadata),
+            'total_size_mb': total_size / 1024 / 1024,
+            'cache_dir': str(self.cache_dir)
+        }
+
+
+class EmbeddingCache(SmartCache):
+    """Specialized cache for embeddings"""
+
+    def __init__(self, cache_dir: str = "cache/embeddings", ttl_seconds: int = 86400):  # 24 hour TTL
+        super().__init__(cache_dir, ttl_seconds)
+
+    def get_embedding(self, text: str, model_name: str) -> Optional[np.ndarray]:
+        """Get cached embedding"""
+        key = f"embedding:{model_name}:{text}"
+        return self.get(key)
+
+    def set_embedding(self, text: str, model_name: str, embedding: np.ndarray):
+        """Cache embedding"""
+        key = f"embedding:{model_name}:{text}"
+        self.set(key, embedding)
+
+
+class QueryCache(SmartCache):
+    """Specialized cache for query results"""
+
+    def __init__(self, cache_dir: str = "cache/queries", ttl_seconds: int = 1800):  # 30 minute TTL
+        super().__init__(cache_dir, ttl_seconds)
+
+    def get_query_result(self, query: str, model_name: str, context_hash: str = "") -> Optional[Dict]:
+        """Get cached query result"""
+        key = f"query:{model_name}:{context_hash}:{query}"
+        return self.get(key)
+
+    def set_query_result(self, query: str, model_name: str, result: Dict, context_hash: str = ""):
+        """Cache query result"""
+        key = f"query:{model_name}:{context_hash}:{query}"
+        self.set(key, result)
+
+
+# Global cache instances with error handling
+try:
+    embedding_cache = EmbeddingCache()
+    query_cache = QueryCache()
+    general_cache = SmartCache()
+    CACHE_INITIALIZED = True
+except Exception as e:
+    logger.warning(f"Failed to initialize caches: {e}")
+
+
+    # Create dummy cache objects that don't actually cache
+    class DummyCache:
+        def get(self, key, default=None):
+            return default
+
+        def set(self, key, value):
+            pass
+
+        def clear(self):
+            pass
+
+        def get_stats(self):
+            return {'entries': 0, 'total_size_mb': 0.0, 'cache_dir': 'disabled'}
+
+        def get_embedding(self, text, model_name):
+            return None
+
+        def set_embedding(self, text, model_name, embedding):
+            pass
+
+        def get_query_result(self, query, model_name, context_hash=""):
+            return None
+
+        def set_query_result(self, query, model_name, result, context_hash=""):
+            pass
+
+
+    embedding_cache = DummyCache()
+    query_cache = DummyCache()
+    general_cache = DummyCache()
+    CACHE_INITIALIZED = False
+
+
+def cache_embedding(model_name: str):
+    """Decorator to cache embedding results"""
+
+    def decorator(func):
+        def wrapper(text: str, *args, **kwargs):
+            # Check cache first
+            cached = embedding_cache.get_embedding(text, model_name)
+            if cached is not None:
+                return cached
+
+            # Generate embedding
+            result = func(text, *args, **kwargs)
+
+            # Cache result
+            if isinstance(result, np.ndarray):
+                embedding_cache.set_embedding(text, model_name, result)
+
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+def cache_query_result(model_name: str):
+    """Decorator to cache query results"""
+
+    def decorator(func):
+        def wrapper(query: str, *args, **kwargs):
+            # Create context hash from args (simplified)
+            context_hash = hashlib.md5(str(args).encode()).hexdigest()[:8]
+
+            # Check cache first
+            cached = query_cache.get_query_result(query, model_name, context_hash)
+            if cached is not None:
+                return cached
+
+            # Generate result
+            result = func(query, *args, **kwargs)
+
+            # Cache result
+            if isinstance(result, dict) and 'answer' in result:
+                query_cache.set_query_result(query, model_name, result, context_hash)
+
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+def cache_stats():
+    """Print cache statistics"""
+    if not CACHE_INITIALIZED:
+        print("\nCACHE STATISTICS")
+        print("=" * 40)
+        print("Cache system is disabled")
+        return
+
+    print("\nCACHE STATISTICS")
+    print("=" * 40)
+
+    embedding_stats = embedding_cache.get_stats()
+    query_stats = query_cache.get_stats()
+    general_stats = general_cache.get_stats()
+
+    print(f"Embeddings: {embedding_stats['entries']} entries, {embedding_stats['total_size_mb']:.1f}MB")
+    print(f"Queries: {query_stats['entries']} entries, {query_stats['total_size_mb']:.1f}MB")
+    print(f"General: {general_stats['entries']} entries, {general_stats['total_size_mb']:.1f}MB")
+
+    total_mb = embedding_stats['total_size_mb'] + query_stats['total_size_mb'] + general_stats['total_size_mb']
+    print(f"Total Cache: {total_mb:.1f}MB")
+
+
+def clear_all_caches():
+    """Clear all caches"""
+    if not CACHE_INITIALIZED:
+        logger.info("Cache system is disabled, nothing to clear")
+        return
+
+    embedding_cache.clear()
+    query_cache.clear()
+    general_cache.clear()
+    logger.info("All caches cleared")
 
 # === File: utility/logger.py ===
 import logging
@@ -1652,5 +2791,140 @@ file_handler.setFormatter(file_formatter)
 # Add handlers to the logger
 logger.addHandler(stream_handler)
 logger.addHandler(file_handler)
+
+
+# === File: utility/performance.py ===
+# utility/performance.py
+import time
+import psutil
+import torch
+from contextlib import contextmanager
+from collections import defaultdict
+from typing import Dict, List
+import json
+from utility.logger import logger
+
+
+class PerformanceMonitor:
+    """Real-time performance tracking for RAG operations"""
+
+    def __init__(self):
+        self.metrics = defaultdict(list)
+        self.current_session = {}
+
+    def start_operation(self, operation_name: str):
+        """Start timing an operation"""
+        self.current_session[operation_name] = {
+            'start_time': time.time(),
+            'start_memory': self.get_memory_usage(),
+            'start_gpu_memory': self.get_gpu_memory()
+        }
+
+    def end_operation(self, operation_name: str) -> Dict:
+        """End timing and record metrics"""
+        if operation_name not in self.current_session:
+            logger.warning(f"Operation {operation_name} was never started")
+            return {}
+
+        session = self.current_session[operation_name]
+        duration = time.time() - session['start_time']
+        memory_delta = self.get_memory_usage() - session['start_memory']
+        gpu_memory_delta = self.get_gpu_memory() - session['start_gpu_memory']
+
+        metrics = {
+            'operation': operation_name,
+            'duration': duration,
+            'memory_delta_mb': memory_delta,
+            'gpu_memory_delta_mb': gpu_memory_delta,
+            'timestamp': time.time()
+        }
+
+        self.metrics[operation_name].append(metrics)
+        del self.current_session[operation_name]
+
+        logger.info(
+            f"Performance {operation_name}: {duration:.2f}s, Memory: {memory_delta:+.1f}MB, GPU: {gpu_memory_delta:+.1f}MB")
+        return metrics
+
+    def get_memory_usage(self) -> float:
+        """Get current memory usage in MB"""
+        return psutil.Process().memory_info().rss / 1024 / 1024
+
+    def get_gpu_memory(self) -> float:
+        """Get current GPU memory usage in MB"""
+        if torch.backends.mps.is_available():
+            # MPS doesn't have detailed memory reporting
+            return 0.0
+        elif torch.cuda.is_available():
+            return torch.cuda.memory_allocated() / 1024 / 1024
+        return 0.0
+
+    def get_summary(self) -> Dict:
+        """Get performance summary"""
+        summary = {}
+        for operation, measurements in self.metrics.items():
+            if measurements:
+                durations = [m['duration'] for m in measurements]
+                summary[operation] = {
+                    'count': len(measurements),
+                    'avg_duration': sum(durations) / len(durations),
+                    'min_duration': min(durations),
+                    'max_duration': max(durations),
+                    'total_duration': sum(durations)
+                }
+        return summary
+
+    def save_metrics(self, filepath: str = "performance_metrics.json"):
+        """Save metrics to file"""
+        with open(filepath, 'w') as f:
+            json.dump(dict(self.metrics), f, indent=2)
+        logger.info(f"Performance metrics saved to {filepath}")
+
+
+# Global performance monitor instance
+performance_monitor = PerformanceMonitor()
+
+
+@contextmanager
+def monitor_performance(operation_name: str):
+    """Context manager for monitoring performance"""
+    performance_monitor.start_operation(operation_name)
+    try:
+        yield
+    finally:
+        performance_monitor.end_operation(operation_name)
+
+
+def performance_report():
+    """Print a performance report"""
+    summary = performance_monitor.get_summary()
+
+    print("\nPERFORMANCE REPORT")
+    print("=" * 50)
+
+    for operation, stats in summary.items():
+        print(f"\nOperation: {operation}")
+        print(f"   Count: {stats['count']}")
+        print(f"   Average: {stats['avg_duration']:.2f}s")
+        print(f"   Min: {stats['min_duration']:.2f}s")
+        print(f"   Max: {stats['max_duration']:.2f}s")
+        print(f"   Total: {stats['total_duration']:.2f}s")
+
+    return summary
+
+
+# Decorator for automatic performance monitoring
+def track_performance(operation_name: str = None):
+    """Decorator to automatically track function performance"""
+
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            name = operation_name or f"{func.__module__}.{func.__name__}"
+            with monitor_performance(name):
+                return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
