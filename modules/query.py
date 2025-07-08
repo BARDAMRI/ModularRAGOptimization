@@ -1,15 +1,16 @@
-# modules/query.py
+# modules/query.py - Refactored for better organization
 import numpy as np
-from typing import Union, Optional, Dict
+from typing import Union, Optional, Dict, Callable, List, Tuple, Any
 from llama_index.core import VectorStoreIndex
 from llama_index.core.schema import MetadataMode
 import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-import heapq
-from transformers import AutoModelForCausalLM, GPT2TokenizerFast
+from transformers import AutoModelForCausalLM, GPT2TokenizerFast, PreTrainedModel, PreTrainedTokenizer
+
 from configurations.config import MAX_RETRIES, QUALITY_THRESHOLD, MAX_NEW_TOKENS
 from utility.embedding_utils import get_query_vector
 from utility.logger import logger
+from utility.similarity_calculator import calculate_similarities, SimilarityMethod
 
 # Import performance monitoring and caching
 try:
@@ -24,7 +25,6 @@ except ImportError:
     CACHE_AVAILABLE = False
 
 
-    # Create dummy decorators
     def monitor_performance(name):
         from contextlib import contextmanager
         @contextmanager
@@ -48,191 +48,383 @@ except ImportError:
         return decorator
 
 
-def vector_similarity(vector1: np.ndarray, vector2: np.ndarray) -> float:
+# =====================================================
+# EMBEDDING AND TEXT PROCESSING UTILITIES
+# =====================================================
+
+def extract_node_text_for_embedding(node) -> str:
     """
-    Calculates the cosine similarity between two vectors.
-
-    This function computes the cosine similarity score, which is a measure of similarity between two non-zero vectors.
-
-    In the VectorStoreIndex, the similarity function is : similarity = np.dot(vec1, vec2) / (||vec1|| * ||vec2||)
-    Args:
-        vector1 (np.ndarray): First vector.
-        vector2 (np.ndarray): Second vector.
-
-    Returns:
-        float: Cosine similarity score between the two vectors.
-    """
-    with monitor_performance("vector_similarity_calculation"):
-        logger.info("Calculating cosine similarity between two vectors.")
-        norm1 = np.linalg.norm(vector1)
-        norm2 = np.linalg.norm(vector2)
-        if norm1 == 0.0 or norm2 == 0.0:
-            logger.warning(
-                f"One or both vectors are zero vectors, returning similarity as 0.0. vector1: {vector1} vector2: {vector2}")
-            return 0.0
-        similarity = np.dot(vector1, vector2) / (norm1 * norm2)
-        logger.info(f"Cosine similarity calculated: {similarity}")
-        return similarity
-
-
-def get_llamaindex_compatible_text(node) -> str:
-    """
-    Extracts text from a node in the exact same way LlamaIndex does for embedding.
+    Extract text from a LlamaIndex node exactly as LlamaIndex does for embedding.
 
     Args:
         node: LlamaIndex node object
 
     Returns:
-        str: Text processed exactly as LlamaIndex processes it for embedding
+        str: Text formatted for embedding, matching LlamaIndex's internal process
     """
     try:
-        # Use the same method LlamaIndex uses for embedding
         return node.get_content(metadata_mode=MetadataMode.EMBED)
     except Exception as e:
-        logger.warning(f"Failed to get LlamaIndex-compatible text: {e}. Falling back to node.text")
-        return node.text
+        logger.warning(f"Failed to extract embedding text: {e}. Using fallback.")
+        return getattr(node, 'text', str(node))
 
 
-def get_cached_embedding_llamaindex_style(text: str, embed_model: HuggingFaceEmbedding) -> np.ndarray:
+def generate_embedding_with_normalization(text: str, embed_model: HuggingFaceEmbedding) -> np.ndarray:
     """
-    Retrieves the cached embedding for a given text using LlamaIndex's exact method.
-
-    This function replicates exactly how LlamaIndex creates embeddings for documents.
+    Generate embedding for text using LlamaIndex's method with optional normalization.
 
     Args:
-        text (str): Text to convert into an embedding (should be the full processed text with metadata).
-        embed_model (HuggingFaceEmbedding): Embedding model to use.
+        text: Text to embed
+        embed_model: HuggingFace embedding model
 
     Returns:
-        np.ndarray: Cached embedding vector for the text.
+        np.ndarray: Normalized embedding vector
     """
-    with monitor_performance("llamaindex_embedding_retrieval"):
-        logger.info(f"Retrieving cached embedding for text: {text[:50]}...")
+    with monitor_performance("embedding_generation"):
+        logger.debug(f"Generating embedding for text: {text[:50]}...")
 
-        # Use get_text_embedding (not get_query_embedding) to match document encoding
         embedding = embed_model.get_text_embedding(text)
-        embedding_array = np.array(embedding)
+        embedding_array = np.array(embedding, dtype=np.float32)
 
-        # Check if the model returns normalized vectors
+        # Apply normalization if needed
         norm = np.linalg.norm(embedding_array)
         if norm > 1.1 or norm < 0.9:  # Not normalized
             embedding_array = embedding_array / norm
-            logger.debug("Applied manual normalization to embedding")
+            logger.debug("Applied normalization to embedding")
 
-        logger.info("Cached embedding retrieved successfully.")
         return embedding_array
 
 
-@track_performance("context_retrieval")
-def retrieve_context_aligned_to_llama_index(
-        query: Union[str, np.ndarray],
-        vector_db: VectorStoreIndex,
-        embed_model: HuggingFaceEmbedding,
-        top_k: int = 5,
-        similarity_cutoff: float = 0.5,
-) -> str:
+def process_retrieved_nodes(nodes_with_scores) -> Tuple[List, List[float]]:
     """
-    Retrieves relevant context from the vector database using LlamaIndex-compatible embeddings.
+    Extract nodes and scores from LlamaIndex retrieval results.
 
     Args:
-        query (Union[str, np.ndarray]): Query text or vector.
-        vector_db (VectorStoreIndex): Vector database for document retrieval.
-        embed_model (HuggingFaceEmbedding): Embedding model for vector conversion.
-        top_k (int): Number of top results to retrieve.
-        similarity_cutoff (float): Minimum similarity score to include results.
+        nodes_with_scores: LlamaIndex retrieval results
 
     Returns:
-        str: Retrieved context as a concatenated string.
+        Tuple of (nodes_list, scores_list)
     """
-    logger.info("Retrieving context for the query with LlamaIndex compatibility.")
-    if not isinstance(query, (str, np.ndarray)):
-        logger.error("Query must be a string or a numpy.ndarray.")
-        raise TypeError("Query must be a string or a numpy.ndarray.")
-
-    # Use LlamaIndex's native retriever first
-    with monitor_performance("llamaindex_retrieval"):
-        retriever = vector_db.as_retriever(similarity_top_k=top_k)
-        nodes_with_scores = retriever.retrieve(query)
-
-    if not nodes_with_scores:
-        logger.warning("No nodes retrieved from the vector DB.")
-        return ''
-
-    logger.info(f"Retrieved {len(nodes_with_scores)} nodes from vector database.")
-
-    # Get query vector
-    query_vector: Optional[np.ndarray] = None
-    if isinstance(query, str):
-        if embed_model is None:
-            logger.error("embed_model is required for converting string queries to vectors.")
-            raise ValueError("embed_model is required for converting string queries to vectors.")
-        with monitor_performance("query_vector_generation"):
-            query_vector = get_query_vector(query, embed_model)
-    elif isinstance(query, np.ndarray):
-        query_vector = query
-
-    # Extract nodes and their LlamaIndex-compatible text
-    with monitor_performance("text_extraction_and_embedding"):
-        nodes = [node_with_score.node for node_with_score in nodes_with_scores]
-        llamaindex_texts = [get_llamaindex_compatible_text(node) for node in nodes]
-
-        # Get embeddings using LlamaIndex's exact method
-        document_embeddings = np.array([
-            get_cached_embedding_llamaindex_style(text, embed_model)
-            for text in llamaindex_texts
-        ])
-
-    # Get LlamaIndex's original scores for comparison
-    llamaindex_scores = [node_with_score.score for node_with_score in nodes_with_scores]
-
-    # Calculate similarities manually to verify/compare
-    if query_vector is not None and document_embeddings is not None:
-        with monitor_performance("manual_similarity_calculation"):
-            # Manual similarity calculation (should match LlamaIndex's results)
-            manual_similarities = np.dot(document_embeddings, query_vector) / (
-                    np.linalg.norm(document_embeddings, axis=1) * np.linalg.norm(query_vector)
-            )
-
-            logger.info("Similarity comparison:")
-            for i, (manual_sim, llamaindex_sim) in enumerate(zip(manual_similarities, llamaindex_scores)):
-                diff = abs(manual_sim - llamaindex_sim)
-                logger.info(f"Node {i}: Manual={manual_sim:.6f}, LlamaIndex={llamaindex_sim:.6f}, Diff={diff:.6f}")
-
-            # Use manual similarities for filtering (they should match LlamaIndex's)
-            similarity_scores = manual_similarities
-    else:
-        logger.warning("Query vector or document embeddings are None, using LlamaIndex scores.")
-        similarity_scores = llamaindex_scores
-
-    # Get the actual content for each node (not the metadata-enhanced text)
-    with monitor_performance("content_extraction_and_filtering"):
-        node_contents = [node.get_content() for node in nodes]
-
-        # Create scored pairs and filter
-        scored_nodes = list(zip(similarity_scores, node_contents))
-        top_nodes = heapq.nlargest(top_k, scored_nodes, key=lambda x: x[0])
-        filtered_nodes = [content for score, content in top_nodes if score >= similarity_cutoff]
-
-    logger.info(f"Filtered {len(filtered_nodes)} nodes based on similarity cutoff.")
-    return "\n".join(filtered_nodes)
+    nodes = [item.node for item in nodes_with_scores]
+    scores = [item.score for item in nodes_with_scores]
+    return nodes, scores
 
 
-# Keep the original function as fallback
-def retrieve_context(
+def batch_generate_embeddings(texts: List[str], embed_model: HuggingFaceEmbedding) -> np.ndarray:
+    """
+    Generate embeddings for multiple texts efficiently.
+
+    Args:
+        texts: List of texts to embed
+        embed_model: HuggingFace embedding model
+
+    Returns:
+        np.ndarray: Array of embeddings (n_texts, embedding_dim)
+    """
+    with monitor_performance("batch_embedding_generation"):
+        embeddings = [
+            generate_embedding_with_normalization(text, embed_model)
+            for text in texts
+        ]
+        return np.array(embeddings)
+
+
+# =====================================================
+# SIMILARITY AND FILTERING UTILITIES
+# =====================================================
+
+def calculate_similarity_scores(
+        query_vector: np.ndarray,
+        document_embeddings: np.ndarray,
+        method: Union[SimilarityMethod, str, Callable],
+        reference_scores: Optional[List[float]] = None
+) -> np.ndarray:
+    """
+    Calculate similarity scores and optionally compare with reference scores.
+
+    Args:
+        query_vector: Query embedding vector
+        document_embeddings: Document embedding matrix
+        method: Similarity calculation method
+        reference_scores: Optional reference scores for comparison
+
+    Returns:
+        np.ndarray: Calculated similarity scores
+    """
+    with monitor_performance("similarity_calculation"):
+        similarities = calculate_similarities(query_vector, document_embeddings, method)
+
+        # Log comparison if using cosine similarity and reference scores available
+        if method == SimilarityMethod.COSINE and reference_scores is not None:
+            _log_similarity_comparison(similarities, reference_scores)
+
+        return similarities
+
+
+def _log_similarity_comparison(manual_scores: np.ndarray, reference_scores: List[float]):
+    """Log comparison between manual and reference similarity scores."""
+    logger.info("Similarity score comparison:")
+    for i, (manual, reference) in enumerate(zip(manual_scores, reference_scores)):
+        diff = abs(manual - reference)
+        logger.info(f"Doc {i}: Manual={manual:.6f}, Reference={reference:.6f}, Diff={diff:.6f}")
+
+
+def filter_and_rank_results(
+        similarity_scores: np.ndarray,
+        node_contents: List[str],
+        similarity_threshold: float,
+        max_results: int
+) -> List[str]:
+    """
+    Filter results by similarity threshold and return top-k ranked by score.
+
+    Args:
+        similarity_scores: Array of similarity scores
+        node_contents: List of node content strings
+        similarity_threshold: Minimum similarity score to include
+        max_results: Maximum number of results to return
+
+    Returns:
+        List[str]: Filtered and ranked content strings
+    """
+    with monitor_performance("result_filtering_and_ranking"):
+        # Vectorized filtering
+        valid_mask = similarity_scores >= similarity_threshold
+
+        if not np.any(valid_mask):
+            logger.warning(f"No results above similarity threshold {similarity_threshold}")
+            return []
+
+        # Extract valid results
+        valid_scores = similarity_scores[valid_mask]
+        valid_contents = [content for i, content in enumerate(node_contents) if valid_mask[i]]
+
+        # Sort by score (descending) and take top-k
+        sorted_indices = np.argsort(valid_scores)[::-1][:max_results]
+        ranked_contents = [valid_contents[i] for i in sorted_indices]
+
+        logger.info(f"Filtered to {len(ranked_contents)} results from {len(node_contents)} candidates")
+        return ranked_contents
+
+
+# =====================================================
+# CORE RETRIEVAL FUNCTIONS
+# =====================================================
+
+@track_performance("context_retrieval")
+def retrieve_context_with_similarity(
         query: Union[str, np.ndarray],
         vector_db: VectorStoreIndex,
         embed_model: HuggingFaceEmbedding,
-        top_k: int = 5,
-        similarity_cutoff: float = 0.5,
+        max_results: int = 5,
+        similarity_threshold: float = 0.5,
+        similarity_method: Union[SimilarityMethod, str, Callable] = SimilarityMethod.COSINE,
 ) -> str:
     """
-    Original retrieve_context function - kept for backward compatibility.
-    Use retrieve_context_aligned_to_llama_index for better LlamaIndex compatibility.
-    """
-    logger.warning(
-        "Using original retrieve_context. Consider using retrieve_context_aligned_to_llama_index for better compatibility.")
-    return retrieve_context_aligned_to_llama_index(query, vector_db, embed_model, top_k, similarity_cutoff)
+    Retrieve relevant context using configurable similarity methods.
 
+    Args:
+        query: Query string or vector
+        vector_db: LlamaIndex vector store
+        embed_model: HuggingFace embedding model
+        max_results: Maximum number of results to return
+        similarity_threshold: Minimum similarity score threshold
+        similarity_method: Method for calculating similarity
+
+    Returns:
+        str: Concatenated context from relevant documents
+    """
+    logger.info(f"Retrieving context using {similarity_method} similarity")
+
+    # Input validation
+    if not isinstance(query, (str, np.ndarray)):
+        raise TypeError("Query must be a string or numpy array")
+
+    # Step 1: Initial retrieval using LlamaIndex
+    nodes_with_scores = _perform_initial_retrieval(query, vector_db, max_results)
+    if not nodes_with_scores:
+        return ''
+
+    # Step 2: Process query and document embeddings
+    query_vector = _prepare_query_vector(query, embed_model)
+    nodes, reference_scores = process_retrieved_nodes(nodes_with_scores)
+
+    # Step 3: Generate document embeddings
+    document_embeddings = _generate_document_embeddings(nodes, embed_model)
+
+    # Step 4: Calculate similarities using specified method
+    similarity_scores = calculate_similarity_scores(
+        query_vector, document_embeddings, similarity_method, reference_scores
+    )
+
+    # Step 5: Filter, rank, and format results
+    node_contents = [node.get_content() for node in nodes]
+    filtered_contents = filter_and_rank_results(
+        similarity_scores, node_contents, similarity_threshold, max_results
+    )
+
+    logger.info(f"Retrieved {len(filtered_contents)} relevant documents")
+    return "\n\n".join(filtered_contents)  # Double newline for better separation
+
+
+def _perform_initial_retrieval(query, vector_db, max_results):
+    """Perform initial retrieval using LlamaIndex."""
+    with monitor_performance("llamaindex_retrieval"):
+        retriever = vector_db.as_retriever(similarity_top_k=max_results)
+        nodes_with_scores = retriever.retrieve(query)
+
+        if nodes_with_scores:
+            logger.info(f"LlamaIndex retrieved {len(nodes_with_scores)} initial candidates")
+        else:
+            logger.warning("No documents retrieved by LlamaIndex")
+
+        return nodes_with_scores
+
+
+def _prepare_query_vector(query, embed_model):
+    """Prepare query vector from string or array input."""
+    if isinstance(query, str):
+        if embed_model is None:
+            raise ValueError("Embedding model required for string queries")
+        with monitor_performance("query_embedding"):
+            return get_query_vector(query, embed_model)
+    return query
+
+
+def _generate_document_embeddings(nodes, embed_model):
+    """Generate embeddings for document nodes."""
+    with monitor_performance("document_embedding_extraction"):
+        texts = [extract_node_text_for_embedding(node) for node in nodes]
+        return batch_generate_embeddings(texts, embed_model)
+
+
+# =====================================================
+# TEXT GENERATION UTILITIES
+# =====================================================
+
+def prepare_generation_inputs(prompt: str, tokenizer: GPT2TokenizerFast, device: torch.device, max_length: int = 900):
+    """
+    Prepare tokenized inputs for text generation.
+
+    Args:
+        prompt: Input prompt text
+        tokenizer: GPT2 tokenizer
+        device: Target device
+        max_length: Maximum sequence length
+
+    Returns:
+        dict: Tokenized inputs ready for generation
+    """
+    with monitor_performance("tokenization"):
+        inputs = tokenizer(
+            prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=max_length,
+            padding=True
+        )
+        return {k: v.to(device, non_blocking=True) for k, v in inputs.items()}
+
+
+def generate_text_by_device(
+        model: AutoModelForCausalLM,
+        inputs: dict,
+        device: torch.device,
+        tokenizer: GPT2TokenizerFast
+) -> torch.Tensor:
+    """
+    Generate text with device-specific optimizations.
+
+    Args:
+        model: Language model
+        inputs: Tokenized inputs
+        device: Target device
+        tokenizer: Tokenizer for special tokens
+
+    Returns:
+        torch.Tensor: Generated token sequences
+    """
+    with monitor_performance("text_generation"):
+        with torch.no_grad():
+            base_params = {
+                "do_sample": True,
+                "temperature": 0.7,
+                "pad_token_id": tokenizer.eos_token_id
+            }
+
+            if device.type == "mps":
+                # MPS-specific optimizations
+                return model.generate(
+                    **inputs,
+                    max_new_tokens=min(MAX_NEW_TOKENS, 50),
+                    use_cache=True,
+                    **base_params
+                )
+            elif device.type == "cuda":
+                # CUDA-specific optimizations
+                return model.generate(
+                    **inputs,
+                    max_new_tokens=MAX_NEW_TOKENS,
+                    top_p=0.9,
+                    use_cache=True,
+                    attention_mask=inputs.get('attention_mask'),
+                    **base_params
+                )
+            else:
+                # CPU generation
+                return model.generate(
+                    **inputs,
+                    max_new_tokens=MAX_NEW_TOKENS,
+                    **base_params
+                )
+
+
+def handle_gpu_memory_error(
+        error: RuntimeError,
+        model: AutoModelForCausalLM,
+        inputs: dict,
+        device: torch.device,
+        tokenizer: GPT2TokenizerFast
+) -> Tuple[str, str]:
+    """
+    Handle GPU memory errors with CPU fallback.
+
+    Returns:
+        Tuple of (generated_answer, device_used)
+    """
+    logger.warning(f"GPU memory issue: {error}")
+
+    # Clear GPU cache
+    if device.type == "mps":
+        torch.mps.empty_cache()
+    elif device.type == "cuda":
+        torch.cuda.empty_cache()
+
+    # CPU fallback
+    logger.info("Falling back to CPU generation")
+    model_cpu = model.cpu()
+    inputs_cpu = {k: v.cpu() for k, v in inputs.items()}
+
+    with torch.no_grad():
+        outputs = model_cpu.generate(
+            **inputs_cpu,
+            max_new_tokens=MAX_NEW_TOKENS,
+            do_sample=True,
+            temperature=0.7,
+            pad_token_id=tokenizer.eos_token_id
+        )
+
+    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+    # Move model back to original device
+    model.to(device)
+
+    return answer, "cpu_fallback"
+
+
+# =====================================================
+# MAIN QUERY PROCESSING
+# =====================================================
 
 @track_performance("answer_quality_evaluation")
 def evaluate_answer_quality(
@@ -243,225 +435,139 @@ def evaluate_answer_quality(
         device: torch.device
 ) -> float:
     """
-    Evaluates the quality of the generated answer based on the given question.
+    Evaluate the quality of a generated answer.
 
-    Args:
-        answer (str): Generated answer.
-        question (str): Original question.
-        model (AutoModelForCausalLM): Language model used for evaluation.
-        tokenizer (GPT2TokenizerFast): Tokenizer for processing text.
-        device (torch.device): Device to run the evaluation on.
-
-    Returns:
-        float: Quality score of the answer.
+    Currently returns a placeholder score.
+    TODO: Implement actual quality evaluation logic.
     """
-    logger.info("Evaluating the quality of the answer.")
-    # Placeholder for evaluation logic
+    logger.info("Evaluating answer quality")
+    # Placeholder - implement actual evaluation logic
     score = 1.0
-    logger.info(f"Quality score calculated: {score}")
+    logger.info(f"Quality score: {score}")
     return score
 
 
 @cache_query_result("distilgpt2")
 @track_performance("complete_query_processing")
-def query_model(
+def process_query_with_context(
         prompt: str,
-        model: AutoModelForCausalLM,
-        tokenizer: GPT2TokenizerFast,
+        model: Union[PreTrainedModel, Any],
+        tokenizer: Union[PreTrainedTokenizer, Any],
         device: torch.device,
         vector_db: Optional[VectorStoreIndex] = None,
         embedding_model: Optional[HuggingFaceEmbedding] = None,
         max_retries: int = MAX_RETRIES,
         quality_threshold: float = QUALITY_THRESHOLD,
-        use_improved_retrieval: bool = True
+        similarity_method: Union[SimilarityMethod, str, Callable] = SimilarityMethod.COSINE
 ) -> Dict[str, Union[str, float, int, None]]:
     """
-    GPU-optimized queries the language model with the given prompt and retrieves an answer.
-    Now includes performance monitoring and caching.
+    Process a query with optional context retrieval and iterative improvement.
 
-    Args:
-        prompt (str): Query prompt.
-        model (AutoModelForCausalLM): Language model to generate the answer.
-        tokenizer (GPT2TokenizerFast): Tokenizer for processing text.
-        device (torch.device): Device to run the query on.
-        vector_db (Optional[VectorStoreIndex]): Vector database for context retrieval.
-        embedding_model (Optional[HuggingFaceEmbedding]): Embedding model for vector conversion.
-        max_retries (int): Maximum number of retries for improving the answer.
-        quality_threshold (float): Minimum quality score to accept the answer.
-        use_improved_retrieval (bool): Whether to use the improved LlamaIndex-compatible retrieval.
-
-    Returns:
-        Dict[str, Union[str, float, int, None]]: Dictionary containing the query result.
+    This is the main entry point for query processing with RAG capabilities.
     """
-    logger.info("Starting GPU-optimized query process.")
+    logger.info(f"Processing query with {similarity_method} similarity")
 
-    # Ensure model is on the correct device
-    model_device = next(model.parameters()).device
-    if model_device != device:
-        logger.info(f"Moving model from {model_device} to {device}")
-        model = model.to(device)
+    # Ensure model is on correct device
+    _ensure_model_on_device(model, device)
 
     try:
-        answer: str = ""
-        score: float = 0.0
-        attempt: int = 0
-        current_prompt: str = prompt
-
-        while attempt <= max_retries:
+        for attempt in range(max_retries + 1):
             try:
-                # Context retrieval (runs on CPU - that's fine)
-                if vector_db is not None:
-                    if use_improved_retrieval:
-                        retrieved_context = retrieve_context_aligned_to_llama_index(
-                            current_prompt, vector_db, embedding_model
-                        )
-                    else:
-                        retrieved_context = retrieve_context(
-                            current_prompt, vector_db, embedding_model
-                        )
+                # Generate answer for current attempt
+                result = _generate_single_answer(
+                    prompt, model, tokenizer, device, vector_db, embedding_model, similarity_method)
 
-                    with monitor_performance("prompt_construction"):
-                        augmented_prompt = f"Context: {retrieved_context}\n\nQuestion: {current_prompt}\nAnswer:"
-                else:
-                    augmented_prompt = current_prompt
-
-                # GPU-optimized tokenization
-                with monitor_performance("tokenization"):
-                    inputs = tokenizer(
-                        augmented_prompt,
-                        return_tensors="pt",
-                        truncation=True,
-                        max_length=900,  # Conservative for MPS stability
-                        padding=True
-                    )
-
-                    # Move inputs to device efficiently
-                    inputs = {k: v.to(device, non_blocking=True) for k, v in inputs.items()}
-
-                # GPU generation with device-specific optimizations
-                with monitor_performance("text_generation"):
-                    with torch.no_grad():  # Save GPU memory
-                        if device.type == "mps":
-                            # MPS-optimized generation
-                            outputs = model.generate(
-                                **inputs,
-                                max_new_tokens=min(MAX_NEW_TOKENS, 50),  # Conservative for MPS
-                                do_sample=True,
-                                temperature=0.7,
-                                pad_token_id=tokenizer.eos_token_id,
-                                use_cache=True,
-                            )
-                        elif device.type == "cuda":
-                            # CUDA-optimized generation
-                            outputs = model.generate(
-                                **inputs,
-                                max_new_tokens=MAX_NEW_TOKENS,
-                                do_sample=True,
-                                temperature=0.7,
-                                top_p=0.9,
-                                pad_token_id=tokenizer.eos_token_id,
-                                use_cache=True,
-                                attention_mask=inputs.get('attention_mask')
-                            )
-                        else:
-                            # CPU generation
-                            outputs = model.generate(
-                                **inputs,
-                                max_new_tokens=MAX_NEW_TOKENS,
-                                do_sample=True,
-                                temperature=0.7,
-                                pad_token_id=tokenizer.eos_token_id
-                            )
-
-                # Move output back to CPU for decoding (more efficient)
-                with monitor_performance("answer_processing"):
-                    outputs = outputs.cpu()
-                    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
-                    score = evaluate_answer_quality(answer, current_prompt, model, tokenizer, device)
-
-                if score >= quality_threshold or attempt == max_retries:
-                    logger.info("GPU-optimized query completed successfully.")
-                    return {
-                        "question": prompt,
-                        "answer": answer,
-                        "score": score,
+                # Check if answer meets quality threshold
+                if result["score"] >= quality_threshold or attempt == max_retries:
+                    result.update({
                         "attempts": attempt + 1,
-                        "error": None,
-                        "device_used": str(device)
-                    }
+                        "similarity_method": str(similarity_method)
+                    })
+                    logger.info("Query processing completed successfully")
+                    return result
 
-                current_prompt = rephrase_query(current_prompt, answer, model, tokenizer, device)
-                attempt += 1
+                # Improve prompt for next iteration
+                prompt = _improve_prompt(prompt, result["answer"], model, tokenizer, device)
 
             except RuntimeError as err:
-                # Handle GPU memory issues gracefully
-                if "MPS" in str(err) or "out of memory" in str(err).lower():
-                    logger.warning(f"GPU memory issue: {err}")
-
-                    # Clear GPU cache
-                    if device.type == "mps":
-                        torch.mps.empty_cache()
-                    elif device.type == "cuda":
-                        torch.cuda.empty_cache()
-
-                    # Fallback to CPU for this generation
-                    logger.info("Falling back to CPU for this generation")
-                    model_cpu = model.cpu()
-                    inputs_cpu = {k: v.cpu() for k, v in inputs.items()}
-
-                    with torch.no_grad():
-                        outputs = model_cpu.generate(
-                            **inputs_cpu,
-                            max_new_tokens=MAX_NEW_TOKENS,
-                            do_sample=True,
-                            temperature=0.7,
-                            pad_token_id=tokenizer.eos_token_id
-                        )
-
-                    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-                    # Move model back to GPU
-                    model = model_cpu.to(device)
-
-                    return {
-                        "question": prompt,
-                        "answer": answer,
-                        "score": 1.0,
-                        "attempts": attempt + 1,
-                        "error": f"GPU fallback: {str(err)}",
-                        "device_used": "cpu_fallback"
-                    }
+                if _is_gpu_memory_error(err):
+                    answer, device_used = handle_gpu_memory_error(err, model, {}, device, tokenizer)
+                    return _create_result_dict(prompt, answer, 1.0, attempt + 1,
+                                               f"GPU fallback: {err}", device_used, similarity_method)
                 else:
                     raise err
 
-            except Exception as err:
-                logger.error(f"Error during GPU query process: {err}")
-                return {
-                    "question": prompt,
-                    "answer": f"Error: {str(err)}",
-                    "score": 0.0,
-                    "attempts": attempt + 1,
-                    "error": str(err)
-                }
-
-        return {
-            "question": prompt,
-            "answer": answer or "No answer generated",
-            "score": score,
-            "attempts": attempt + 1,
-            "error": None,
-            "device_used": str(device)
-        }
+        # If we reach here, max retries exceeded
+        return _create_result_dict(prompt, "No satisfactory answer generated", 0.0,
+                                   max_retries + 1, None, str(device), similarity_method)
 
     except Exception as err:
-        logger.error(f"Error during GPU query process: {err}")
-        return {
-            "question": prompt,
-            "answer": "Error during generation.",
-            "score": 0.0,
-            "attempts": 0,
-            "error": str(err)
-        }
+        logger.error(f"Error during query processing: {err}")
+        return _create_result_dict(prompt, f"Error: {err}", 0.0, 0, str(err), str(device), similarity_method)
+
+
+def _ensure_model_on_device(model: AutoModelForCausalLM, device: torch.device):
+    """Ensure model is on the correct device."""
+    model_device = next(model.parameters()).device
+    if model_device != device:
+        logger.info(f"Moving model from {model_device} to {device}")
+        model.to(device)
+
+
+def _generate_single_answer(prompt, model, tokenizer, device, vector_db, embedding_model, similarity_method):
+    """Generate a single answer attempt."""
+    # Context retrieval
+    augmented_prompt = _prepare_prompt_with_context(
+        prompt, vector_db, embedding_model, similarity_method
+    )
+
+    # Generate answer
+    inputs = prepare_generation_inputs(augmented_prompt, tokenizer, device)
+    outputs = generate_text_by_device(model, inputs, device, tokenizer)
+
+    # Process output
+    with monitor_performance("answer_processing"):
+        outputs = outputs.cpu()
+        answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        score = evaluate_answer_quality(answer, prompt, model, tokenizer, device)
+
+    return {"answer": answer, "score": score}
+
+
+def _prepare_prompt_with_context(prompt, vector_db, embedding_model, similarity_method):
+    """Prepare prompt with retrieved context if available."""
+    if vector_db is not None:
+        with monitor_performance("context_retrieval_and_prompt_construction"):
+            context = retrieve_context_with_similarity(
+                prompt, vector_db, embedding_model, similarity_method=similarity_method
+            )
+            return f"Context: {context}\n\nQuestion: {prompt}\nAnswer:"
+
+    return prompt
+
+
+def _improve_prompt(original_prompt, previous_answer, model, tokenizer, device):
+    """Improve prompt based on previous answer."""
+    return rephrase_query(original_prompt, previous_answer, model, tokenizer, device)
+
+
+def _is_gpu_memory_error(error):
+    """Check if error is related to GPU memory."""
+    error_str = str(error).lower()
+    return "mps" in error_str or "out of memory" in error_str
+
+
+def _create_result_dict(question, answer, score, attempts, error, device_used, similarity_method):
+    """Create standardized result dictionary."""
+    return {
+        "question": question,
+        "answer": answer,
+        "score": score,
+        "attempts": attempts,
+        "error": error,
+        "device_used": device_used,
+        "similarity_method": str(similarity_method)
+    }
 
 
 @track_performance("query_rephrasing")
@@ -473,32 +579,17 @@ def rephrase_query(
         device: torch.device
 ) -> str:
     """
-    GPU-optimized query rephrasing based on the previous answer to improve the response.
-
-    Args:
-        original_prompt (str): Original query prompt.
-        previous_answer (str): Previous answer generated by the model.
-        model (AutoModelForCausalLM): Language model used for rephrasing.
-        tokenizer (GPT2TokenizerFast): Tokenizer for processing text.
-        device (torch.device): Device to run the rephrasing on.
-
-    Returns:
-        str: Rephrased query.
+    Rephrase query based on previous answer to improve results.
     """
-    logger.info("GPU-optimized query rephrasing.")
+    logger.info("Rephrasing query for improvement")
+
     rephrase_prompt = (
         f"Original question: {original_prompt}\n"
-        f"The previous answer was: {previous_answer}\n"
+        f"Previous answer: {previous_answer}\n"
         f"Improve the original question to get a better answer:"
     )
 
-    with monitor_performance("rephrase_tokenization"):
-        inputs = tokenizer(
-            rephrase_prompt,
-            return_tensors="pt",
-            truncation=True,
-            max_length=800
-        ).to(device)
+    inputs = prepare_generation_inputs(rephrase_prompt, tokenizer, device, max_length=800)
 
     with monitor_performance("rephrase_generation"):
         with torch.no_grad():
@@ -512,5 +603,5 @@ def rephrase_query(
 
     outputs = outputs.cpu()
     rephrased_query = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
-    logger.info("Query rephrased successfully.")
+    logger.info("Query rephrased successfully")
     return rephrased_query

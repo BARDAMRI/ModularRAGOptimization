@@ -10,8 +10,6 @@ import torch
 from configurations.config import MODEL_PATH, FORCE_CPU, OPTIMIZE_FOR_MPS, USE_MIXED_PRECISION
 from typing import Tuple
 from utility.logger import logger
-
-# Import performance monitoring (create these files if you haven't yet)
 try:
     from utility.performance import monitor_performance, track_performance
 
@@ -20,10 +18,10 @@ except ImportError:
     logger.warning("Performance monitoring not available. Install with: pip install psutil")
     PERFORMANCE_AVAILABLE = False
 
-
     # Create dummy decorators if performance module not available
     def monitor_performance(name):
         from contextlib import contextmanager
+
         @contextmanager
         def dummy_context():
             yield

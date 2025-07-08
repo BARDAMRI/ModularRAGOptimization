@@ -5,6 +5,8 @@ from configurations.config import (
     MAX_RETRIES, QUALITY_THRESHOLD, INDEX_SOURCE_URL,
     FORCE_CPU, OPTIMIZE_FOR_MPS, USE_MIXED_PRECISION
 )
+from modules.model_loader import get_optimal_device, load_model
+from modules.query import process_query_with_context
 
 
 def test_complete_rag_pipeline():
@@ -16,9 +18,6 @@ def test_complete_rag_pipeline():
     try:
         # Step 1: Test configuration-based model loading
         print("\n1️⃣ Testing configuration-based model loading...")
-        from modules.model_loader import load_model, get_optimal_device
-        from modules.indexer import load_vector_db
-        from modules.query import query_model
 
         # Show current config settings
         print(f"   📋 MODEL_PATH: {MODEL_PATH}")
@@ -89,7 +88,7 @@ def test_complete_rag_pipeline():
         print(f"   📋 Using MAX_RETRIES: {MAX_RETRIES}")
         print(f"   📋 Using QUALITY_THRESHOLD: {QUALITY_THRESHOLD}")
 
-        result = query_model(
+        result = process_query_with_context(
             prompt="What is machine learning?",
             model=model,
             tokenizer=tokenizer,

@@ -182,3 +182,376 @@
 2025-07-07 23:11:29,431 - INFO - MPS: Memory monitoring limited on Apple Silicon
 2025-07-07 23:11:29,431 - INFO - Performance gpu_memory_monitoring: 0.00s, Memory: +0.0MB, GPU: +0.0MB
 2025-07-07 23:11:29,432 - INFO - Performance complete_model_test: 1.27s, Memory: +114.2MB, GPU: +0.0MB
+2025-07-08 15:20:09,826 - INFO - Performance capability_analysis: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:20:09,826 - INFO - Performance model_capabilities_analysis: 0.02s, Memory: +2.6MB, GPU: +0.0MB
+2025-07-08 15:20:09,829 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-08 15:20:09,829 - INFO - Performance device_detection: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:20:09,832 - INFO - Loading Model distilgpt2...
+2025-07-08 15:20:09,832 - INFO - Added padding token to tokenizer.
+2025-07-08 15:20:09,832 - INFO - Tokenizer loaded successfully.
+2025-07-08 15:20:09,832 - INFO - Performance tokenizer_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:20:09,832 - INFO - Loaded model for CPU
+2025-07-08 15:20:09,832 - INFO - Performance model_download_and_instantiation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:20:09,833 - INFO - Model moved to cpu
+2025-07-08 15:20:09,833 - INFO - Performance model_to_device: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:20:09,833 - INFO - Model optimized with torch.compile
+2025-07-08 15:20:09,833 - INFO - Performance model_optimization: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:20:09,835 - INFO - Loaded AutoModelForCausalLM (supports text generation)
+2025-07-08 15:20:09,836 - INFO - Performance complete_model_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:20:09,841 - INFO - Performance gpu_memory_monitoring: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:20:09,843 - INFO - Testing GPU-optimized model loading...
+2025-07-08 15:20:09,843 - INFO - Loading Model distilgpt2...
+2025-07-08 15:20:09,843 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-08 15:20:09,844 - INFO - Performance device_detection: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:20:10,266 - INFO - Added padding token to tokenizer.
+2025-07-08 15:20:10,266 - INFO - Tokenizer loaded successfully.
+2025-07-08 15:20:10,266 - INFO - Performance tokenizer_loading: 0.42s, Memory: +45.4MB, GPU: +0.0MB
+2025-07-08 15:20:10,780 - INFO - Loaded model for MPS (Apple Silicon)
+2025-07-08 15:20:10,781 - INFO - Performance model_download_and_instantiation: 0.51s, Memory: +7.0MB, GPU: +0.0MB
+2025-07-08 15:20:11,250 - INFO - Model moved to mps
+2025-07-08 15:20:11,252 - INFO - Performance model_to_device: 0.47s, Memory: -238.2MB, GPU: +0.0MB
+2025-07-08 15:20:11,252 - INFO - Skipping torch.compile (MPS compatibility)
+2025-07-08 15:20:11,252 - INFO - Performance model_optimization: 0.00s, Memory: +0.1MB, GPU: +0.0MB
+2025-07-08 15:20:11,252 - INFO - Loaded AutoModelForCausalLM (supports text generation)
+2025-07-08 15:20:11,252 - INFO - Performance complete_model_loading: 1.41s, Memory: -185.5MB, GPU: +0.0MB
+2025-07-08 15:20:11,252 - INFO - Performance test_model_loading: 1.41s, Memory: -185.4MB, GPU: +0.0MB
+2025-07-08 15:20:11,253 - INFO - Performance capability_analysis: 0.00s, Memory: +0.2MB, GPU: +0.0MB
+2025-07-08 15:20:11,253 - INFO - Performance model_capabilities_analysis: 0.00s, Memory: +0.2MB, GPU: +0.0MB
+2025-07-08 15:20:11,253 - INFO - Performance test_capabilities_analysis: 0.00s, Memory: +0.2MB, GPU: +0.0MB
+2025-07-08 15:20:11,253 - INFO - Model loading test results:
+2025-07-08 15:20:11,253 - INFO -   PASS can_generate: True
+2025-07-08 15:20:11,253 - INFO -   INFO model_type: GPT2LMHeadModel
+2025-07-08 15:20:11,253 - INFO -   WARN is_causal_lm: False
+2025-07-08 15:20:11,253 - INFO -   INFO device: mps:0
+2025-07-08 15:20:11,253 - INFO -   INFO dtype: torch.float32
+2025-07-08 15:20:11,253 - INFO -   INFO parameter_count: 81912576
+2025-07-08 15:20:11,253 - INFO - MPS: Memory monitoring limited on Apple Silicon
+2025-07-08 15:20:11,253 - INFO - Performance gpu_memory_monitoring: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:20:11,253 - INFO - Model supports text generation
+2025-07-08 15:20:11,675 - INFO - Test generation on mps:0: 'Hello The first time I saw'
+2025-07-08 15:20:11,676 - INFO - Performance test_text_generation: 0.42s, Memory: +84.9MB, GPU: +0.0MB
+2025-07-08 15:20:11,676 - INFO - MPS: Memory monitoring limited on Apple Silicon
+2025-07-08 15:20:11,676 - INFO - Performance gpu_memory_monitoring: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:20:11,679 - INFO - Performance complete_model_test: 1.84s, Memory: -97.7MB, GPU: +0.0MB
+2025-07-08 15:33:04,784 - INFO - Loading Model distilgpt2...
+2025-07-08 15:33:04,784 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-08 15:33:04,784 - INFO - Performance device_detection: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:33:05,131 - INFO - Added padding token to tokenizer.
+2025-07-08 15:33:05,131 - INFO - Tokenizer loaded successfully.
+2025-07-08 15:33:05,131 - INFO - Performance tokenizer_loading: 0.35s, Memory: +40.6MB, GPU: +0.0MB
+2025-07-08 15:33:05,641 - INFO - Loaded model for MPS (Apple Silicon)
+2025-07-08 15:33:05,641 - INFO - Performance model_download_and_instantiation: 0.51s, Memory: +7.9MB, GPU: +0.0MB
+2025-07-08 15:33:06,402 - INFO - Model moved to mps
+2025-07-08 15:33:06,403 - INFO - Performance model_to_device: 0.76s, Memory: -260.3MB, GPU: +0.0MB
+2025-07-08 15:33:06,404 - INFO - Skipping torch.compile (MPS compatibility)
+2025-07-08 15:33:06,404 - INFO - Performance model_optimization: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:33:06,404 - INFO - Loaded AutoModelForCausalLM (supports text generation)
+2025-07-08 15:33:06,404 - INFO - Performance complete_model_loading: 1.62s, Memory: -211.5MB, GPU: +0.0MB
+2025-07-08 15:33:06,404 - INFO - Performance startup_model_loading: 1.64s, Memory: -208.8MB, GPU: +0.0MB
+2025-07-08 15:33:06,419 - INFO - Running analysis on logged results...
+2025-07-08 15:33:06,419 - INFO - Performance results_analysis: 0.00s, Memory: +0.1MB, GPU: +0.0MB
+2025-07-08 15:33:06,422 - INFO - Running analysis on logged results...
+2025-07-08 15:33:06,422 - INFO - Performance results_analysis: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:35:50,473 - INFO - Loading Model distilgpt2...
+2025-07-08 15:35:50,473 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-08 15:35:50,473 - INFO - Performance device_detection: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:35:50,809 - INFO - Added padding token to tokenizer.
+2025-07-08 15:35:50,809 - INFO - Tokenizer loaded successfully.
+2025-07-08 15:35:50,809 - INFO - Performance tokenizer_loading: 0.34s, Memory: +36.1MB, GPU: +0.0MB
+2025-07-08 15:35:51,297 - INFO - Loaded model for MPS (Apple Silicon)
+2025-07-08 15:35:51,298 - INFO - Performance model_download_and_instantiation: 0.49s, Memory: +4.8MB, GPU: +0.0MB
+2025-07-08 15:35:51,599 - INFO - Model moved to mps
+2025-07-08 15:35:51,600 - INFO - Performance model_to_device: 0.30s, Memory: +1.3MB, GPU: +0.0MB
+2025-07-08 15:35:51,600 - INFO - Skipping torch.compile (MPS compatibility)
+2025-07-08 15:35:51,600 - INFO - Performance model_optimization: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:35:51,600 - INFO - Loaded AutoModelForCausalLM (supports text generation)
+2025-07-08 15:35:51,600 - INFO - Performance complete_model_loading: 1.13s, Memory: +42.1MB, GPU: +0.0MB
+2025-07-08 15:35:51,600 - INFO - Performance startup_model_loading: 1.14s, Memory: +44.8MB, GPU: +0.0MB
+2025-07-08 15:35:51,609 - INFO - Running analysis on logged results...
+2025-07-08 15:35:51,610 - INFO - Performance results_analysis: 0.00s, Memory: +0.1MB, GPU: +0.0MB
+2025-07-08 15:35:51,612 - INFO - Running analysis on logged results...
+2025-07-08 15:35:51,612 - INFO - Performance results_analysis: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:35:51,619 - INFO - Starting query evaluation...
+2025-07-08 15:35:51,619 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:35:51,620 - INFO - Loading external Vector DB...
+2025-07-08 15:35:51,620 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:35:51,620 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:35:51,777 - INFO - Starting query evaluation...
+2025-07-08 15:35:51,778 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:35:51,778 - INFO - Loading external Vector DB...
+2025-07-08 15:35:51,778 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:35:51,779 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:35:51,790 - INFO - Starting query evaluation...
+2025-07-08 15:35:51,790 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:35:51,791 - INFO - Loading external Vector DB...
+2025-07-08 15:35:51,791 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:35:51,791 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:56,334 - INFO - Loading Model distilgpt2...
+2025-07-08 15:36:56,334 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-08 15:36:56,334 - INFO - Performance device_detection: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:56,615 - INFO - Added padding token to tokenizer.
+2025-07-08 15:36:56,615 - INFO - Tokenizer loaded successfully.
+2025-07-08 15:36:56,615 - INFO - Performance tokenizer_loading: 0.28s, Memory: +38.3MB, GPU: +0.0MB
+2025-07-08 15:36:57,115 - INFO - Loaded model for MPS (Apple Silicon)
+2025-07-08 15:36:57,115 - INFO - Performance model_download_and_instantiation: 0.50s, Memory: +8.4MB, GPU: +0.0MB
+2025-07-08 15:36:57,263 - INFO - Model moved to mps
+2025-07-08 15:36:57,264 - INFO - Performance model_to_device: 0.15s, Memory: +1.3MB, GPU: +0.0MB
+2025-07-08 15:36:57,264 - INFO - Skipping torch.compile (MPS compatibility)
+2025-07-08 15:36:57,264 - INFO - Performance model_optimization: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,264 - INFO - Loaded AutoModelForCausalLM (supports text generation)
+2025-07-08 15:36:57,264 - INFO - Performance complete_model_loading: 0.93s, Memory: +48.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,264 - INFO - Performance startup_model_loading: 0.95s, Memory: +50.7MB, GPU: +0.0MB
+2025-07-08 15:36:57,273 - INFO - Running analysis on logged results...
+2025-07-08 15:36:57,274 - INFO - Performance results_analysis: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,276 - INFO - Running analysis on logged results...
+2025-07-08 15:36:57,276 - INFO - Performance results_analysis: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,282 - INFO - Starting query evaluation...
+2025-07-08 15:36:57,283 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,283 - INFO - Loading external Vector DB...
+2025-07-08 15:36:57,283 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,283 - INFO - Running for NQ Query #1: Sample question
+2025-07-08 15:36:57,283 - INFO - Enumerating top documents for query #1 of 5: Sample question
+2025-07-08 15:36:57,284 - INFO - Top documents enumerated: {'query': 'Sample question', 'top_documents': []}
+2025-07-08 15:36:57,285 - INFO - Performance query_processing_1: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,285 - INFO - Performance enumeration_mode_execution: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,285 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,323 - INFO - Starting query evaluation...
+2025-07-08 15:36:57,324 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,324 - INFO - Loading external Vector DB...
+2025-07-08 15:36:57,324 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,324 - INFO - Entering interactive query mode...
+2025-07-08 15:36:57,324 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-08 15:36:57,324 - INFO - Performance device_detection: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,324 - INFO - Performance interactive_query: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,324 - ERROR - Error: GPU memory error
+2025-07-08 15:36:57,324 - INFO - Exiting application.
+2025-07-08 15:36:57,324 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,327 - INFO - Starting query evaluation...
+2025-07-08 15:36:57,327 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,327 - INFO - Loading external Vector DB...
+2025-07-08 15:36:57,327 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,327 - INFO - Entering interactive query mode...
+2025-07-08 15:36:57,327 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-08 15:36:57,327 - INFO - Performance device_detection: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,327 - INFO - Performance interactive_query: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,328 - INFO - Question: What is AI?, Answer: AI is artificial intelligence
+2025-07-08 15:36:57,328 - INFO - Exiting application.
+2025-07-08 15:36:57,328 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,363 - INFO - Starting query evaluation...
+2025-07-08 15:36:57,363 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,363 - INFO - Loading external Vector DB...
+2025-07-08 15:36:57,363 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,364 - INFO - Running for NQ Query #1: Sample question
+2025-07-08 15:36:57,364 - INFO - Enumerating top documents for query #1 of 5: Sample question
+2025-07-08 15:36:57,365 - INFO - Top documents enumerated: {'query': 'Sample question', 'top_documents': []}
+2025-07-08 15:36:57,365 - INFO - Performance query_processing_1: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,365 - INFO - Performance enumeration_mode_execution: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,365 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,396 - INFO - Starting query evaluation...
+2025-07-08 15:36:57,396 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,396 - INFO - Loading external Vector DB...
+2025-07-08 15:36:57,396 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,396 - INFO - Entering interactive query mode...
+2025-07-08 15:36:57,396 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-08 15:36:57,396 - INFO - Performance device_detection: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,397 - INFO - Performance interactive_query: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:36:57,397 - INFO - Question: What is AI?, Answer: AI is artificial intelligence
+2025-07-08 15:36:57,397 - INFO - Exiting application.
+2025-07-08 15:36:57,397 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:13,561 - INFO - Loading Model distilgpt2...
+2025-07-08 15:38:13,561 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-08 15:38:13,561 - INFO - Performance device_detection: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:13,912 - INFO - Added padding token to tokenizer.
+2025-07-08 15:38:13,912 - INFO - Tokenizer loaded successfully.
+2025-07-08 15:38:13,913 - INFO - Performance tokenizer_loading: 0.35s, Memory: +38.1MB, GPU: +0.0MB
+2025-07-08 15:38:14,450 - INFO - Loaded model for MPS (Apple Silicon)
+2025-07-08 15:38:14,450 - INFO - Performance model_download_and_instantiation: 0.54s, Memory: +6.8MB, GPU: +0.0MB
+2025-07-08 15:38:14,598 - INFO - Model moved to mps
+2025-07-08 15:38:14,598 - INFO - Performance model_to_device: 0.15s, Memory: +1.3MB, GPU: +0.0MB
+2025-07-08 15:38:14,598 - INFO - Skipping torch.compile (MPS compatibility)
+2025-07-08 15:38:14,599 - INFO - Performance model_optimization: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,599 - INFO - Loaded AutoModelForCausalLM (supports text generation)
+2025-07-08 15:38:14,599 - INFO - Performance complete_model_loading: 1.04s, Memory: +46.2MB, GPU: +0.0MB
+2025-07-08 15:38:14,599 - INFO - Performance startup_model_loading: 1.05s, Memory: +48.8MB, GPU: +0.0MB
+2025-07-08 15:38:14,608 - INFO - Running analysis on logged results...
+2025-07-08 15:38:14,609 - INFO - Performance results_analysis: 0.00s, Memory: +0.1MB, GPU: +0.0MB
+2025-07-08 15:38:14,611 - INFO - Running analysis on logged results...
+2025-07-08 15:38:14,612 - INFO - Performance results_analysis: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,618 - INFO - Starting query evaluation...
+2025-07-08 15:38:14,618 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,618 - INFO - Loading external Vector DB...
+2025-07-08 15:38:14,618 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,619 - INFO - Running for NQ Query #1: Sample question
+2025-07-08 15:38:14,619 - INFO - Enumerating top documents for query #1 of 5: Sample question
+2025-07-08 15:38:14,620 - INFO - Top documents enumerated: {'query': 'Sample question', 'top_documents': []}
+2025-07-08 15:38:14,620 - INFO - Performance query_processing_1: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,620 - INFO - Performance enumeration_mode_execution: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,621 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,623 - INFO - Starting query evaluation...
+2025-07-08 15:38:14,623 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,623 - INFO - Loading external Vector DB...
+2025-07-08 15:38:14,623 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,623 - INFO - Entering interactive query mode...
+2025-07-08 15:38:14,623 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-08 15:38:14,623 - INFO - Performance device_detection: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,623 - INFO - Performance interactive_query: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,624 - ERROR - Error: GPU memory error
+2025-07-08 15:38:14,624 - INFO - Exiting application.
+2025-07-08 15:38:14,624 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,626 - INFO - Starting query evaluation...
+2025-07-08 15:38:14,626 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,626 - INFO - Loading external Vector DB...
+2025-07-08 15:38:14,626 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,626 - INFO - Entering interactive query mode...
+2025-07-08 15:38:14,626 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-08 15:38:14,626 - INFO - Performance device_detection: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,626 - INFO - Performance interactive_query: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,626 - INFO - Question: What is AI?, Answer: AI is artificial intelligence
+2025-07-08 15:38:14,626 - INFO - Exiting application.
+2025-07-08 15:38:14,627 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,633 - INFO - Starting query evaluation...
+2025-07-08 15:38:14,633 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,633 - INFO - Loading external Vector DB...
+2025-07-08 15:38:14,633 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,633 - INFO - Running for NQ Query #1: Sample question
+2025-07-08 15:38:14,634 - INFO - Performance query_processing_1: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,634 - INFO - Performance enumeration_mode_execution: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,634 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,636 - INFO - Starting query evaluation...
+2025-07-08 15:38:14,636 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,636 - INFO - Loading external Vector DB...
+2025-07-08 15:38:14,636 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,636 - INFO - Entering interactive query mode...
+2025-07-08 15:38:14,636 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-08 15:38:14,636 - INFO - Performance device_detection: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,636 - INFO - Exiting application.
+2025-07-08 15:38:14,636 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,638 - INFO - Starting query evaluation...
+2025-07-08 15:38:14,638 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,638 - INFO - Loading external Vector DB...
+2025-07-08 15:38:14,638 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,638 - INFO - Entering interactive query mode...
+2025-07-08 15:38:14,639 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-08 15:38:14,639 - INFO - Performance device_detection: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,639 - INFO - Exiting application.
+2025-07-08 15:38:14,639 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,643 - INFO - Starting query evaluation...
+2025-07-08 15:38:14,643 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,643 - INFO - Loading external Vector DB...
+2025-07-08 15:38:14,643 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,644 - INFO - Running for NQ Query #1: Test question
+2025-07-08 15:38:14,644 - INFO - Enumerating top documents for query #1 of 5: Test question
+2025-07-08 15:38:14,645 - INFO - Top documents enumerated: {'query': 'Test question', 'top_documents': []}
+2025-07-08 15:38:14,645 - INFO - Performance query_processing_1: 0.00s, Memory: +0.2MB, GPU: +0.0MB
+2025-07-08 15:38:14,645 - INFO - Performance enumeration_mode_execution: 0.00s, Memory: +0.2MB, GPU: +0.0MB
+2025-07-08 15:38:14,645 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.2MB, GPU: +0.0MB
+2025-07-08 15:38:14,647 - INFO - Starting query evaluation...
+2025-07-08 15:38:14,647 - INFO - Performance gpu_profiling: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,647 - INFO - Loading external Vector DB...
+2025-07-08 15:38:14,647 - INFO - Performance vector_db_loading: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,647 - INFO - Entering interactive query mode...
+2025-07-08 15:38:14,647 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-08 15:38:14,647 - INFO - Performance device_detection: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:38:14,647 - INFO - Exiting application.
+2025-07-08 15:38:14,647 - INFO - Performance complete_query_evaluation: 0.00s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-08 15:52:26,251 - ERROR - Error in advanced sanity check: Model loading failed
+2025-07-08 15:52:26,255 - INFO - Comparing answers using SimilarityMethod.COSINE similarity
+2025-07-08 15:52:26,255 - INFO - Similarity scores using SimilarityMethod.COSINE - Original: 0.8500, Optimized: 0.8505
+2025-07-08 15:52:26,257 - INFO - Comparing answers using SimilarityMethod.COSINE similarity
+2025-07-08 15:52:26,257 - INFO - Similarity scores using SimilarityMethod.COSINE - Original: 0.8000, Optimized: 0.9000
+2025-07-08 15:52:26,259 - INFO - Enumerating top documents for query #1 of 1: empty query... using SimilarityMethod.COSINE
+2025-07-08 15:52:26,259 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 0 documents
+2025-07-08 15:52:26,261 - INFO - Enumerating top documents for query #1 of 1: test query... using SimilarityMethod.COSINE
+2025-07-08 15:52:26,261 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 1 documents
+2025-07-08 15:52:26,262 - INFO - Enumerating top documents for query #1 of 1: test query... using SimilarityMethod.COSINE
+2025-07-08 15:52:26,262 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 1 documents
+2025-07-08 15:52:26,264 - INFO - Hill climbing for query #1 of 1: empty query... using SimilarityMethod.COSINE
+2025-07-08 15:52:26,265 - WARNING - No contexts retrieved.
+2025-07-08 15:52:26,268 - INFO - Hill climbing for query #1 of 1: test query... using SimilarityMethod.COSINE
+2025-07-08 15:52:26,268 - WARNING - Error calculating similarity for answer: 
+2025-07-08 15:52:26,268 - INFO - Best answer selected using SimilarityMethod.COSINE with score -1.0000
+2025-07-08 15:52:26,277 - INFO - Hill climbing for query #1 of 1: machine learning query... using SimilarityMethod.COSINE
+2025-07-08 15:52:26,277 - INFO - Best answer selected using SimilarityMethod.COSINE with score 0.6667
+2025-07-08 15:52:26,279 - INFO - Judging answers with LLM.
+2025-07-08 15:52:26,295 - INFO - LLM judgment result: <MagicMock name='mock.decode().strip()' id='6166621840'>
+2025-07-08 15:52:26,297 - INFO - Judging answers with LLM.
+2025-07-08 15:52:26,297 - ERROR - Error during LLM generation: 'dict' object has no attribute 'to'
+2025-07-08 15:52:26,304 - INFO - Judging answers with LLM.
+2025-07-08 15:52:26,304 - ERROR - Error during LLM generation: 'dict' object has no attribute 'to'
+2025-07-08 15:52:26,311 - INFO - Loading embedding model: sentence-transformers/all-MiniLM-L6-v2
+2025-07-08 15:52:26,311 - INFO - Embedding model loaded successfully
+2025-07-08 15:52:26,313 - INFO - Loading LLM model and tokenizer...
+2025-07-08 15:52:26,313 - INFO - Loaded causal language model: distilgpt2
+2025-07-08 15:52:26,322 - INFO - Multi-method comparison using 3 similarity methods
+2025-07-08 15:52:26,322 - INFO - Multi-method consensus: Optimized (confidence: 0.67)
+2025-07-08 15:52:26,324 - INFO - Running query: What is the largest country?...
+2025-07-08 15:52:26,324 - INFO - Generated result: Generated answer...
+2025-07-08 15:52:26,326 - INFO - Running query: Test query...
+2025-07-08 15:52:26,326 - INFO - Computed embeddings from masked model
+2025-07-08 15:54:26,916 - ERROR - Error in advanced sanity check: Model loading failed
+2025-07-08 15:54:26,920 - INFO - Comparing answers using SimilarityMethod.COSINE similarity
+2025-07-08 15:54:26,920 - INFO - Similarity scores using SimilarityMethod.COSINE - Original: 0.8500, Optimized: 0.8505
+2025-07-08 15:54:26,921 - INFO - Comparing answers using SimilarityMethod.COSINE similarity
+2025-07-08 15:54:26,921 - INFO - Similarity scores using SimilarityMethod.COSINE - Original: 0.8000, Optimized: 0.9000
+2025-07-08 15:54:26,923 - INFO - Enumerating top documents for query #1 of 1: empty query... using SimilarityMethod.COSINE
+2025-07-08 15:54:26,923 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 0 documents
+2025-07-08 15:54:26,925 - INFO - Enumerating top documents for query #1 of 1: test query... using SimilarityMethod.COSINE
+2025-07-08 15:54:26,925 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 1 documents
+2025-07-08 15:54:26,927 - INFO - Enumerating top documents for query #1 of 1: test query... using SimilarityMethod.COSINE
+2025-07-08 15:54:26,927 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 1 documents
+2025-07-08 15:54:26,928 - INFO - Hill climbing for query #1 of 1: empty query... using SimilarityMethod.COSINE
+2025-07-08 15:54:26,928 - WARNING - No contexts retrieved.
+2025-07-08 15:54:26,931 - INFO - Hill climbing for query #1 of 1: test query... using SimilarityMethod.COSINE
+2025-07-08 15:54:26,931 - WARNING - Error calculating similarity for answer: 
+2025-07-08 15:54:26,931 - INFO - Best answer selected using SimilarityMethod.COSINE with score -1.0000
+2025-07-08 15:54:26,940 - INFO - Hill climbing for query #1 of 1: machine learning query... using SimilarityMethod.COSINE
+2025-07-08 15:54:26,940 - INFO - Best answer selected using SimilarityMethod.COSINE with score 0.6667
+2025-07-08 15:54:26,942 - INFO - Judging answers with LLM.
+2025-07-08 15:54:26,958 - INFO - LLM judgment result: <MagicMock name='mock.decode().strip()' id='6224756208'>
+2025-07-08 15:54:26,961 - INFO - Judging answers with LLM.
+2025-07-08 15:54:26,962 - INFO - LLM judgment result: The optimized answer is better
+2025-07-08 15:54:26,964 - INFO - Judging answers with LLM.
+2025-07-08 15:54:26,965 - INFO - LLM judgment result: Optimized
+2025-07-08 15:54:26,966 - INFO - Loading embedding model: sentence-transformers/all-MiniLM-L6-v2
+2025-07-08 15:54:26,967 - INFO - Embedding model loaded successfully
+2025-07-08 15:54:26,968 - INFO - Loading LLM model and tokenizer...
+2025-07-08 15:54:26,969 - INFO - Loaded causal language model: distilgpt2
+2025-07-08 15:54:26,972 - INFO - Multi-method comparison using 3 similarity methods
+2025-07-08 15:54:26,972 - INFO - Multi-method consensus: Optimized (confidence: 0.67)
+2025-07-08 15:54:26,974 - INFO - Running query: What is the largest country?...
+2025-07-08 15:54:26,974 - INFO - Generated result: Generated answer...
+2025-07-08 15:54:26,976 - INFO - Running query: Test query...
+2025-07-08 15:54:26,976 - INFO - Computed embeddings from masked model
+2025-07-08 17:50:19,568 - ERROR - Error in advanced sanity check: Model loading failed
+2025-07-08 17:50:19,571 - INFO - Comparing answers using SimilarityMethod.COSINE similarity
+2025-07-08 17:50:19,571 - INFO - Similarity scores using SimilarityMethod.COSINE - Original: 0.8500, Optimized: 0.8505
+2025-07-08 17:50:19,573 - INFO - Comparing answers using SimilarityMethod.COSINE similarity
+2025-07-08 17:50:19,573 - INFO - Similarity scores using SimilarityMethod.COSINE - Original: 0.8000, Optimized: 0.9000
+2025-07-08 17:50:19,574 - INFO - Enumerating top documents for query #1 of 1: empty query... using SimilarityMethod.COSINE
+2025-07-08 17:50:19,575 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 0 documents
+2025-07-08 17:50:19,577 - INFO - Enumerating top documents for query #1 of 1: test query... using SimilarityMethod.COSINE
+2025-07-08 17:50:19,577 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 1 documents
+2025-07-08 17:50:19,579 - INFO - Enumerating top documents for query #1 of 1: test query... using SimilarityMethod.COSINE
+2025-07-08 17:50:19,579 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 1 documents
+2025-07-08 17:50:19,580 - INFO - Hill climbing for query #1 of 1: empty query... using SimilarityMethod.COSINE
+2025-07-08 17:50:19,581 - WARNING - No contexts retrieved.
+2025-07-08 17:50:19,583 - INFO - Hill climbing for query #1 of 1: test query... using SimilarityMethod.COSINE
+2025-07-08 17:50:19,584 - INFO - Best answer selected using SimilarityMethod.COSINE with score 0.8800
+2025-07-08 17:50:19,586 - INFO - Hill climbing for query #1 of 1: machine learning query... using SimilarityMethod.COSINE
+2025-07-08 17:50:19,586 - INFO - Best answer selected using SimilarityMethod.COSINE with score 0.6667
+2025-07-08 17:50:19,588 - INFO - Judging answers with LLM.
+2025-07-08 17:50:19,605 - INFO - LLM judgment result: <MagicMock name='mock.decode().strip()' id='12947844464'>
+2025-07-08 17:50:19,607 - INFO - Judging answers with LLM.
+2025-07-08 17:50:19,608 - INFO - LLM judgment result: The optimized answer is better
+2025-07-08 17:50:19,610 - INFO - Judging answers with LLM.
+2025-07-08 17:50:19,610 - INFO - LLM judgment result: Optimized
+2025-07-08 17:50:19,612 - INFO - Loading embedding model: sentence-transformers/all-MiniLM-L6-v2
+2025-07-08 17:50:19,612 - INFO - Embedding model loaded successfully
+2025-07-08 17:50:19,614 - INFO - Loading LLM model and tokenizer...
+2025-07-08 17:50:19,614 - INFO - Loaded causal language model: distilgpt2
+2025-07-08 17:50:19,617 - INFO - Multi-method comparison using 3 similarity methods
+2025-07-08 17:50:19,618 - INFO - Multi-method consensus: Optimized (confidence: 0.67)
+2025-07-08 17:50:19,619 - INFO - Running query: What is the largest country?...
+2025-07-08 17:50:19,620 - INFO - Generated result: Generated answer...
+2025-07-08 17:50:19,622 - INFO - Running query: Test query...
+2025-07-08 17:50:19,622 - INFO - Computed embeddings from masked model

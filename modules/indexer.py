@@ -159,7 +159,7 @@ def download_and_save_from_url(url: str, target_dir: str) -> None:
 
 @track_performance("complete_vector_db_loading")
 def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> Tuple[
-    VectorStoreIndex, HuggingFaceEmbedding]:
+        VectorStoreIndex, HuggingFaceEmbedding]:
     """
     Loads or creates a vector database for document retrieval with optimized embedding model caching.
     Now includes comprehensive performance monitoring.
@@ -316,7 +316,7 @@ def get_index_statistics(vector_db: VectorStoreIndex) -> dict:
 
 
 def rebuild_index(source: str = "local", source_path: Optional[str] = None, force: bool = False) -> Tuple[
-    VectorStoreIndex, HuggingFaceEmbedding]:
+        VectorStoreIndex, HuggingFaceEmbedding]:
     """
     Rebuild the vector index from scratch.
 

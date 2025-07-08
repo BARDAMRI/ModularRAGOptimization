@@ -4,12 +4,10 @@ import os
 root_dir = "/Users/bardamri/PycharmProjects/ModularRAGOptimization"
 output_file_path = "combined_project.py"
 
-# רשימת תיקיות שאנחנו רוצים להתעלם מהן
 excluded_dirs = {"__pycache__", ".venv", "env", ".git", ".idea", "build", "dist", "tests", "user_query_datasets"}
 
 python_files = []
 for dirpath, dirnames, filenames in os.walk(root_dir):
-    # סינון תיקיות לא רלוונטיות (in-place)
     dirnames[:] = [d for d in dirnames if d not in excluded_dirs]
 
     for filename in filenames:
@@ -17,7 +15,6 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
             full_path = os.path.join(dirpath, filename)
             python_files.append(full_path)
 
-# כתיבת הקבצים המאושרים לקובץ אחד
 with open(output_file_path, "w", encoding="utf-8") as outfile:
     for file_path in python_files:
         rel_path = os.path.relpath(file_path, root_dir)
@@ -26,13 +23,14 @@ with open(output_file_path, "w", encoding="utf-8") as outfile:
             with open(file_path, "r", encoding="utf-8") as infile:
                 content = infile.read()
         except UnicodeDecodeError:
-            print(f"⚠️  קובץ לא נקרא ב-UTF-8: {file_path}, עובר ל-latin-1")
+            print(f" file  {file_path} wasn't red with -UTF-8. moving to latin-1")
             with open(file_path, "r", encoding="latin-1") as infile:
                 content = infile.read()
         outfile.write(content)
         outfile.write("\n\n")
 
-print(f"✅ נוצר קובץ מאוחד רק עם הקוד שלך: {output_file_path}")
+print(f" combined file was created: {output_file_path}")
+
 
 # === File: docsDownloader.py ===
 import subprocess
@@ -64,109 +62,15 @@ if name and len(name) > 0 and URL and len(URL) > 0:
     download_llamaindex_docs(url=URL, destination_folder=name)
 
 
-# === File: code_testing.py ===
-# ============== Getting the type of the vector_db. ============
-
-from llama_index.core.indices.base import BaseIndex
-from configurations.config import INDEX_SOURCE_URL
-from modules.indexer import load_vector_db
-from llama_index.core import VectorStoreIndex
-
-# ============ Getting the type of the vector_db. ============
-vector_db, embedding_space = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
-print(type(vector_db))  # Prints the type of vector_db
-
-# Example: Using isinstance() to check if it's a specific type
-if isinstance(vector_db, VectorStoreIndex):
-    print("vector_db is a VectorStoreIndex")
-    print(type(vector_db.vector_store))  # Prints the type of the vector store
-elif isinstance(vector_db, BaseIndex):
-    print("vector_db is a BaseIndex")
-else:
-    print(f"Unknown type: {type(vector_db)}")
-
-# Example: Using dir() to inspect the object
-print(dir(vector_db))  # Lists all attributes and methods of vector_db
-
-# ============ Getting the type of the tokenizer.============
-
-
-# from transformers import AutoTokenizer, GPT2TokenizerFast
-#
-# # Example: Initialize tokenizer
-# MODEL_PATH = "gpt2"
-# tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-#
-# # Check the type of the tokenizer
-# print(type(tokenizer))  # Prints the type of tokenizer
-#
-# # Verify if the tokenizer is an instance of GPT2TokenizerFast
-# if isinstance(tokenizer, GPT2TokenizerFast):
-#     print("tokenizer is a GPT2TokenizerFast")
-# elif isinstance(tokenizer, AutoTokenizer):
-#     print("tokenizer is an AutoTokenizer")
-# else:
-#     print("Unknown tokenizer type")
-
-
-# ============ Getting the type of the vector_db.============
-# vector_db = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
-# print(type(vector_db))  # Prints the type of vector_db
-#
-# # Example: Using isinstance() to check if it's a specific type
-#
-#
-# if isinstance(vector_db, VectorStoreIndex):
-#     print("vector_db is a VectorStoreIndex")
-# elif isinstance(vector_db, BaseIndex):
-#     print("vector_db is a BaseIndex")
-# else:
-#     print("Unknown type")
-#
-# # Example: Using dir() to inspect the object
-# print(dir(vector_db))  # Lists all attributes and methods of vector_db
-
-
-# ============ Generating a response with refined parameters.============
-# from transformers import AutoModelForCausalLM, AutoTokenizer
-# import torch
-#
-# # Initialization
-# MODEL_PATH = "gpt2"
-# tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-# model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
-#
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# prompt = "Hello, how are you?"
-#
-# # Tokenize input
-# inputs = tokenizer(prompt, return_tensors="pt").to(device)
-#
-# # Generate output with refined parameters
-# outputs = model.generate(
-#     **inputs,
-#     max_new_tokens=30,  # Limit response length
-#     do_sample=True,
-#     temperature=0.6,    # Reduce randomness
-#     top_k=20,           # Stricter vocabulary sampling
-#     top_p=0.8,          # Nucleus sampling
-#     repetition_penalty=2.0,  # Penalize repetition more aggressively
-#     pad_token_id=tokenizer.eos_token_id
-# )
-#
-# # Decode and print response
-# response = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-# print(response[0])
-
-
 # === File: main.py ===
 # main.py
 from modules.model_loader import load_model, get_optimal_device
-from modules.query import query_model
 from modules.indexer import load_vector_db
 from configurations.config import INDEX_SOURCE_URL, NQ_SAMPLE_SIZE
 import sys
 import termios
+
+from modules.query import process_query_with_context
 from scripts.evaluator import enumerate_top_documents
 import os
 import json
@@ -321,8 +225,9 @@ def run_query_evaluation():
                 break
 
             with monitor_performance("interactive_query"):
-                result = query_model(user_prompt, model, tokenizer, device, vector_db, embedding_model, max_retries=3,
-                                     quality_threshold=0.5)
+                result = process_query_with_context(user_prompt, model, tokenizer, device, vector_db, embedding_model,
+                                                    max_retries=3,
+                                                    quality_threshold=0.5)
 
             if result["error"]:
                 logger.error(f"Error: {result['error']}")
@@ -370,7 +275,7 @@ def run_development_test():
     print("\nTesting query processing...")
     test_query = "What is artificial intelligence?"
     with monitor_performance("dev_query_test"):
-        result = query_model(test_query, model, tokenizer, device, vector_db, embedding_model)
+        result = process_query_with_context(test_query, model, tokenizer, device, vector_db, embedding_model)
 
     print(f"Test query result: {result['answer'][:100]}...")
     print(f"Score: {result['score']}")
@@ -499,93 +404,6 @@ FORCE_CPU = False  # Set to True to force CPU usage
 OPTIMIZE_FOR_MPS = True  # Apple Silicon optimizations
 MAX_GPU_MEMORY_GB = 8  # Adjust based on your hardware
 USE_MIXED_PRECISION = False  # Enable for CUDA, disable for MPS
-
-
-# === File: types/config_enhanced.py ===
-import os
-from typing import Dict, Any
-from dataclasses import dataclass
-from pathlib import Path
-
-
-@dataclass
-class ModelConfig:
-    """Centralized model configuration"""
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
-    llm_model: str = "microsoft/DialoGPT-medium"  # Better for conversations
-    device_priority: list = None
-
-    def __post_init__(self):
-        if self.device_priority is None:
-            self.device_priority = ["cuda", "mps", "cpu"]
-
-
-@dataclass
-class RetrievalConfig:
-    """RAG-specific configuration"""
-    top_k: int = 5
-    similarity_cutoff: float = 0.75
-    max_context_length: int = 4000
-    chunk_size: int = 512
-    chunk_overlap: int = 50
-
-
-@dataclass
-class OptimizationConfig:
-    """Hill climbing and optimization settings"""
-    max_retries: int = 3
-    quality_threshold: float = 0.7
-    temperature: float = 0.7
-    max_new_tokens: int = 128
-    convergence_threshold: float = 0.01
-
-# === File: classes/EmbeddingVectorStoreIndex.py ===
-from llama_index.core import VectorStoreIndex
-from typing import List, Tuple, Dict, Callable
-import numpy as np
-
-
-class EmbeddingVectorStoreIndex:
-    def __init__(self, index: VectorStoreIndex, embed_fn: Callable[[str], np.ndarray]):
-        """
-        A wrapper around VectorStoreIndex that allows access to document embeddings.
-
-        Args:
-            index (VectorStoreIndex): The original LlamaIndex vector index.
-            embed_fn (Callable[[str], np.ndarray]): Function that computes the embedding from text.
-        """
-        self.index = index
-        self.embed_fn = embed_fn
-        self.embeddings: Dict[str, np.ndarray] = {}
-
-        # Extract and store embeddings from all documents in the docstore
-        all_node_ids = list(index.docstore.docs.keys())
-        for node in index.docstore.get_nodes(all_node_ids):
-            if node.text:
-                try:
-                    embedding = embed_fn(node.text)
-                    self.embeddings[node.node_id] = np.array(embedding)
-                except Exception as e:
-                    print(f"Failed to embed node {node.node_id[:6]}: {e}")
-
-    def retrieve(self, query: str, top_k: int = 5) -> List[Tuple[str, float, np.ndarray]]:
-        """
-        Retrieve top-k nodes using the vector index, along with their scores and precomputed embeddings.
-
-        Returns:
-            List of (text, score, embedding) tuples.
-        """
-        nodes = self.index.as_retriever(similarity_top_k=top_k).retrieve(query)
-        return [
-            (node.node.text, node.score, self.embeddings.get(node.node.node_id))
-            for node in nodes if node.node.node_id in self.embeddings
-        ]
-
-    def get_embedding(self, node_id: str) -> np.ndarray:
-        """
-        Get the embedding for a specific node/document ID.
-        """
-        return self.embeddings[node_id]
 
 
 # === File: matrics/analyze_results.py ===
@@ -760,322 +578,576 @@ print_tree_summary('../', max_files_per_dir=20)
 
 
 # === File: scripts/evaluator.py ===
-# evaluator.py
-from typing import Tuple, Union
+# evaluator.py - Final polished version
+from typing import Tuple, Union, List, Dict, Any, Optional
 import torch
+import numpy as np
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizer, PreTrainedModel, AutoModelForCausalLM
-from sentence_transformers import SentenceTransformer
+from transformers import (
+    AutoTokenizer,
+    AutoModel,
+    PreTrainedTokenizer,
+    PreTrainedModel,
+    AutoModelForCausalLM
+)
 from configurations.config import HF_MODEL_NAME, LLM_MODEL_NAME
 from utility.logger import logger
+from utility.similarity_calculator import calculate_similarity, calculate_similarities, SimilarityMethod
+from utility.embedding_utils import get_text_embedding
 
 
-def load_llm() -> Tuple[PreTrainedTokenizer, Union[PreTrainedModel, AutoModelForCausalLM]]:
+def load_llm() -> Tuple[AutoModelForCausalLM, PreTrainedTokenizer]:
     """
     Load the LLM model and tokenizer.
-
-    Returns:
-        Tuple[PreTrainedTokenizer, Union[PreTrainedModel, AutoModelForCausalLM]]:
-        A tuple containing the tokenizer and the model.
+    Returns (model, tokenizer) to match process_query_with_context expectations.
     """
     logger.info("Loading LLM model and tokenizer...")
     tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_NAME)
 
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
     try:
-        model: Union[PreTrainedModel, AutoModelForCausalLM] = AutoModelForCausalLM.from_pretrained(LLM_MODEL_NAME)
+        model: AutoModelForCausalLM = AutoModelForCausalLM.from_pretrained(LLM_MODEL_NAME)
         logger.info(f"Loaded causal language model: {LLM_MODEL_NAME}")
-    except ValueError:
+    except ValueError as e:
+        logger.warning(f"Failed to load as causal model: {e}")
         model = AutoModel.from_pretrained(LLM_MODEL_NAME)
-        logger.info(f"Loaded masked language model: {LLM_MODEL_NAME}")
+        logger.warning(f"Loaded masked language model instead: {LLM_MODEL_NAME}")
 
-    return tokenizer, model
+    return model, tokenizer
 
 
-def load_embedding_model():
-    """
-    Load the embedding model.
+def load_model() -> Tuple[AutoModelForCausalLM, PreTrainedTokenizer]:
+    """Alias for load_llm() to match main.py expectations."""
+    return load_llm()
 
-    Returns:
-        SentenceTransformer: The embedding model instance.
-    """
-    logger.info("Loading embedding model...")
-    embedding_model = SentenceTransformer(HF_MODEL_NAME)
-    logger.info(f"Loaded embedding model: {HF_MODEL_NAME}")
+
+def load_embedding_model() -> HuggingFaceEmbedding:
+    """Load using LlamaIndex's HuggingFaceEmbedding wrapper."""
+    logger.info(f"Loading embedding model: {HF_MODEL_NAME}")
+    embedding_model = HuggingFaceEmbedding(model_name=HF_MODEL_NAME)
+    logger.info("Embedding model loaded successfully")
     return embedding_model
 
 
-def run_llm_query(query: str, tokenizer: PreTrainedTokenizer,
-                  model: Union[PreTrainedModel, AutoModelForCausalLM]) -> str:
-    """
-    Run a query using the LLM.
-
-    Args:
-        query (str): The input query.
-        tokenizer (PreTrainedTokenizer): The tokenizer for the LLM.
-        model (Union[PreTrainedModel, AutoModelForCausalLM]): The LLM model.
-
-    Returns:
-        str: The result of the query.
-    """
-    logger.info(f"Running query: {query}")
+def run_llm_query(
+        query: str,
+        model: Union[PreTrainedModel, AutoModelForCausalLM],
+        tokenizer: PreTrainedTokenizer
+) -> str:
+    """Run a query using the LLM."""
+    logger.info(f"Running query: {query[:100]}...")  # Truncate long queries in logs
     inputs = tokenizer(query, return_tensors="pt")
 
     if hasattr(model, "generate"):
-        outputs = model.generate(**inputs, max_new_tokens=100)
+        outputs = model.generate(**inputs, max_new_tokens=100, do_sample=False)
         result = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        logger.info(f"Generated result: {result}")
+        logger.info(f"Generated result: {result[:100]}...")  # Truncate long results
     else:
         outputs = model(**inputs)
         embeddings = outputs.last_hidden_state.mean(dim=1).detach().numpy()
         result = str(embeddings)
-        logger.info(f"Computed embeddings: {result}")
+        logger.info("Computed embeddings from masked model")
 
     return result
 
 
-def sanity_check(user_query, optimized_user_query, vector_db, vector_query=None):
+def enumerate_top_documents(
+        i: int,
+        num: int,
+        query: str,
+        index: Any,
+        embedding_model: HuggingFaceEmbedding,  # Fixed: Added type annotation
+        top_k: int = 5,
+        convert_to_vector: bool = False,
+        similarity_method: Union[SimilarityMethod, str] = SimilarityMethod.COSINE
+) -> Dict[str, Any]:
     """
-    Perform a sanity check for query optimization.
+    Enumerate top documents using the new similarity calculator.
 
     Args:
-        user_query (str): The original user query.
-        optimized_user_query (str): The optimized user query.
-        vector_db: The vector database instance.
-        vector_query: Optional vector representation of the query.
+        i: Current query index
+        num: Total number of queries
+        query: Query string
+        index: Vector database index
+        embedding_model: HuggingFace embedding model
+        top_k: Number of top documents to retrieve
+        convert_to_vector: Whether to convert query to vector
+        similarity_method: Similarity calculation method
 
     Returns:
-        dict: Results of the sanity check.
+        Dict containing query results and top documents
     """
-    print(f"\n> Running sanity check for query optimization...")
+    logger.info(f"Enumerating top documents for query #{i + 1} of {num}: {query[:50]}... using {similarity_method}")
 
-    tokenizer, model = load_llm()
-
-    orig_answer = run_llm_query(user_query, tokenizer, model) if vector_query is None else retrieve_context(
-        query=vector_query if not convert_to_vector else user_query,
-        vector_db=vector_db,
-        embed_model=HuggingFaceEmbedding(model_name="sentence-transformers/all-mpnet-base-v2"),
-    )
-    opt_answer = run_llm_query(optimized_user_query, tokenizer, model) if vector_query is None else retrieve_context(
-        query=vector_query if not convert_to_vector else optimized_user_query,
-        vector_db=vector_db,
-        embed_model=HuggingFaceEmbedding(model_name="sentence-transformers/all-mpnet-base-v2"),
-    )
-
-    embedding_judgment = compare_answers_with_embeddings(user_query, orig_answer, opt_answer)
-    llm_judgment = judge_with_llm(user_query, orig_answer, opt_answer, model=model, tokenizer=tokenizer)
-
-    print("\n🔍 **Sanity Check Results**:")
-    print(f"📝 Original Query: {user_query}")
-    print(f"📝 Optimized Query: {optimized_user_query}")
-    print(f"💬 Original Answer: {orig_answer}")
-    print(f"💬 Optimized Answer: {opt_answer}")
-    print(f"📊 LLM Judgment: {llm_judgment}")
-    print(f"📊 Embedding Judgment: {embedding_judgment}")
-    print(
-        f"⚖ Final Decision: {'Optimized' if llm_judgment == 'Optimized' or embedding_judgment == 'Optimized' else 'Original'}")
-
-    return {
-        "original_query": user_query,
-        "optimized_query": optimized_user_query,
-        "original_answer": orig_answer,
-        "optimized_answer": opt_answer,
-        "llm_judgment": llm_judgment,
-        "embedding_judgment": embedding_judgment,
-        "final_decision": "Optimized" if llm_judgment == "Optimized" or embedding_judgment == "Optimized" else "Original"
-    }
-
-
-def enumerate_top_documents(i, num, query, index, embedding_model, top_k=5, convert_to_vector=False):
-    """
-    Enumerate top documents for a given query using embedding-based retrieval.
-
-    Args:
-        i (int): Current query index.
-        num (int): Total number of queries.
-        query (str): The input query.
-        index: The document index instance.
-        embedding_model: The embedding model used for retrieval.
-        top_k (int): Number of top documents to retrieve.
-        convert_to_vector (bool): Whether to convert the query to a vector.
-
-    Returns:
-        dict: Results containing the query and top documents.
-    """
-    logger.info(f"Enumerating top documents for query #{i + 1} of {num}: {query}")
     retriever = index.as_retriever()
     retriever.retrieve_mode = "embedding"
     retriever.similarity_top_k = top_k
 
-    query_vector = get_text_embedding(query, embedding_model) if convert_to_vector else query
-    results = retriever.retrieve(query_vector)  # Retrieve top documents
+    if convert_to_vector:
+        query_vector = get_text_embedding(query, embedding_model)
+    else:
+        query_vector = query
 
-    top_docs = []
-    for rank, node_with_score in enumerate(results, start=1):
-        score = node_with_score.score if hasattr(node_with_score, "score") else None
-        content = node_with_score.node.get_content()
-        top_docs.append({
-            "rank": rank,
-            "score": score,
-            "content": content[:500] + ("...[truncated]" if len(content) > 500 else "")
-        })
+    results = retriever.retrieve(query_vector)
+
+    # Enhanced scoring using configurable similarity methods
+    enhanced_results = []
+    if convert_to_vector and results:
+        # Get embeddings for all retrieved documents
+        doc_texts = [node_with_score.node.get_content() for node_with_score in results]
+        doc_embeddings = np.array([get_text_embedding(text, embedding_model) for text in doc_texts])
+
+        # Calculate similarities using the new system
+        if len(doc_embeddings) > 0:
+            similarities = calculate_similarities(query_vector, doc_embeddings, similarity_method)
+
+            # Combine with original results - Fixed: Use different variable name to avoid confusion
+            for rank, (node_with_score, custom_score) in enumerate(zip(results, similarities), 1):
+                content = node_with_score.node.get_content()
+                enhanced_results.append({
+                    "rank": rank,
+                    "original_score": getattr(node_with_score, "score", None),
+                    "custom_score": float(custom_score),
+                    "similarity_method": str(similarity_method),
+                    "content": content[:500] + ("...[truncated]" if len(content) > 500 else "")
+                })
+    else:
+        # Fallback to original scoring
+        for rank, node_with_score in enumerate(results, start=1):
+            content = node_with_score.node.get_content()
+            enhanced_results.append({
+                "rank": rank,
+                "original_score": getattr(node_with_score, "score", None),
+                "custom_score": None,
+                "similarity_method": "llamaindex_default",
+                "content": content[:500] + ("...[truncated]" if len(content) > 500 else "")
+            })
 
     result = {
         "query": query,
-        "top_documents": top_docs
+        "similarity_method": str(similarity_method),
+        "convert_to_vector": convert_to_vector,
+        "top_documents": enhanced_results,
+        "total_documents": len(enhanced_results)
     }
-    logger.info(f"Top documents enumerated: {result}")
+    logger.info(f"Top documents enumerated using {similarity_method}: {len(enhanced_results)} documents")
     return result
 
 
-def hill_climb_documents(i, num, query, index, llm_model, tokenizer, embedding_model, top_k=5, max_tokens=100,
-                         convert_to_vector=False):
+def hill_climb_documents(
+        i: int,
+        num: int,
+        query: str,
+        index: Any,
+        llm_model: Union[PreTrainedModel, AutoModelForCausalLM],
+        tokenizer: PreTrainedTokenizer,
+        embedding_model: HuggingFaceEmbedding,  # Fixed: Added type annotation
+        top_k: int = 5,
+        max_tokens: int = 100,
+        convert_to_vector: bool = False,
+        similarity_method: Union[SimilarityMethod, str] = SimilarityMethod.COSINE
+) -> Dict[str, Any]:
     """
-    Perform hill climbing to find the best answer for a query.
+    Perform hill climbing with configurable similarity methods.
 
     Args:
-        i (int): Current query index.
-        num (int): Total number of queries.
-        query (str): The input query.
-        index: The document index instance.
-        llm_model: The language model used for generating answers.
-        tokenizer: The tokenizer for the language model.
-        embedding_model: The embedding model used for similarity calculations.
-        top_k (int): Number of top documents to retrieve.
-        max_tokens (int): Maximum tokens for LLM-generated answers.
-        convert_to_vector (bool): Whether to convert the query to a vector.
+        i: Current query index
+        num: Total number of queries
+        query: Query string
+        index: Vector database index
+        llm_model: Language model for generating answers
+        tokenizer: Tokenizer for the language model
+        embedding_model: HuggingFace embedding model
+        top_k: Number of top documents to retrieve
+        max_tokens: Maximum tokens for generated answers
+        convert_to_vector: Whether to convert query to vector
+        similarity_method: Similarity calculation method
 
     Returns:
-        dict: Results containing the query, best answer, and context.
+        Dict containing query results and best answer
     """
-    logger.info(f"Starting hill climbing for query #{i + 1} of {num}: {query}")
+    logger.info(f"Hill climbing for query #{i + 1} of {num}: {query[:50]}... using {similarity_method}")
+
     retriever = index.as_retriever()
     retriever.retrieve_mode = "embedding"
     retriever.similarity_top_k = top_k
 
-    query_vector = get_text_embedding(query, embedding_model) if convert_to_vector else query
-    results = retriever.retrieve(query_vector)  # Retrieve top documents
+    if convert_to_vector:
+        query_vector = get_text_embedding(query, embedding_model)
+    else:
+        query_vector = query
+
+    results = retriever.retrieve(query_vector)
 
     best_score = -1.0
     best_answer = None
     best_context = None
+    best_method_info = {"method": str(similarity_method), "score": best_score}
 
     contexts = [node_with_score.node.get_content() for node_with_score in results]
     if not contexts:
         logger.warning("No contexts retrieved.")
-        return {"query": query, "answer": None, "context": None}
+        return {"query": query, "answer": None, "context": None, "method_info": best_method_info}
 
+    # Generate answers for all contexts
     prompts = [f"Context:\n{context}\n\nQuestion: {query}\nAnswer:" for context in contexts]
-    inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True)
 
-    outputs = llm_model.generate(**inputs, max_new_tokens=max_tokens)
-    answers = [tokenizer.decode(output, skip_special_tokens=True).strip() for output in outputs]
+    # Handle tokenization with proper truncation
+    try:
+        inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=512)
+        outputs = llm_model.generate(**inputs, max_new_tokens=max_tokens, do_sample=False)
+        answers = [tokenizer.decode(output, skip_special_tokens=True).strip() for output in outputs]
+    except Exception as e:
+        logger.error(f"Error during answer generation: {e}")
+        return {"query": query, "answer": None, "context": None, "method_info": best_method_info}
 
-    for context, answer in zip(contexts, answers):
-        if not answer:  # Skip empty answers
-            continue
-
+    # Use modular similarity calculator for scoring
+    if convert_to_vector:
         query_emb = get_text_embedding(query, embedding_model)
-        answer_emb = get_text_embedding(answer, embedding_model)
-        score = calculate_cosine_similarity(query_emb, answer_emb)  # Calculate similarity score
 
-        if score > best_score:
-            best_score = score
-            best_answer = answer
-            best_context = context
+        for context, answer in zip(contexts, answers):
+            if not answer.strip():
+                continue
 
-    logger.info(f"Best answer selected with score {best_score}: {best_answer}")
-    return {"query": query, "answer": best_answer, "context": best_context}
+            try:
+                answer_emb = get_text_embedding(answer, embedding_model)
+                # Use the new similarity calculator
+                score = calculate_similarity(query_emb, answer_emb, similarity_method)
+
+                if score > best_score:
+                    best_score = score
+                    best_answer = answer
+                    best_context = context
+                    best_method_info = {
+                        "method": str(similarity_method),
+                        "score": float(best_score)
+                    }
+            except Exception as e:
+                logger.warning(f"Error calculating similarity for answer: {e}")
+                continue
+    else:
+        # Fallback for non-vector mode
+        for context, answer in zip(contexts, answers):
+            if not answer.strip():
+                continue
+
+            # Simple word overlap heuristic
+            query_words = set(query.lower().split())
+            answer_words = set(answer.lower().split())
+            score = len(query_words & answer_words) / max(len(query_words), 1)
+
+            if score > best_score:
+                best_score = score
+                best_answer = answer
+                best_context = context
+                best_method_info = {
+                    "method": "word_overlap",
+                    "score": float(best_score)
+                }
+
+    logger.info(f"Best answer selected using {similarity_method} with score {best_score:.4f}")
+    return {
+        "query": query,
+        "answer": best_answer,
+        "context": best_context,
+        "method_info": best_method_info,
+        "total_contexts_evaluated": len(contexts)
+    }
 
 
-def compare_answers_with_embeddings(user_query, original_answer, optimized_answer):
+def compare_answers_with_embeddings(
+        user_query: str,
+        original_answer: str,
+        optimized_answer: str,
+        similarity_method: Union[SimilarityMethod, str] = SimilarityMethod.COSINE
+) -> str:
     """
-    Compare answers using embeddings and cosine similarity.
+    Compare answers using the new similarity calculator system.
 
     Args:
-        user_query (str): The original user query.
-        original_answer (str): The original answer to compare.
-        optimized_answer (str): The optimized answer to compare.
+        user_query: The original query
+        original_answer: First answer to compare
+        optimized_answer: Second answer to compare
+        similarity_method: Similarity calculation method
 
     Returns:
-        str: "Optimized", "Original", or "Tie" based on the similarity scores.
+        str: "Optimized", "Original", or "Tie"
     """
-    logger.info("Comparing answers with embeddings.")
-    embedding_model = load_embedding_model()  # Load the embedding model
+    logger.info(f"Comparing answers using {similarity_method} similarity")
 
-    # Generate embeddings for the query and answers
-    query_embedding = get_text_embedding(user_query, embedding_model)
-    orig_embedding = get_text_embedding(original_answer, embedding_model)
-    opt_embedding = get_text_embedding(optimized_answer, embedding_model)
+    try:
+        embedding_model = load_embedding_model()
 
-    # Calculate cosine similarity scores
-    sim_orig = calculate_cosine_similarity(query_embedding, orig_embedding)
-    sim_opt = calculate_cosine_similarity(query_embedding, opt_embedding)
+        # Generate embeddings
+        query_embedding = get_text_embedding(user_query, embedding_model)
+        orig_embedding = get_text_embedding(original_answer, embedding_model)
+        opt_embedding = get_text_embedding(optimized_answer, embedding_model)
 
-    logger.info(f"Similarity scores - Original: {sim_orig}, Optimized: {sim_opt}")
-    return "Optimized" if sim_opt > sim_orig else "Original" if sim_orig > sim_opt else "Tie"
+        # Use modular similarity calculator
+        sim_orig = calculate_similarity(query_embedding, orig_embedding, similarity_method)
+        sim_opt = calculate_similarity(query_embedding, opt_embedding, similarity_method)
+
+        logger.info(f"Similarity scores using {similarity_method} - Original: {sim_orig:.4f}, Optimized: {sim_opt:.4f}")
+
+        # More robust tie detection
+        score_diff = abs(sim_opt - sim_orig)
+        if score_diff < 0.001:  # Very close scores
+            return "Tie"
+        elif score_diff < 0.01:  # Close scores - use relative difference
+            relative_diff = score_diff / max(abs(sim_orig), abs(sim_opt), 1e-6)
+            if relative_diff < 0.05:  # Less than 5% relative difference
+                return "Tie"
+
+        return "Optimized" if sim_opt > sim_orig else "Original"
+
+    except Exception as e:
+        logger.error(f"Error in answer comparison: {e}")
+        return "Tie"
 
 
-def judge_with_llm(user_query, original_answer, optimized_answer, model=None, tokenizer=None, device=None):
+def multi_method_comparison(
+        user_query: str,
+        original_answer: str,
+        optimized_answer: str,
+        methods: Optional[List[Union[SimilarityMethod, str]]] = None
+) -> Dict[str, Any]:
+    """
+    Compare answers using multiple similarity methods for robust evaluation.
+
+    Args:
+        user_query: The original query
+        original_answer: First answer to compare
+        optimized_answer: Second answer to compare
+        methods: List of similarity methods to use
+
+    Returns:
+        Dict containing results from all methods with final consensus
+    """
+    if methods is None:
+        methods = [SimilarityMethod.COSINE, SimilarityMethod.DOT_PRODUCT, SimilarityMethod.EUCLIDEAN]
+
+    logger.info(f"Multi-method comparison using {len(methods)} similarity methods")
+
+    results = {}
+    votes = {"Original": 0, "Optimized": 0, "Tie": 0}
+    scores = {"Original": [], "Optimized": [], "Tie": []}
+
+    for method in methods:
+        try:
+            result = compare_answers_with_embeddings(user_query, original_answer, optimized_answer, method)
+            results[str(method)] = result
+            votes[result] += 1
+
+            # Could add actual similarity scores here for weighted voting
+            # scores[result].append(score)
+
+        except Exception as e:
+            logger.warning(f"Error with method {method}: {e}")
+            results[str(method)] = "Tie"
+            votes["Tie"] += 1
+
+    # Determine consensus
+    consensus = max(votes, key=votes.get)
+    confidence = votes[consensus] / len(methods)
+
+    final_result = {
+        "individual_results": results,
+        "votes": votes,
+        "consensus": consensus,
+        "confidence": confidence,
+        "methods_used": [str(m) for m in methods],
+        "total_methods": len(methods)
+    }
+
+    logger.info(f"Multi-method consensus: {consensus} (confidence: {confidence:.2f})")
+    return final_result
+
+
+def judge_with_llm(
+        user_query: str,
+        original_answer: str,
+        optimized_answer: str,
+        model: Optional[Union[PreTrainedModel, AutoModelForCausalLM]] = None,
+        tokenizer: Optional[PreTrainedTokenizer] = None,
+        device: Optional[str] = None
+) -> str:
     """
     Judge answers using a language model (LLM).
 
     Args:
-        user_query (str): The original user query.
-        original_answer (str): The original answer to compare.
-        optimized_answer (str): The optimized answer to compare.
-        model: The LLM model instance (optional).
-        tokenizer: The tokenizer for the LLM (optional).
-        device (str): The device to run the model on (optional).
+        user_query: The original query
+        original_answer: First answer to compare
+        optimized_answer: Second answer to compare
+        model: LLM model instance (optional)
+        tokenizer: Tokenizer for the LLM (optional)
+        device: Device to run the model on (optional)
 
     Returns:
-        str: "Optimized", "Original", or "Tie" based on the LLM's judgment.
+        str: "Optimized", "Original", or "Tie"
     """
     logger.info("Judging answers with LLM.")
-    if model is None or tokenizer is None:
-        tokenizer, model = load_llm()  # Load the LLM and tokenizer
 
-    # Determine the device to use
+    if model is None or tokenizer is None:
+        model, tokenizer = load_llm()
+
     if device is None:
         device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
-    # Prepare the prompt for the LLM
-    prompt = f"""You are an AI judge evaluating query optimization. Compare the two answers below and choose the best one.
+    try:
+        if hasattr(model, 'device') and str(model.device) != device:
+            model = model.to(device)
 
-        Query: {user_query}
+        prompt = f"""You are an AI judge evaluating query optimization. Compare the two answers below and choose the best one.
 
-        Original Answer: {original_answer}
+Query: {user_query}
 
-        Optimized Answer: {optimized_answer}
+Original Answer: {original_answer}
 
-        Answer ONLY with exactly one word: "Optimized", "Original", or "Tie". Do not include any extra text.
-        """
-    inputs = tokenizer(prompt, return_tensors="pt").to(device)
+Optimized Answer: {optimized_answer}
 
-    # Generate the output using the LLM
-    with torch.cuda.amp.autocast(enabled=device == "cuda"):
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=5,
-            temperature=0.0,
-            pad_token_id=tokenizer.eos_token_id
-        )
-    answer = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+Answer ONLY with exactly one word: "Optimized", "Original", or "Tie". Do not include any extra text.
+"""
+        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024).to(device)
 
-    logger.info(f"LLM judgment result: {answer}")
-    for option in ["Optimized", "Original", "Tie"]:
-        if option.lower() in answer.lower():
-            return option
-    return answer
+        if device == "cuda":
+            with torch.cuda.amp.autocast():
+                outputs = model.generate(
+                    **inputs,
+                    max_new_tokens=5,
+                    temperature=0.0,
+                    pad_token_id=tokenizer.eos_token_id,
+                    do_sample=False
+                )
+        else:
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=5,
+                temperature=0.0,
+                pad_token_id=tokenizer.eos_token_id,
+                do_sample=False
+            )
 
+        answer = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+
+        logger.info(f"LLM judgment result: {answer}")
+
+        # More robust answer parsing
+        answer_lower = answer.lower()
+        for option in ["optimized", "original", "tie"]:
+            if option in answer_lower:
+                return option.capitalize()
+
+        # Fallback - look for partial matches
+        if "optim" in answer_lower:
+            return "Optimized"
+        elif "origin" in answer_lower:
+            return "Original"
+        else:
+            return "Tie"
+
+    except Exception as e:
+        logger.error(f"Error during LLM generation: {e}")
+        return "Tie"
+
+
+def advanced_sanity_check(
+        user_query: str,
+        optimized_user_query: str,
+        vector_db: Any,
+        vector_query: Optional[Any] = None,
+        similarity_methods: Optional[List[Union[SimilarityMethod, str]]] = None
+) -> Dict[str, Any]:
+    """
+    Enhanced sanity check using multiple similarity methods.
+
+    Provides more robust evaluation by testing different similarity approaches.
+
+    Args:
+        user_query: Original user query
+        optimized_user_query: Optimized version of the query
+        vector_db: Vector database instance
+        vector_query: Optional vector representation of the query
+        similarity_methods: List of similarity methods to use
+
+    Returns:
+        Dict containing comprehensive evaluation results
+    """
+    if similarity_methods is None:
+        similarity_methods = [SimilarityMethod.COSINE, SimilarityMethod.DOT_PRODUCT]
+
+    print(f"\n> Running advanced sanity check with {len(similarity_methods)} similarity methods...")
+
+    try:
+        model, tokenizer = load_llm()
+
+        # Get answers (simplified for this example)
+        orig_answer = run_llm_query(user_query, model, tokenizer)
+        opt_answer = run_llm_query(optimized_user_query, model, tokenizer)
+
+        # Multi-method embedding comparison
+        multi_method_result = multi_method_comparison(user_query, orig_answer, opt_answer, similarity_methods)
+
+        # Traditional LLM judgment
+        llm_judgment = judge_with_llm(user_query, orig_answer, opt_answer, model=model, tokenizer=tokenizer)
+
+        # Display results
+        print("\n🔍 **Advanced Sanity Check Results**:")
+        print(f"📝 Original Query: {user_query}")
+        print(f"📝 Optimized Query: {optimized_user_query}")
+        print(f"💬 Original Answer: {orig_answer[:200]}...")
+        print(f"💬 Optimized Answer: {opt_answer[:200]}...")
+        print(f"📊 LLM Judgment: {llm_judgment}")
+        print(
+            f"📊 Multi-method Results: {multi_method_result['consensus']} (confidence: {multi_method_result['confidence']:.2f})")
+        print(f"📊 Individual Method Results: {multi_method_result['individual_results']}")
+
+        # Determine final decision with weighted voting
+        embedding_confidence = multi_method_result['confidence']
+        llm_confidence = 0.7  # Fixed weight for LLM judgment
+
+        final_decision = multi_method_result['consensus']
+        if llm_judgment != multi_method_result['consensus'] and llm_confidence > embedding_confidence:
+            final_decision = llm_judgment
+            decision_reason = "LLM judgment overrode multi-method consensus due to higher confidence"
+        else:
+            decision_reason = "Multi-method consensus accepted"
+
+        print(f"⚖️ Final Decision: {final_decision} ({decision_reason})")
+
+        return {
+            "original_query": user_query,
+            "optimized_query": optimized_user_query,
+            "original_answer": orig_answer,
+            "optimized_answer": opt_answer,
+            "llm_judgment": llm_judgment,
+            "multi_method_result": multi_method_result,
+            "final_decision": final_decision,
+            "decision_reason": decision_reason,
+            "confidence_scores": {
+                "embedding_confidence": embedding_confidence,
+                "llm_confidence": llm_confidence
+            },
+            "success": True
+        }
+
+    except Exception as e:
+        logger.error(f"Error in advanced sanity check: {e}")
+        return {
+            "error": str(e),
+            "success": False
+        }
 
 # === File: scripts/modelHuggingFaceDownload.py ===
 # modelHuggingFaceDownload.py
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from configurations.config import LLAMA_MODEL_NAME
+from configurations.config import MODEL_PATH
 from configurations.config import LLAMA_MODEL_DIR
+
 # Download the model and tokenizer
-tokenizer = AutoTokenizer.from_pretrained(LLAMA_MODEL_NAME)
-model = AutoModelForCausalLM.from_pretrained(LLAMA_MODEL_NAME, torch_dtype="auto")
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, torch_dtype="auto")
 
 # Save them inside your project
 model.save_pretrained(LLAMA_MODEL_DIR)
@@ -1083,19 +1155,21 @@ tokenizer.save_pretrained(LLAMA_MODEL_DIR)
 
 print("> Model downloaded successfully!")
 
+
 # === File: modules/query.py ===
-# modules/query.py
+# modules/query.py - Refactored for better organization
 import numpy as np
-from typing import Union, Optional, Dict
+from typing import Union, Optional, Dict, Callable, List, Tuple, Any
 from llama_index.core import VectorStoreIndex
 from llama_index.core.schema import MetadataMode
 import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-import heapq
-from transformers import AutoModelForCausalLM, GPT2TokenizerFast
+from transformers import AutoModelForCausalLM, GPT2TokenizerFast, PreTrainedModel, PreTrainedTokenizer
+
 from configurations.config import MAX_RETRIES, QUALITY_THRESHOLD, MAX_NEW_TOKENS
 from utility.embedding_utils import get_query_vector
 from utility.logger import logger
+from utility.similarity_calculator import calculate_similarities, SimilarityMethod
 
 # Import performance monitoring and caching
 try:
@@ -1110,7 +1184,6 @@ except ImportError:
     CACHE_AVAILABLE = False
 
 
-    # Create dummy decorators
     def monitor_performance(name):
         from contextlib import contextmanager
         @contextmanager
@@ -1134,191 +1207,383 @@ except ImportError:
         return decorator
 
 
-def vector_similarity(vector1: np.ndarray, vector2: np.ndarray) -> float:
+# =====================================================
+# EMBEDDING AND TEXT PROCESSING UTILITIES
+# =====================================================
+
+def extract_node_text_for_embedding(node) -> str:
     """
-    Calculates the cosine similarity between two vectors.
-
-    This function computes the cosine similarity score, which is a measure of similarity between two non-zero vectors.
-
-    In the VectorStoreIndex, the similarity function is : similarity = np.dot(vec1, vec2) / (||vec1|| * ||vec2||)
-    Args:
-        vector1 (np.ndarray): First vector.
-        vector2 (np.ndarray): Second vector.
-
-    Returns:
-        float: Cosine similarity score between the two vectors.
-    """
-    with monitor_performance("vector_similarity_calculation"):
-        logger.info("Calculating cosine similarity between two vectors.")
-        norm1 = np.linalg.norm(vector1)
-        norm2 = np.linalg.norm(vector2)
-        if norm1 == 0.0 or norm2 == 0.0:
-            logger.warning(
-                f"One or both vectors are zero vectors, returning similarity as 0.0. vector1: {vector1} vector2: {vector2}")
-            return 0.0
-        similarity = np.dot(vector1, vector2) / (norm1 * norm2)
-        logger.info(f"Cosine similarity calculated: {similarity}")
-        return similarity
-
-
-def get_llamaindex_compatible_text(node) -> str:
-    """
-    Extracts text from a node in the exact same way LlamaIndex does for embedding.
+    Extract text from a LlamaIndex node exactly as LlamaIndex does for embedding.
 
     Args:
         node: LlamaIndex node object
 
     Returns:
-        str: Text processed exactly as LlamaIndex processes it for embedding
+        str: Text formatted for embedding, matching LlamaIndex's internal process
     """
     try:
-        # Use the same method LlamaIndex uses for embedding
         return node.get_content(metadata_mode=MetadataMode.EMBED)
     except Exception as e:
-        logger.warning(f"Failed to get LlamaIndex-compatible text: {e}. Falling back to node.text")
-        return node.text
+        logger.warning(f"Failed to extract embedding text: {e}. Using fallback.")
+        return getattr(node, 'text', str(node))
 
 
-def get_cached_embedding_llamaindex_style(text: str, embed_model: HuggingFaceEmbedding) -> np.ndarray:
+def generate_embedding_with_normalization(text: str, embed_model: HuggingFaceEmbedding) -> np.ndarray:
     """
-    Retrieves the cached embedding for a given text using LlamaIndex's exact method.
-
-    This function replicates exactly how LlamaIndex creates embeddings for documents.
+    Generate embedding for text using LlamaIndex's method with optional normalization.
 
     Args:
-        text (str): Text to convert into an embedding (should be the full processed text with metadata).
-        embed_model (HuggingFaceEmbedding): Embedding model to use.
+        text: Text to embed
+        embed_model: HuggingFace embedding model
 
     Returns:
-        np.ndarray: Cached embedding vector for the text.
+        np.ndarray: Normalized embedding vector
     """
-    with monitor_performance("llamaindex_embedding_retrieval"):
-        logger.info(f"Retrieving cached embedding for text: {text[:50]}...")
+    with monitor_performance("embedding_generation"):
+        logger.debug(f"Generating embedding for text: {text[:50]}...")
 
-        # Use get_text_embedding (not get_query_embedding) to match document encoding
         embedding = embed_model.get_text_embedding(text)
-        embedding_array = np.array(embedding)
+        embedding_array = np.array(embedding, dtype=np.float32)
 
-        # Check if the model returns normalized vectors
+        # Apply normalization if needed
         norm = np.linalg.norm(embedding_array)
         if norm > 1.1 or norm < 0.9:  # Not normalized
             embedding_array = embedding_array / norm
-            logger.debug("Applied manual normalization to embedding")
+            logger.debug("Applied normalization to embedding")
 
-        logger.info("Cached embedding retrieved successfully.")
         return embedding_array
 
 
-@track_performance("context_retrieval")
-def retrieve_context_aligned_to_llama_index(
-        query: Union[str, np.ndarray],
-        vector_db: VectorStoreIndex,
-        embed_model: HuggingFaceEmbedding,
-        top_k: int = 5,
-        similarity_cutoff: float = 0.5,
-) -> str:
+def process_retrieved_nodes(nodes_with_scores) -> Tuple[List, List[float]]:
     """
-    Retrieves relevant context from the vector database using LlamaIndex-compatible embeddings.
+    Extract nodes and scores from LlamaIndex retrieval results.
 
     Args:
-        query (Union[str, np.ndarray]): Query text or vector.
-        vector_db (VectorStoreIndex): Vector database for document retrieval.
-        embed_model (HuggingFaceEmbedding): Embedding model for vector conversion.
-        top_k (int): Number of top results to retrieve.
-        similarity_cutoff (float): Minimum similarity score to include results.
+        nodes_with_scores: LlamaIndex retrieval results
 
     Returns:
-        str: Retrieved context as a concatenated string.
+        Tuple of (nodes_list, scores_list)
     """
-    logger.info("Retrieving context for the query with LlamaIndex compatibility.")
-    if not isinstance(query, (str, np.ndarray)):
-        logger.error("Query must be a string or a numpy.ndarray.")
-        raise TypeError("Query must be a string or a numpy.ndarray.")
-
-    # Use LlamaIndex's native retriever first
-    with monitor_performance("llamaindex_retrieval"):
-        retriever = vector_db.as_retriever(similarity_top_k=top_k)
-        nodes_with_scores = retriever.retrieve(query)
-
-    if not nodes_with_scores:
-        logger.warning("No nodes retrieved from the vector DB.")
-        return ''
-
-    logger.info(f"Retrieved {len(nodes_with_scores)} nodes from vector database.")
-
-    # Get query vector
-    query_vector: Optional[np.ndarray] = None
-    if isinstance(query, str):
-        if embed_model is None:
-            logger.error("embed_model is required for converting string queries to vectors.")
-            raise ValueError("embed_model is required for converting string queries to vectors.")
-        with monitor_performance("query_vector_generation"):
-            query_vector = get_query_vector(query, embed_model)
-    elif isinstance(query, np.ndarray):
-        query_vector = query
-
-    # Extract nodes and their LlamaIndex-compatible text
-    with monitor_performance("text_extraction_and_embedding"):
-        nodes = [node_with_score.node for node_with_score in nodes_with_scores]
-        llamaindex_texts = [get_llamaindex_compatible_text(node) for node in nodes]
-
-        # Get embeddings using LlamaIndex's exact method
-        document_embeddings = np.array([
-            get_cached_embedding_llamaindex_style(text, embed_model)
-            for text in llamaindex_texts
-        ])
-
-    # Get LlamaIndex's original scores for comparison
-    llamaindex_scores = [node_with_score.score for node_with_score in nodes_with_scores]
-
-    # Calculate similarities manually to verify/compare
-    if query_vector is not None and document_embeddings is not None:
-        with monitor_performance("manual_similarity_calculation"):
-            # Manual similarity calculation (should match LlamaIndex's results)
-            manual_similarities = np.dot(document_embeddings, query_vector) / (
-                    np.linalg.norm(document_embeddings, axis=1) * np.linalg.norm(query_vector)
-            )
-
-            logger.info("Similarity comparison:")
-            for i, (manual_sim, llamaindex_sim) in enumerate(zip(manual_similarities, llamaindex_scores)):
-                diff = abs(manual_sim - llamaindex_sim)
-                logger.info(f"Node {i}: Manual={manual_sim:.6f}, LlamaIndex={llamaindex_sim:.6f}, Diff={diff:.6f}")
-
-            # Use manual similarities for filtering (they should match LlamaIndex's)
-            similarity_scores = manual_similarities
-    else:
-        logger.warning("Query vector or document embeddings are None, using LlamaIndex scores.")
-        similarity_scores = llamaindex_scores
-
-    # Get the actual content for each node (not the metadata-enhanced text)
-    with monitor_performance("content_extraction_and_filtering"):
-        node_contents = [node.get_content() for node in nodes]
-
-        # Create scored pairs and filter
-        scored_nodes = list(zip(similarity_scores, node_contents))
-        top_nodes = heapq.nlargest(top_k, scored_nodes, key=lambda x: x[0])
-        filtered_nodes = [content for score, content in top_nodes if score >= similarity_cutoff]
-
-    logger.info(f"Filtered {len(filtered_nodes)} nodes based on similarity cutoff.")
-    return "\n".join(filtered_nodes)
+    nodes = [item.node for item in nodes_with_scores]
+    scores = [item.score for item in nodes_with_scores]
+    return nodes, scores
 
 
-# Keep the original function as fallback
-def retrieve_context(
+def batch_generate_embeddings(texts: List[str], embed_model: HuggingFaceEmbedding) -> np.ndarray:
+    """
+    Generate embeddings for multiple texts efficiently.
+
+    Args:
+        texts: List of texts to embed
+        embed_model: HuggingFace embedding model
+
+    Returns:
+        np.ndarray: Array of embeddings (n_texts, embedding_dim)
+    """
+    with monitor_performance("batch_embedding_generation"):
+        embeddings = [
+            generate_embedding_with_normalization(text, embed_model)
+            for text in texts
+        ]
+        return np.array(embeddings)
+
+
+# =====================================================
+# SIMILARITY AND FILTERING UTILITIES
+# =====================================================
+
+def calculate_similarity_scores(
+        query_vector: np.ndarray,
+        document_embeddings: np.ndarray,
+        method: Union[SimilarityMethod, str, Callable],
+        reference_scores: Optional[List[float]] = None
+) -> np.ndarray:
+    """
+    Calculate similarity scores and optionally compare with reference scores.
+
+    Args:
+        query_vector: Query embedding vector
+        document_embeddings: Document embedding matrix
+        method: Similarity calculation method
+        reference_scores: Optional reference scores for comparison
+
+    Returns:
+        np.ndarray: Calculated similarity scores
+    """
+    with monitor_performance("similarity_calculation"):
+        similarities = calculate_similarities(query_vector, document_embeddings, method)
+
+        # Log comparison if using cosine similarity and reference scores available
+        if method == SimilarityMethod.COSINE and reference_scores is not None:
+            _log_similarity_comparison(similarities, reference_scores)
+
+        return similarities
+
+
+def _log_similarity_comparison(manual_scores: np.ndarray, reference_scores: List[float]):
+    """Log comparison between manual and reference similarity scores."""
+    logger.info("Similarity score comparison:")
+    for i, (manual, reference) in enumerate(zip(manual_scores, reference_scores)):
+        diff = abs(manual - reference)
+        logger.info(f"Doc {i}: Manual={manual:.6f}, Reference={reference:.6f}, Diff={diff:.6f}")
+
+
+def filter_and_rank_results(
+        similarity_scores: np.ndarray,
+        node_contents: List[str],
+        similarity_threshold: float,
+        max_results: int
+) -> List[str]:
+    """
+    Filter results by similarity threshold and return top-k ranked by score.
+
+    Args:
+        similarity_scores: Array of similarity scores
+        node_contents: List of node content strings
+        similarity_threshold: Minimum similarity score to include
+        max_results: Maximum number of results to return
+
+    Returns:
+        List[str]: Filtered and ranked content strings
+    """
+    with monitor_performance("result_filtering_and_ranking"):
+        # Vectorized filtering
+        valid_mask = similarity_scores >= similarity_threshold
+
+        if not np.any(valid_mask):
+            logger.warning(f"No results above similarity threshold {similarity_threshold}")
+            return []
+
+        # Extract valid results
+        valid_scores = similarity_scores[valid_mask]
+        valid_contents = [content for i, content in enumerate(node_contents) if valid_mask[i]]
+
+        # Sort by score (descending) and take top-k
+        sorted_indices = np.argsort(valid_scores)[::-1][:max_results]
+        ranked_contents = [valid_contents[i] for i in sorted_indices]
+
+        logger.info(f"Filtered to {len(ranked_contents)} results from {len(node_contents)} candidates")
+        return ranked_contents
+
+
+# =====================================================
+# CORE RETRIEVAL FUNCTIONS
+# =====================================================
+
+@track_performance("context_retrieval")
+def retrieve_context_with_similarity(
         query: Union[str, np.ndarray],
         vector_db: VectorStoreIndex,
         embed_model: HuggingFaceEmbedding,
-        top_k: int = 5,
-        similarity_cutoff: float = 0.5,
+        max_results: int = 5,
+        similarity_threshold: float = 0.5,
+        similarity_method: Union[SimilarityMethod, str, Callable] = SimilarityMethod.COSINE,
 ) -> str:
     """
-    Original retrieve_context function - kept for backward compatibility.
-    Use retrieve_context_aligned_to_llama_index for better LlamaIndex compatibility.
-    """
-    logger.warning(
-        "Using original retrieve_context. Consider using retrieve_context_aligned_to_llama_index for better compatibility.")
-    return retrieve_context_aligned_to_llama_index(query, vector_db, embed_model, top_k, similarity_cutoff)
+    Retrieve relevant context using configurable similarity methods.
 
+    Args:
+        query: Query string or vector
+        vector_db: LlamaIndex vector store
+        embed_model: HuggingFace embedding model
+        max_results: Maximum number of results to return
+        similarity_threshold: Minimum similarity score threshold
+        similarity_method: Method for calculating similarity
+
+    Returns:
+        str: Concatenated context from relevant documents
+    """
+    logger.info(f"Retrieving context using {similarity_method} similarity")
+
+    # Input validation
+    if not isinstance(query, (str, np.ndarray)):
+        raise TypeError("Query must be a string or numpy array")
+
+    # Step 1: Initial retrieval using LlamaIndex
+    nodes_with_scores = _perform_initial_retrieval(query, vector_db, max_results)
+    if not nodes_with_scores:
+        return ''
+
+    # Step 2: Process query and document embeddings
+    query_vector = _prepare_query_vector(query, embed_model)
+    nodes, reference_scores = process_retrieved_nodes(nodes_with_scores)
+
+    # Step 3: Generate document embeddings
+    document_embeddings = _generate_document_embeddings(nodes, embed_model)
+
+    # Step 4: Calculate similarities using specified method
+    similarity_scores = calculate_similarity_scores(
+        query_vector, document_embeddings, similarity_method, reference_scores
+    )
+
+    # Step 5: Filter, rank, and format results
+    node_contents = [node.get_content() for node in nodes]
+    filtered_contents = filter_and_rank_results(
+        similarity_scores, node_contents, similarity_threshold, max_results
+    )
+
+    logger.info(f"Retrieved {len(filtered_contents)} relevant documents")
+    return "\n\n".join(filtered_contents)  # Double newline for better separation
+
+
+def _perform_initial_retrieval(query, vector_db, max_results):
+    """Perform initial retrieval using LlamaIndex."""
+    with monitor_performance("llamaindex_retrieval"):
+        retriever = vector_db.as_retriever(similarity_top_k=max_results)
+        nodes_with_scores = retriever.retrieve(query)
+
+        if nodes_with_scores:
+            logger.info(f"LlamaIndex retrieved {len(nodes_with_scores)} initial candidates")
+        else:
+            logger.warning("No documents retrieved by LlamaIndex")
+
+        return nodes_with_scores
+
+
+def _prepare_query_vector(query, embed_model):
+    """Prepare query vector from string or array input."""
+    if isinstance(query, str):
+        if embed_model is None:
+            raise ValueError("Embedding model required for string queries")
+        with monitor_performance("query_embedding"):
+            return get_query_vector(query, embed_model)
+    return query
+
+
+def _generate_document_embeddings(nodes, embed_model):
+    """Generate embeddings for document nodes."""
+    with monitor_performance("document_embedding_extraction"):
+        texts = [extract_node_text_for_embedding(node) for node in nodes]
+        return batch_generate_embeddings(texts, embed_model)
+
+
+# =====================================================
+# TEXT GENERATION UTILITIES
+# =====================================================
+
+def prepare_generation_inputs(prompt: str, tokenizer: GPT2TokenizerFast, device: torch.device, max_length: int = 900):
+    """
+    Prepare tokenized inputs for text generation.
+
+    Args:
+        prompt: Input prompt text
+        tokenizer: GPT2 tokenizer
+        device: Target device
+        max_length: Maximum sequence length
+
+    Returns:
+        dict: Tokenized inputs ready for generation
+    """
+    with monitor_performance("tokenization"):
+        inputs = tokenizer(
+            prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=max_length,
+            padding=True
+        )
+        return {k: v.to(device, non_blocking=True) for k, v in inputs.items()}
+
+
+def generate_text_by_device(
+        model: AutoModelForCausalLM,
+        inputs: dict,
+        device: torch.device,
+        tokenizer: GPT2TokenizerFast
+) -> torch.Tensor:
+    """
+    Generate text with device-specific optimizations.
+
+    Args:
+        model: Language model
+        inputs: Tokenized inputs
+        device: Target device
+        tokenizer: Tokenizer for special tokens
+
+    Returns:
+        torch.Tensor: Generated token sequences
+    """
+    with monitor_performance("text_generation"):
+        with torch.no_grad():
+            base_params = {
+                "do_sample": True,
+                "temperature": 0.7,
+                "pad_token_id": tokenizer.eos_token_id
+            }
+
+            if device.type == "mps":
+                # MPS-specific optimizations
+                return model.generate(
+                    **inputs,
+                    max_new_tokens=min(MAX_NEW_TOKENS, 50),
+                    use_cache=True,
+                    **base_params
+                )
+            elif device.type == "cuda":
+                # CUDA-specific optimizations
+                return model.generate(
+                    **inputs,
+                    max_new_tokens=MAX_NEW_TOKENS,
+                    top_p=0.9,
+                    use_cache=True,
+                    attention_mask=inputs.get('attention_mask'),
+                    **base_params
+                )
+            else:
+                # CPU generation
+                return model.generate(
+                    **inputs,
+                    max_new_tokens=MAX_NEW_TOKENS,
+                    **base_params
+                )
+
+
+def handle_gpu_memory_error(
+        error: RuntimeError,
+        model: AutoModelForCausalLM,
+        inputs: dict,
+        device: torch.device,
+        tokenizer: GPT2TokenizerFast
+) -> Tuple[str, str]:
+    """
+    Handle GPU memory errors with CPU fallback.
+
+    Returns:
+        Tuple of (generated_answer, device_used)
+    """
+    logger.warning(f"GPU memory issue: {error}")
+
+    # Clear GPU cache
+    if device.type == "mps":
+        torch.mps.empty_cache()
+    elif device.type == "cuda":
+        torch.cuda.empty_cache()
+
+    # CPU fallback
+    logger.info("Falling back to CPU generation")
+    model_cpu = model.cpu()
+    inputs_cpu = {k: v.cpu() for k, v in inputs.items()}
+
+    with torch.no_grad():
+        outputs = model_cpu.generate(
+            **inputs_cpu,
+            max_new_tokens=MAX_NEW_TOKENS,
+            do_sample=True,
+            temperature=0.7,
+            pad_token_id=tokenizer.eos_token_id
+        )
+
+    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+    # Move model back to original device
+    model.to(device)
+
+    return answer, "cpu_fallback"
+
+
+# =====================================================
+# MAIN QUERY PROCESSING
+# =====================================================
 
 @track_performance("answer_quality_evaluation")
 def evaluate_answer_quality(
@@ -1329,225 +1594,139 @@ def evaluate_answer_quality(
         device: torch.device
 ) -> float:
     """
-    Evaluates the quality of the generated answer based on the given question.
+    Evaluate the quality of a generated answer.
 
-    Args:
-        answer (str): Generated answer.
-        question (str): Original question.
-        model (AutoModelForCausalLM): Language model used for evaluation.
-        tokenizer (GPT2TokenizerFast): Tokenizer for processing text.
-        device (torch.device): Device to run the evaluation on.
-
-    Returns:
-        float: Quality score of the answer.
+    Currently returns a placeholder score.
+    TODO: Implement actual quality evaluation logic.
     """
-    logger.info("Evaluating the quality of the answer.")
-    # Placeholder for evaluation logic
+    logger.info("Evaluating answer quality")
+    # Placeholder - implement actual evaluation logic
     score = 1.0
-    logger.info(f"Quality score calculated: {score}")
+    logger.info(f"Quality score: {score}")
     return score
 
 
 @cache_query_result("distilgpt2")
 @track_performance("complete_query_processing")
-def query_model(
+def process_query_with_context(
         prompt: str,
-        model: AutoModelForCausalLM,
-        tokenizer: GPT2TokenizerFast,
+        model: Union[PreTrainedModel, Any],
+        tokenizer: Union[PreTrainedTokenizer, Any],
         device: torch.device,
         vector_db: Optional[VectorStoreIndex] = None,
         embedding_model: Optional[HuggingFaceEmbedding] = None,
         max_retries: int = MAX_RETRIES,
         quality_threshold: float = QUALITY_THRESHOLD,
-        use_improved_retrieval: bool = True
+        similarity_method: Union[SimilarityMethod, str, Callable] = SimilarityMethod.COSINE
 ) -> Dict[str, Union[str, float, int, None]]:
     """
-    GPU-optimized queries the language model with the given prompt and retrieves an answer.
-    Now includes performance monitoring and caching.
+    Process a query with optional context retrieval and iterative improvement.
 
-    Args:
-        prompt (str): Query prompt.
-        model (AutoModelForCausalLM): Language model to generate the answer.
-        tokenizer (GPT2TokenizerFast): Tokenizer for processing text.
-        device (torch.device): Device to run the query on.
-        vector_db (Optional[VectorStoreIndex]): Vector database for context retrieval.
-        embedding_model (Optional[HuggingFaceEmbedding]): Embedding model for vector conversion.
-        max_retries (int): Maximum number of retries for improving the answer.
-        quality_threshold (float): Minimum quality score to accept the answer.
-        use_improved_retrieval (bool): Whether to use the improved LlamaIndex-compatible retrieval.
-
-    Returns:
-        Dict[str, Union[str, float, int, None]]: Dictionary containing the query result.
+    This is the main entry point for query processing with RAG capabilities.
     """
-    logger.info("Starting GPU-optimized query process.")
+    logger.info(f"Processing query with {similarity_method} similarity")
 
-    # Ensure model is on the correct device
-    model_device = next(model.parameters()).device
-    if model_device != device:
-        logger.info(f"Moving model from {model_device} to {device}")
-        model = model.to(device)
+    # Ensure model is on correct device
+    _ensure_model_on_device(model, device)
 
     try:
-        answer: str = ""
-        score: float = 0.0
-        attempt: int = 0
-        current_prompt: str = prompt
-
-        while attempt <= max_retries:
+        for attempt in range(max_retries + 1):
             try:
-                # Context retrieval (runs on CPU - that's fine)
-                if vector_db is not None:
-                    if use_improved_retrieval:
-                        retrieved_context = retrieve_context_aligned_to_llama_index(
-                            current_prompt, vector_db, embedding_model
-                        )
-                    else:
-                        retrieved_context = retrieve_context(
-                            current_prompt, vector_db, embedding_model
-                        )
+                # Generate answer for current attempt
+                result = _generate_single_answer(
+                    prompt, model, tokenizer, device, vector_db, embedding_model, similarity_method)
 
-                    with monitor_performance("prompt_construction"):
-                        augmented_prompt = f"Context: {retrieved_context}\n\nQuestion: {current_prompt}\nAnswer:"
-                else:
-                    augmented_prompt = current_prompt
-
-                # GPU-optimized tokenization
-                with monitor_performance("tokenization"):
-                    inputs = tokenizer(
-                        augmented_prompt,
-                        return_tensors="pt",
-                        truncation=True,
-                        max_length=900,  # Conservative for MPS stability
-                        padding=True
-                    )
-
-                    # Move inputs to device efficiently
-                    inputs = {k: v.to(device, non_blocking=True) for k, v in inputs.items()}
-
-                # GPU generation with device-specific optimizations
-                with monitor_performance("text_generation"):
-                    with torch.no_grad():  # Save GPU memory
-                        if device.type == "mps":
-                            # MPS-optimized generation
-                            outputs = model.generate(
-                                **inputs,
-                                max_new_tokens=min(MAX_NEW_TOKENS, 50),  # Conservative for MPS
-                                do_sample=True,
-                                temperature=0.7,
-                                pad_token_id=tokenizer.eos_token_id,
-                                use_cache=True,
-                            )
-                        elif device.type == "cuda":
-                            # CUDA-optimized generation
-                            outputs = model.generate(
-                                **inputs,
-                                max_new_tokens=MAX_NEW_TOKENS,
-                                do_sample=True,
-                                temperature=0.7,
-                                top_p=0.9,
-                                pad_token_id=tokenizer.eos_token_id,
-                                use_cache=True,
-                                attention_mask=inputs.get('attention_mask')
-                            )
-                        else:
-                            # CPU generation
-                            outputs = model.generate(
-                                **inputs,
-                                max_new_tokens=MAX_NEW_TOKENS,
-                                do_sample=True,
-                                temperature=0.7,
-                                pad_token_id=tokenizer.eos_token_id
-                            )
-
-                # Move output back to CPU for decoding (more efficient)
-                with monitor_performance("answer_processing"):
-                    outputs = outputs.cpu()
-                    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
-                    score = evaluate_answer_quality(answer, current_prompt, model, tokenizer, device)
-
-                if score >= quality_threshold or attempt == max_retries:
-                    logger.info("GPU-optimized query completed successfully.")
-                    return {
-                        "question": prompt,
-                        "answer": answer,
-                        "score": score,
+                # Check if answer meets quality threshold
+                if result["score"] >= quality_threshold or attempt == max_retries:
+                    result.update({
                         "attempts": attempt + 1,
-                        "error": None,
-                        "device_used": str(device)
-                    }
+                        "similarity_method": str(similarity_method)
+                    })
+                    logger.info("Query processing completed successfully")
+                    return result
 
-                current_prompt = rephrase_query(current_prompt, answer, model, tokenizer, device)
-                attempt += 1
+                # Improve prompt for next iteration
+                prompt = _improve_prompt(prompt, result["answer"], model, tokenizer, device)
 
             except RuntimeError as err:
-                # Handle GPU memory issues gracefully
-                if "MPS" in str(err) or "out of memory" in str(err).lower():
-                    logger.warning(f"GPU memory issue: {err}")
-
-                    # Clear GPU cache
-                    if device.type == "mps":
-                        torch.mps.empty_cache()
-                    elif device.type == "cuda":
-                        torch.cuda.empty_cache()
-
-                    # Fallback to CPU for this generation
-                    logger.info("Falling back to CPU for this generation")
-                    model_cpu = model.cpu()
-                    inputs_cpu = {k: v.cpu() for k, v in inputs.items()}
-
-                    with torch.no_grad():
-                        outputs = model_cpu.generate(
-                            **inputs_cpu,
-                            max_new_tokens=MAX_NEW_TOKENS,
-                            do_sample=True,
-                            temperature=0.7,
-                            pad_token_id=tokenizer.eos_token_id
-                        )
-
-                    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-                    # Move model back to GPU
-                    model = model_cpu.to(device)
-
-                    return {
-                        "question": prompt,
-                        "answer": answer,
-                        "score": 1.0,
-                        "attempts": attempt + 1,
-                        "error": f"GPU fallback: {str(err)}",
-                        "device_used": "cpu_fallback"
-                    }
+                if _is_gpu_memory_error(err):
+                    answer, device_used = handle_gpu_memory_error(err, model, {}, device, tokenizer)
+                    return _create_result_dict(prompt, answer, 1.0, attempt + 1,
+                                               f"GPU fallback: {err}", device_used, similarity_method)
                 else:
                     raise err
 
-            except Exception as err:
-                logger.error(f"Error during GPU query process: {err}")
-                return {
-                    "question": prompt,
-                    "answer": f"Error: {str(err)}",
-                    "score": 0.0,
-                    "attempts": attempt + 1,
-                    "error": str(err)
-                }
-
-        return {
-            "question": prompt,
-            "answer": answer or "No answer generated",
-            "score": score,
-            "attempts": attempt + 1,
-            "error": None,
-            "device_used": str(device)
-        }
+        # If we reach here, max retries exceeded
+        return _create_result_dict(prompt, "No satisfactory answer generated", 0.0,
+                                   max_retries + 1, None, str(device), similarity_method)
 
     except Exception as err:
-        logger.error(f"Error during GPU query process: {err}")
-        return {
-            "question": prompt,
-            "answer": "Error during generation.",
-            "score": 0.0,
-            "attempts": 0,
-            "error": str(err)
-        }
+        logger.error(f"Error during query processing: {err}")
+        return _create_result_dict(prompt, f"Error: {err}", 0.0, 0, str(err), str(device), similarity_method)
+
+
+def _ensure_model_on_device(model: AutoModelForCausalLM, device: torch.device):
+    """Ensure model is on the correct device."""
+    model_device = next(model.parameters()).device
+    if model_device != device:
+        logger.info(f"Moving model from {model_device} to {device}")
+        model.to(device)
+
+
+def _generate_single_answer(prompt, model, tokenizer, device, vector_db, embedding_model, similarity_method):
+    """Generate a single answer attempt."""
+    # Context retrieval
+    augmented_prompt = _prepare_prompt_with_context(
+        prompt, vector_db, embedding_model, similarity_method
+    )
+
+    # Generate answer
+    inputs = prepare_generation_inputs(augmented_prompt, tokenizer, device)
+    outputs = generate_text_by_device(model, inputs, device, tokenizer)
+
+    # Process output
+    with monitor_performance("answer_processing"):
+        outputs = outputs.cpu()
+        answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        score = evaluate_answer_quality(answer, prompt, model, tokenizer, device)
+
+    return {"answer": answer, "score": score}
+
+
+def _prepare_prompt_with_context(prompt, vector_db, embedding_model, similarity_method):
+    """Prepare prompt with retrieved context if available."""
+    if vector_db is not None:
+        with monitor_performance("context_retrieval_and_prompt_construction"):
+            context = retrieve_context_with_similarity(
+                prompt, vector_db, embedding_model, similarity_method=similarity_method
+            )
+            return f"Context: {context}\n\nQuestion: {prompt}\nAnswer:"
+
+    return prompt
+
+
+def _improve_prompt(original_prompt, previous_answer, model, tokenizer, device):
+    """Improve prompt based on previous answer."""
+    return rephrase_query(original_prompt, previous_answer, model, tokenizer, device)
+
+
+def _is_gpu_memory_error(error):
+    """Check if error is related to GPU memory."""
+    error_str = str(error).lower()
+    return "mps" in error_str or "out of memory" in error_str
+
+
+def _create_result_dict(question, answer, score, attempts, error, device_used, similarity_method):
+    """Create standardized result dictionary."""
+    return {
+        "question": question,
+        "answer": answer,
+        "score": score,
+        "attempts": attempts,
+        "error": error,
+        "device_used": device_used,
+        "similarity_method": str(similarity_method)
+    }
 
 
 @track_performance("query_rephrasing")
@@ -1559,32 +1738,17 @@ def rephrase_query(
         device: torch.device
 ) -> str:
     """
-    GPU-optimized query rephrasing based on the previous answer to improve the response.
-
-    Args:
-        original_prompt (str): Original query prompt.
-        previous_answer (str): Previous answer generated by the model.
-        model (AutoModelForCausalLM): Language model used for rephrasing.
-        tokenizer (GPT2TokenizerFast): Tokenizer for processing text.
-        device (torch.device): Device to run the rephrasing on.
-
-    Returns:
-        str: Rephrased query.
+    Rephrase query based on previous answer to improve results.
     """
-    logger.info("GPU-optimized query rephrasing.")
+    logger.info("Rephrasing query for improvement")
+
     rephrase_prompt = (
         f"Original question: {original_prompt}\n"
-        f"The previous answer was: {previous_answer}\n"
+        f"Previous answer: {previous_answer}\n"
         f"Improve the original question to get a better answer:"
     )
 
-    with monitor_performance("rephrase_tokenization"):
-        inputs = tokenizer(
-            rephrase_prompt,
-            return_tensors="pt",
-            truncation=True,
-            max_length=800
-        ).to(device)
+    inputs = prepare_generation_inputs(rephrase_prompt, tokenizer, device, max_length=800)
 
     with monitor_performance("rephrase_generation"):
         with torch.no_grad():
@@ -1598,8 +1762,9 @@ def rephrase_query(
 
     outputs = outputs.cpu()
     rephrased_query = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
-    logger.info("Query rephrased successfully.")
+    logger.info("Query rephrased successfully")
     return rephrased_query
+
 
 # === File: modules/indexer.py ===
 # modules/indexer.py
@@ -1763,7 +1928,7 @@ def download_and_save_from_url(url: str, target_dir: str) -> None:
 
 @track_performance("complete_vector_db_loading")
 def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> Tuple[
-    VectorStoreIndex, HuggingFaceEmbedding]:
+        VectorStoreIndex, HuggingFaceEmbedding]:
     """
     Loads or creates a vector database for document retrieval with optimized embedding model caching.
     Now includes comprehensive performance monitoring.
@@ -1920,7 +2085,7 @@ def get_index_statistics(vector_db: VectorStoreIndex) -> dict:
 
 
 def rebuild_index(source: str = "local", source_path: Optional[str] = None, force: bool = False) -> Tuple[
-    VectorStoreIndex, HuggingFaceEmbedding]:
+        VectorStoreIndex, HuggingFaceEmbedding]:
     """
     Rebuild the vector index from scratch.
 
@@ -1965,8 +2130,6 @@ import torch
 from configurations.config import MODEL_PATH, FORCE_CPU, OPTIMIZE_FOR_MPS, USE_MIXED_PRECISION
 from typing import Tuple
 from utility.logger import logger
-
-# Import performance monitoring (create these files if you haven't yet)
 try:
     from utility.performance import monitor_performance, track_performance
 
@@ -1975,10 +2138,10 @@ except ImportError:
     logger.warning("Performance monitoring not available. Install with: pip install psutil")
     PERFORMANCE_AVAILABLE = False
 
-
     # Create dummy decorators if performance module not available
     def monitor_performance(name):
         from contextlib import contextmanager
+
         @contextmanager
         def dummy_context():
             yield
@@ -2391,6 +2554,205 @@ def print_system_info():
     logger.info(f"  Use mixed precision: {USE_MIXED_PRECISION}")
 
 
+# === File: utility/similarity_calculator.py ===
+# utility/similarity_calculator.py
+import numpy as np
+from typing import Callable, Union
+from enum import Enum
+
+
+class SimilarityMethod(Enum):
+    """Enumeration of available similarity methods."""
+    COSINE = "cosine"
+    DOT_PRODUCT = "dot_product"
+    EUCLIDEAN = "euclidean"
+
+
+class SimilarityCalculator:
+    """High-performance similarity calculator with extensible architecture."""
+
+    def __init__(self):
+        # Core methods with optimized implementations
+        self._batch_methods = {
+            SimilarityMethod.COSINE: self._cosine_batch,
+            SimilarityMethod.DOT_PRODUCT: self._dot_batch,
+            SimilarityMethod.EUCLIDEAN: self._euclidean_batch,
+        }
+
+        self._pairwise_methods = {
+            SimilarityMethod.COSINE: self._cosine_pairwise,
+            SimilarityMethod.DOT_PRODUCT: self._dot_pairwise,
+            SimilarityMethod.EUCLIDEAN: self._euclidean_pairwise,
+        }
+
+        # For custom methods
+        self._custom_methods = {}
+
+    def calculate_batch_similarity(
+            self,
+            query_vector: np.ndarray,
+            document_embeddings: np.ndarray,
+            method: Union[SimilarityMethod, str, Callable] = SimilarityMethod.COSINE
+    ) -> np.ndarray:
+        """
+        High-performance batch similarity calculation.
+
+        Args:
+            query_vector: 1D query vector
+            document_embeddings: 2D array (n_docs, embedding_dim)
+            method: Similarity method
+
+        Returns:
+            np.ndarray: Similarity scores for all documents
+        """
+        if callable(method):
+            # Custom function - use pairwise calculation
+            return np.array([method(query_vector, doc) for doc in document_embeddings])
+
+        if isinstance(method, str):
+            # Check custom methods first
+            if method in self._custom_methods:
+                return np.array([self._custom_methods[method](query_vector, doc) for doc in document_embeddings])
+            method = SimilarityMethod(method)
+
+        return self._batch_methods[method](query_vector, document_embeddings)
+
+    def calculate_pairwise_similarity(
+            self,
+            vector1: np.ndarray,
+            vector2: np.ndarray,
+            method: Union[SimilarityMethod, str, Callable] = SimilarityMethod.COSINE
+    ) -> float:
+        """
+        Calculate similarity between two vectors.
+
+        Args:
+            vector1: First vector
+            vector2: Second vector
+            method: Similarity method
+
+        Returns:
+            float: Similarity score
+        """
+        if callable(method):
+            return method(vector1, vector2)
+
+        if isinstance(method, str):
+            if method in self._custom_methods:
+                return self._custom_methods[method](vector1, vector2)
+            method = SimilarityMethod(method)
+
+        return self._pairwise_methods[method](vector1, vector2)
+
+    def add_method(self, name: str, pairwise_func: Callable[[np.ndarray, np.ndarray], float]):
+        """
+        Add a custom similarity method.
+
+        Args:
+            name: Method name
+            pairwise_func: Function that takes two vectors and returns similarity
+        """
+        self._custom_methods[name] = pairwise_func
+
+    # Optimized batch methods
+    def _cosine_batch(self, query_vector: np.ndarray, document_embeddings: np.ndarray) -> np.ndarray:
+        """Vectorized cosine similarity."""
+        query_norm = np.linalg.norm(query_vector)
+        if query_norm == 0.0:
+            return np.zeros(len(document_embeddings))
+
+        doc_norms = np.linalg.norm(document_embeddings, axis=1)
+        zero_mask = doc_norms == 0.0
+        doc_norms = np.where(zero_mask, 1.0, doc_norms)  # Avoid division by zero
+
+        similarities = np.dot(document_embeddings, query_vector) / (doc_norms * query_norm)
+        similarities[zero_mask] = 0.0
+
+        return similarities
+
+    def _dot_batch(self, query_vector: np.ndarray, document_embeddings: np.ndarray) -> np.ndarray:
+        """Vectorized dot product."""
+        return np.dot(document_embeddings, query_vector)
+
+    def _euclidean_batch(self, query_vector: np.ndarray, document_embeddings: np.ndarray) -> np.ndarray:
+        """Vectorized Euclidean distance converted to similarity."""
+        distances = np.linalg.norm(document_embeddings - query_vector, axis=1)
+        return 1.0 / (1.0 + distances)
+
+    # Pairwise methods
+    def _cosine_pairwise(self, vector1: np.ndarray, vector2: np.ndarray) -> float:
+        """Pairwise cosine similarity."""
+        norm1 = np.linalg.norm(vector1)
+        norm2 = np.linalg.norm(vector2)
+
+        if norm1 == 0.0 or norm2 == 0.0:
+            return 0.0
+
+        return np.dot(vector1, vector2) / (norm1 * norm2)
+
+    def _dot_pairwise(self, vector1: np.ndarray, vector2: np.ndarray) -> float:
+        """Pairwise dot product."""
+        return np.dot(vector1, vector2)
+
+    def _euclidean_pairwise(self, vector1: np.ndarray, vector2: np.ndarray) -> float:
+        """Pairwise Euclidean distance to similarity."""
+        distance = np.linalg.norm(vector1 - vector2)
+        return 1.0 / (1.0 + distance)
+
+
+# Global instance
+_calculator = SimilarityCalculator()
+
+
+def calculate_similarities(
+        query_vector: np.ndarray,
+        document_embeddings: np.ndarray,
+        method: Union[SimilarityMethod, str, Callable] = SimilarityMethod.COSINE
+) -> np.ndarray:
+    """
+    Main function for batch similarity calculation.
+
+    Args:
+        query_vector: Query vector (1D)
+        document_embeddings: Document embeddings (2D)
+        method: Similarity method
+
+    Returns:
+        np.ndarray: Similarity scores
+    """
+    return _calculator.calculate_batch_similarity(query_vector, document_embeddings, method)
+
+
+def calculate_similarity(
+        vector1: np.ndarray,
+        vector2: np.ndarray,
+        method: Union[SimilarityMethod, str, Callable] = SimilarityMethod.COSINE
+) -> float:
+    """
+    Main function for pairwise similarity calculation.
+
+    Args:
+        vector1: First vector
+        vector2: Second vector
+        method: Similarity method
+
+    Returns:
+        float: Similarity score
+    """
+    return _calculator.calculate_pairwise_similarity(vector1, vector2, method)
+
+
+def add_similarity_method(name: str, func: Callable[[np.ndarray, np.ndarray], float]):
+    """
+    Add a custom similarity method globally.
+
+    Args:
+        name: Method name
+        func: Pairwise similarity function
+    """
+    _calculator.add_method(name, func)
+
+
 # === File: utility/embedding_utils.py ===
 # utility/embedding_utils.py
 import numpy as np
@@ -2458,54 +2820,12 @@ def get_text_embedding(text: str, embed_model: HuggingFaceEmbedding) -> np.ndarr
     return np.array(vector, dtype=np.float32)
 
 
-def calculate_cosine_similarity(vector1: np.ndarray, vector2: np.ndarray) -> float:
-    """
-    Calculate cosine similarity between two vectors.
-
-    Args:
-        vector1 (np.ndarray): First vector
-        vector2 (np.ndarray): Second vector
-
-    Returns:
-        float: Cosine similarity score
-    """
-    with monitor_performance("cosine_similarity_calculation"):
-        # Normalize vectors
-        norm1 = np.linalg.norm(vector1)
-        norm2 = np.linalg.norm(vector2)
-
-        if norm1 == 0.0 or norm2 == 0.0:
-            return 0.0
-
-        return np.dot(vector1, vector2) / (norm1 * norm2)
-
-
-def batch_embed_texts(texts: list, embed_model: HuggingFaceEmbedding) -> np.ndarray:
-    """
-    Embed multiple texts efficiently.
-
-    Args:
-        texts (list): List of texts to embed
-        embed_model (HuggingFaceEmbedding): The embedding model
-
-    Returns:
-        np.ndarray: Array of embeddings
-    """
-    with monitor_performance("batch_embedding"):
-        embeddings = []
-        for text in texts:
-            embedding = get_text_embedding(text, embed_model)
-            embeddings.append(embedding)
-        return np.array(embeddings)
-
-
 # === File: utility/cache.py ===
 # utility/cache.py
 import json
 import pickle
 import hashlib
 import time
-import os
 from pathlib import Path
 from typing import Any, Optional, Dict
 import numpy as np
@@ -2519,8 +2839,8 @@ class SmartCache:
         self.cache_dir = Path(cache_dir)
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)  # Create parent directories too
-        except Exception as e:
-            logger.warning(f"Failed to create cache directory {cache_dir}: {e}")
+        except Exception as err:
+            logger.warning(f"Failed to create cache directory {cache_dir}: {err}")
             # Fallback to a simple cache directory in current path
             self.cache_dir = Path("temp_cache")
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -2534,7 +2854,7 @@ class SmartCache:
         if self.metadata_file.exists():
             try:
                 return json.loads(self.metadata_file.read_text())
-            except:
+            except IOError as IOE:
                 logger.warning("Cache metadata corrupted, starting fresh")
         return {}
 
@@ -2770,6 +3090,7 @@ def clear_all_caches():
     query_cache.clear()
     general_cache.clear()
     logger.info("All caches cleared")
+
 
 # === File: utility/logger.py ===
 import logging

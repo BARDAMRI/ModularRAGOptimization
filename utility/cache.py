@@ -3,7 +3,6 @@ import json
 import pickle
 import hashlib
 import time
-import os
 from pathlib import Path
 from typing import Any, Optional, Dict
 import numpy as np
@@ -17,8 +16,8 @@ class SmartCache:
         self.cache_dir = Path(cache_dir)
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)  # Create parent directories too
-        except Exception as e:
-            logger.warning(f"Failed to create cache directory {cache_dir}: {e}")
+        except Exception as err:
+            logger.warning(f"Failed to create cache directory {cache_dir}: {err}")
             # Fallback to a simple cache directory in current path
             self.cache_dir = Path("temp_cache")
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -32,7 +31,7 @@ class SmartCache:
         if self.metadata_file.exists():
             try:
                 return json.loads(self.metadata_file.read_text())
-            except:
+            except IOError as IOE:
                 logger.warning("Cache metadata corrupted, starting fresh")
         return {}
 

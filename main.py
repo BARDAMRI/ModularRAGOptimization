@@ -1,10 +1,11 @@
 # main.py
 from modules.model_loader import load_model, get_optimal_device
-from modules.query import query_model
 from modules.indexer import load_vector_db
 from configurations.config import INDEX_SOURCE_URL, NQ_SAMPLE_SIZE
 import sys
 import termios
+
+from modules.query import process_query_with_context
 from scripts.evaluator import enumerate_top_documents
 import os
 import json
@@ -159,8 +160,9 @@ def run_query_evaluation():
                 break
 
             with monitor_performance("interactive_query"):
-                result = query_model(user_prompt, model, tokenizer, device, vector_db, embedding_model, max_retries=3,
-                                     quality_threshold=0.5)
+                result = process_query_with_context(user_prompt, model, tokenizer, device, vector_db, embedding_model,
+                                                    max_retries=3,
+                                                    quality_threshold=0.5)
 
             if result["error"]:
                 logger.error(f"Error: {result['error']}")
@@ -208,7 +210,7 @@ def run_development_test():
     print("\nTesting query processing...")
     test_query = "What is artificial intelligence?"
     with monitor_performance("dev_query_test"):
-        result = query_model(test_query, model, tokenizer, device, vector_db, embedding_model)
+        result = process_query_with_context(test_query, model, tokenizer, device, vector_db, embedding_model)
 
     print(f"Test query result: {result['answer'][:100]}...")
     print(f"Score: {result['score']}")
