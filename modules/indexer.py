@@ -9,8 +9,10 @@ from llama_index.core import StorageContext, load_index_from_storage
 from configurations.config import DATA_PATH, HF_MODEL_NAME
 from utility.logger import logger
 from typing import Tuple, Optional
+from llama_index.vector_stores.chroma import ChromaVectorStore
+from chromadb.config import Settings
+from llama_index.core import ServiceContext
 
-# Import performance monitoring
 try:
     from utility.performance import monitor_performance, track_performance
 
@@ -158,18 +160,17 @@ def download_and_save_from_url(url: str, target_dir: str) -> None:
 
 
 @track_performance("complete_vector_db_loading")
-def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> Tuple[
-        VectorStoreIndex, HuggingFaceEmbedding]:
+def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> (
+        VectorStoreIndex, HuggingFaceEmbedding):
     """
     Loads or creates a vector database for document retrieval with optimized embedding model caching.
-    Now includes comprehensive performance monitoring.
 
     Args:
         source (str): Source type ('local' or 'url').
         source_path (Optional[str]): Path to the data source.
 
     Returns:
-        Tuple[VectorStoreIndex, HuggingFaceEmbedding]: Loaded or newly created vector database and embedding model.
+        VectorStoreIndex: Loaded or newly created vector database.
     """
     logger.info(f"Loading vector database from source: {source}, source_path: {source_path}")
 
@@ -184,11 +185,9 @@ def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> 
             raise ValueError(
                 "source_path must be provided for 'url' source. Please insert into config.py a INDEX_SOURCE_URL "
                 "variable with valid data")
-
-        with monitor_performance("source_path_processing"):
-            source_type, corpus_name = parse_source_path(source_path)
-            corpus_dir = os.path.join("data", corpus_name)
-            storage_dir = os.path.join("storage", corpus_name)
+        source_type, corpus_name = parse_source_path(source_path)
+        corpus_dir = os.path.join("data", corpus_name)
+        storage_dir = os.path.join("storage", corpus_name)
 
         if not os.path.exists(corpus_dir):
             logger.info(f"Downloading corpus into {corpus_dir}...")
@@ -198,53 +197,68 @@ def load_vector_db(source: str = "local", source_path: Optional[str] = None) -> 
             else:
                 download_and_save_from_url(source_path, corpus_dir)
 
-        if os.path.exists(storage_dir):
-            with monitor_performance("existing_index_loading"):
-                logger.info(f"Loading existing vector database from {storage_dir}...")
-                storage_context = StorageContext.from_defaults(persist_dir=storage_dir)
-                vector_db = load_index_from_storage(storage_context, embed_model=embedding_model)
-                logger.info(f"Loaded existing vector database for '{corpus_name}' from {storage_dir}.")
-                return vector_db, embedding_model
+        # Initialize ChromaDB for URL source
+        import chromadb
+        chroma_db_path = os.path.join(storage_dir, "chroma_db")
+        os.makedirs(chroma_db_path, exist_ok=True)
+        client = chromadb.PersistentClient(path=chroma_db_path)
+        collection = client.get_or_create_collection(name=f"{corpus_name}_collection")
 
-        else:
-            with monitor_performance("document_reading"):
-                logger.info(f"Indexing documents from {corpus_dir}...")
-                documents = SimpleDirectoryReader(corpus_dir).load_data()
+        chroma_store = ChromaVectorStore(chroma_collection=collection)
+        storage_context = StorageContext.from_defaults(vector_store=chroma_store)
 
-            with monitor_performance("vector_index_creation"):
-                vector_db = GPTVectorStoreIndex.from_documents(
-                    documents,
-                    store_nodes_override=True,
-                    embed_model=embedding_model
-                )
-
-            with monitor_performance("index_persistence"):
-                vector_db.storage_context.persist(persist_dir=storage_dir)
-                logger.info(f"Indexed {len(documents)} documents and saved to {storage_dir}.")
-                return vector_db, embedding_model
-
-    else:
-        # Local loading with performance monitoring
-        storage_dir = "storage"
-        if os.path.exists(storage_dir):
-            with monitor_performance("local_existing_index_loading"):
-                logger.info("Loading existing local vector database from 'storage/'.")
-                storage_context = StorageContext.from_defaults(persist_dir=storage_dir)
-                vector_db = load_index_from_storage(storage_context, embed_model=embedding_model)
-                logger.info("Loaded existing local vector database from 'storage/'.")
-                return vector_db, embedding_model
-
-        with monitor_performance("local_document_reading"):
-            logger.info("Indexing documents from local data path...")
-            documents = SimpleDirectoryReader(DATA_PATH).load_data()
-
-        with monitor_performance("local_vector_index_creation"):
-            vector_db = GPTVectorStoreIndex.from_documents(documents, embed_model=embedding_model)
-
-        with monitor_performance("local_index_persistence"):
-            vector_db.storage_context.persist(persist_dir=storage_dir)
-            logger.info("Indexed and saved new local corpus to 'storage/'.")
+        if collection.count() > 0:
+            logger.info(f"Loading existing vector database from {storage_dir}...")
+            vector_db = VectorStoreIndex.from_vector_store(
+                vector_store=chroma_store,
+                embed_model=embedding_model,
+                storage_context=storage_context
+            )
+            logger.info(f"Loaded existing vector database for '{corpus_name}' from {storage_dir}.")
             return vector_db, embedding_model
+        else:
+            logger.info(f"Indexing documents from {corpus_dir}...")
+            documents = SimpleDirectoryReader(corpus_dir).load_data()
+            vector_db = VectorStoreIndex.from_documents(
+                documents,
+                storage_context=storage_context,
+                embed_model=embedding_model
+            )
+            logger.info(f"Indexed {len(documents)} documents and saved to {storage_dir}.")
+            return vector_db, embedding_model
+
+    else:  # source == "local"
+        storage_dir = "storage"
+
+        # Initialize ChromaDB for local source
+        import chromadb
+        chroma_db_path = os.path.join(storage_dir, "chroma_db")
+        os.makedirs(chroma_db_path, exist_ok=True)
+        client = chromadb.PersistentClient(path=chroma_db_path)
+        collection = client.get_or_create_collection(name="local_collection")
+
+        chroma_store = ChromaVectorStore(chroma_collection=collection)
+        storage_context = StorageContext.from_defaults(vector_store=chroma_store)
+
+        if collection.count() > 0:
+            logger.info("Loading existing local vector database from 'storage/'.")
+            vector_db = VectorStoreIndex.from_vector_store(
+                vector_store=chroma_store,
+                embed_model=embedding_model,
+                storage_context=storage_context
+            )
+            logger.info("Loaded existing local vector database from 'storage/'.")
+            return vector_db, embedding_model
+
+        logger.info("Indexing documents from local data path...")
+        documents = SimpleDirectoryReader(DATA_PATH).load_data()
+        vector_db = VectorStoreIndex.from_documents(
+            documents,
+            storage_context=storage_context,
+            embed_model=embedding_model
+        )
+        logger.info("Indexed and saved new local corpus to 'storage/'.")
+        return vector_db, embedding_model
 
 
 @track_performance("index_optimization")
@@ -316,7 +330,7 @@ def get_index_statistics(vector_db: VectorStoreIndex) -> dict:
 
 
 def rebuild_index(source: str = "local", source_path: Optional[str] = None, force: bool = False) -> Tuple[
-        VectorStoreIndex, HuggingFaceEmbedding]:
+    VectorStoreIndex, HuggingFaceEmbedding]:
     """
     Rebuild the vector index from scratch.
 

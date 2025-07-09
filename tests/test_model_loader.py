@@ -3,6 +3,9 @@
 import sys
 import os
 
+from llama_index.core import VectorStoreIndex
+from llama_index.core.vector_stores import SimpleVectorStore
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import unittest
@@ -123,6 +126,32 @@ class TestModelLoaderSimple(unittest.TestCase):
             # If it fails, that's also a valid test result - we know it exists
             print(f"✅ test_model_loading works: function exists (failed with: {type(e).__name__})")
             # Don't fail the test - we just wanted to verify the function exists
+
+    def test_detect_simple_vectorstore_backend(self):
+        """Test that the backend of a SimpleVectorStore is correctly detected"""
+        from llama_index.core.vector_stores import SimpleVectorStore
+        from llama_index.core import VectorStoreIndex
+
+        store = SimpleVectorStore(stores_text=True)
+        index = VectorStoreIndex.from_vector_store(store)
+
+        backend = type(index._vector_store).__name__
+        print(f"✅ Detected backend: {backend}")
+
+        self.assertEqual(backend, "SimpleVectorStore")
+
+    def test_detect_chroma_vectorstore_backend(self):
+        """Test that the Chroma vector store backend is detected correctly"""
+        from llama_index.vector_stores.chroma import ChromaVectorStore
+        from llama_index.core import VectorStoreIndex
+
+        store = ChromaVectorStore()
+        index = VectorStoreIndex.from_vector_store(store)
+
+        backend = type(index._vector_store).__name__
+        print(f"✅ Detected Chroma backend: {backend}")
+
+        self.assertEqual(backend, "ChromaVectorStore")
 
 
 class TestModelLoaderIntegration(unittest.TestCase):
