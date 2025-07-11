@@ -4,4 +4,4 @@
 *.pkl
 
 # ignore all files in a storage folder
-storage/
+**/storage/**
