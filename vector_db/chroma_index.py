@@ -7,7 +7,7 @@ from chromadb import PersistentClient
 PROJECT_PATH = os.path.abspath(__file__)
 
 
-def build_chroma_vector_db(source: str, source_path: str, embedding_model) -> VectorStoreIndex:
+def build_chroma_vector_db(source: str, source_path: str, embedding_model, logger) -> VectorStoreIndex:
     """
     Build a Chroma-based vector database index.
 

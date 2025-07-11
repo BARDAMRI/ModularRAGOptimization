@@ -823,6 +823,9 @@ def rephrase_query(
         return original_prompt
 
 
+from utility.logger import logger
+
+
 # Example usage and testing
 def test_mps_query_processing():
     """Test the MPS-safe query processing pipeline."""
@@ -837,7 +840,7 @@ def test_mps_query_processing():
 
         # Load vector DB (optional)
         try:
-            vector_db, embedding_model = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
+            vector_db, embedding_model = load_vector_db(logger=logger, source="url", source_path=INDEX_SOURCE_URL)
             print("✅ Vector DB loaded")
         except Exception as e:
             print(f"⚠️  Vector DB failed to load: {e}")

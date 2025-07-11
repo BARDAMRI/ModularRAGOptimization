@@ -2,15 +2,13 @@
 Vector Database Factory - Main entry point for creating different types of vector databases
 """
 
-import logging
+from utility.logger import logger as global_logger
 from typing import Dict, Callable
 from llama_index.core import VectorStoreIndex
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 from vector_db.chroma_index import build_chroma_vector_db
 from vector_db.simple_index import build_simple_vector_db
-
-logger = logging.getLogger(__name__)
 
 
 class VectorDBFactory:
@@ -27,7 +25,8 @@ class VectorDBFactory:
                          db_type: str,
                          source: str,
                          source_path: str,
-                         embedding_model: HuggingFaceEmbedding) -> VectorStoreIndex:
+                         embedding_model: HuggingFaceEmbedding,
+                         logger) -> VectorStoreIndex:
         """
         Create a vector database based on the specified type.
 
@@ -50,7 +49,7 @@ class VectorDBFactory:
 
         logger.info(f"Creating {db_type} vector database with source: {source}")
         builder_func = cls._builders[db_type]
-        return builder_func(source, source_path, embedding_model)
+        return builder_func(source, source_path, embedding_model, logger)
 
     @classmethod
     def register_builder(cls, db_type: str, builder_func: Callable):
@@ -62,7 +61,7 @@ class VectorDBFactory:
             builder_func (Callable): Function that builds the database
         """
         cls._builders[db_type] = builder_func
-        logger.info(f"Registered new vector database builder: {db_type}")
+        global_logger.info(f"Registered new vector database builder: {db_type}")
 
     @classmethod
     def get_available_types(cls) -> list:

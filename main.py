@@ -156,7 +156,7 @@ def run_query_evaluation():
     with monitor_performance("vector_db_loading"):
         logger.info("Loading external Vector DB...")
         try:
-            vector_db, embedding_model = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
+            vector_db, embedding_model = load_vector_db(logger=logger, source="url", source_path=INDEX_SOURCE_URL)
             print("✅ Vector DB loaded successfully")
         except Exception as e:
             logger.error(f"Failed to load vector DB: {e}")
@@ -194,11 +194,15 @@ def run_query_evaluation():
 
                     with monitor_performance(f"query_processing_{i + 1}"):
                         if mode_choice == "h":
-                            result = hill_climb_documents(i=i, num=NQ_SAMPLE_SIZE, query=query, index=vector_db, llm_model=model, tokenizer=tokenizer,
-                                                          embedding_model=embedding_model, top_k=5, max_tokens=MAX_NEW_TOKENS, temperature=TEMPERATURE, quality_threshold=QUALITY_THRESHOLD, max_retries=MAX_RETRIES)
+                            result = hill_climb_documents(i=i, num=NQ_SAMPLE_SIZE, query=query, index=vector_db,
+                                                          llm_model=model, tokenizer=tokenizer,
+                                                          embedding_model=embedding_model, top_k=5,
+                                                          max_tokens=MAX_NEW_TOKENS, temperature=TEMPERATURE,
+                                                          quality_threshold=QUALITY_THRESHOLD, max_retries=MAX_RETRIES)
                             results_logger.log(result)
                         elif mode_choice == "e":
-                            result = enumerate_top_documents(i=i, num=NQ_SAMPLE_SIZE, query=query, index=vector_db, embedding_model=embedding_model,
+                            result = enumerate_top_documents(i=i, num=NQ_SAMPLE_SIZE, query=query, index=vector_db,
+                                                             embedding_model=embedding_model,
                                                              top_k=5, convert_to_vector=False)
                             results_logger.log(result)
         return
@@ -294,7 +298,7 @@ def run_development_test():
     print("\n📚 Testing vector database...")
     try:
         with monitor_performance("dev_vector_db_test"):
-            vector_db, embedding_model = load_vector_db("url", INDEX_SOURCE_URL)
+            vector_db, embedding_model = load_vector_db(logger=logger, source="url", source_path=INDEX_SOURCE_URL)
             print(f"✅ Vector DB loaded: {type(vector_db).__name__}")
     except Exception as e:
         print(f"⚠️  Vector DB test failed: {e}")
