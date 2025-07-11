@@ -7,6 +7,8 @@ from utility.logger import logger
 import requests
 from datasets import load_dataset
 
+PROJECT_PATH = os.path.abspath(__file__)
+
 
 def parse_source_path(source_path: str) -> Tuple[str, str]:
     """
@@ -87,8 +89,6 @@ def download_and_save_from_url(url: str, target_dir: str) -> None:
     logger.info(f"Downloaded and saved corpus to {file_path}")
 
 
-
-
 def download_and_save_from_hf(dataset_name: str, config: str, target_dir: str, max_docs: int = 1000) -> None:
     """
     Downloads a dataset from Hugging Face and saves it locally as text files in batches.
@@ -124,15 +124,15 @@ def download_and_save_from_hf(dataset_name: str, config: str, target_dir: str, m
 
 def build_simple_vector_db(source: str, source_path: str, embedding_model: HuggingFaceEmbedding) -> VectorStoreIndex:
     """
-    Build a simple vector database vector_db using GPTVectorStoreIndex with persistent storage.
+    Build a simple vector database index using GPTVectorStoreIndex with persistent storage.
 
     Args:
         source (str): 'local' or 'url'
-        source_path (str): Path or identifier for the source.
-        embedding_model: Embedding model to use.
+        source_path (str): Path or identifier for the source
+        embedding_model: Embedding model to use
 
     Returns:
-        VectorStoreIndex: The loaded or newly created vector store vector_db.
+        VectorStoreIndex: The loaded or newly created vector store index
     """
     if source == "url":
         if source_path is None:
@@ -140,8 +140,8 @@ def build_simple_vector_db(source: str, source_path: str, embedding_model: Huggi
             raise ValueError("source_path must be provided for 'url' source.")
 
         source_type, corpus_name = parse_source_path(source_path)
-        corpus_dir = os.path.join("data", corpus_name)
-        storage_dir = os.path.join("storage", "simple", corpus_name)
+        corpus_dir = os.path.join(PROJECT_PATH, "data", corpus_name)
+        storage_dir = os.path.join(PROJECT_PATH, "storage", "simple", corpus_name)
 
         if not os.path.exists(corpus_dir):
             logger.info(f"Downloading corpus into {corpus_dir}...")
@@ -150,24 +150,28 @@ def build_simple_vector_db(source: str, source_path: str, embedding_model: Huggi
                 download_and_save_from_hf(dataset, config, corpus_dir)
             else:
                 download_and_save_from_url(source_path, corpus_dir)
-
     else:
-        corpus_dir = os.path.join("data", "simple")
-        storage_dir = os.path.join("storage", "simple")
+        corpus_dir = os.path.join(PROJECT_PATH, "data", "simple")
+        storage_dir = os.path.join(PROJECT_PATH, "storage", "simple")
 
     os.makedirs(storage_dir, exist_ok=True)
 
+    # Try to load existing index
     if os.path.exists(storage_dir) and os.path.exists(os.path.join(storage_dir, "docstore.json")):
         logger.info(f"Loading existing simple vector database from {storage_dir}...")
         storage_context = StorageContext.from_defaults(persist_dir=storage_dir)
         return load_index_from_storage(storage_context, embed_model=embedding_model)
 
+    # Create new index
     logger.info(f"Indexing documents from {corpus_dir}...")
     documents = SimpleDirectoryReader(corpus_dir).load_data()
     vector_db = VectorStoreIndex.from_documents(
         documents,
         embed_model=embedding_model
     )
+
+    # Persist the index
     vector_db.storage_context.persist(persist_dir=storage_dir)
     logger.info(f"Indexed {len(documents)} documents and saved to {storage_dir}.")
+
     return vector_db

@@ -4,4 +4,6 @@
 *.pkl
 
 # ignore all files in a storage folder
-**/storage/**
+/**/storage/**
+/*.sqlite3
+/*.bin

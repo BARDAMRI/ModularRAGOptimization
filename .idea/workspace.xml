@@ -4,11 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="fixing push to github not working">
+    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="adding storage to gitignore">
       <change afterPath="$PROJECT_DIR$/storage/chroma/wikipedia_20220301.en/01f79942-679d-4916-ad9f-5c37f6b8bcf2/data_level0.bin" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/storage/chroma/wikipedia_20220301.en/chroma.sqlite3" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/logger.log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vector_db/chroma_index.py" beforeDir="false" afterPath="$PROJECT_DIR$/vector_db/chroma_index.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vector_db/simple_index.py" beforeDir="false" afterPath="$PROJECT_DIR$/vector_db/simple_index.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -45,69 +48,69 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_ADD_EXTERNAL_FILES": "true",
-    "Python tests.pytest for test_config.TestConfiguration.executor": "Run",
-    "Python tests.pytest for test_config.test_configuration_with_sample_query.executor": "Run",
-    "Python tests.pytest for test_configurations.test_complete_rag_pipeline.executor": "Run",
-    "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.executor": "Run",
-    "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_enumerate_top_documents.executor": "Debug",
-    "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_hill_climb_documents.executor": "Debug",
-    "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_sanity_check.executor": "Run",
-    "Python tests.pytest for test_indexer.TestIndexerCompatible.executor": "Run",
-    "Python tests.pytest for test_indexer.TestIndexerCompatible.test_vector_store_type_and_query.executor": "Debug",
-    "Python tests.pytest for test_indexer.TestIndexerFunctions.executor": "Run",
-    "Python tests.pytest for test_main.TestMainFunctions.executor": "Run",
-    "Python tests.pytest for test_model_loader.TestModelLoader.executor": "Debug",
-    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.executor": "Run",
-    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_detect_chroma_vectorstore_backend.executor": "Run",
-    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_detect_simple_vectorstore_backend.executor": "Run",
-    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_load_model_internal_logic_works.executor": "Run",
-    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_load_model_works.executor": "Run",
-    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_monitor_gpu_memory_works.executor": "Run",
-    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_test_model_loading_works.executor": "Run",
-    "Python tests.pytest for test_query.TestEmbeddingComparison.executor": "Run",
-    "Python tests.pytest for test_query.TestRetrieveContext.executor": "Run",
-    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_invalid_query.executor": "Run",
-    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query.executor": "Debug",
-    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector.executor": "Run",
-    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_no_convert_to_vector.executor": "Debug",
-    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_vector_query.executor": "Run",
-    "Python tests.pytest for test_vector_db.TestLoadVectorDB.executor": "Run",
-    "Python tests.pytest for test_vector_db.TestVectorDBEmbedding.executor": "Run",
-    "Python tests.pytest for test_vector_db_and_embedding_model_creation.TestEmbeddingComparison.executor": "Run",
-    "Python tests.pytest in model_loader.py.executor": "Run",
-    "Python tests.pytest in query.py.executor": "Debug",
-    "Python tests.pytest in test_config.py.executor": "Run",
-    "Python tests.pytest in test_configurations.py.executor": "Run",
-    "Python tests.pytest in test_evaluator.py.executor": "Run",
-    "Python tests.pytest in test_indexer.py.executor": "Run",
-    "Python tests.pytest in test_main.py.executor": "Run",
-    "Python tests.pytest in test_model_loader.py.executor": "Run",
-    "Python tests.pytest in test_query.py.executor": "Run",
-    "Python tests.pytest in test_vector_db.py.executor": "Run",
-    "Python.EmbeddingVectorStoreIndex.executor": "Debug",
-    "Python.check_vector_db_store_functions.executor": "Run",
-    "Python.code_testing.executor": "Run",
-    "Python.combine.executor": "Run",
-    "Python.comprehensive_mps_test.executor": "Run",
-    "Python.dir_tree_printer.executor": "Run",
-    "Python.docsDownloader.executor": "Run",
-    "Python.embedding_utils.executor": "Run",
-    "Python.index_builder.executor": "Run",
-    "Python.indexer.executor": "Debug",
-    "Python.judge_llamaindex.executor": "Run",
-    "Python.main.executor": "Run",
-    "Python.query.executor": "Debug",
-    "Python.query_test_similarity.executor": "Run",
-    "Python.retrieve_answer.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "run.code.analysis.last.selected.profile": "pProject Default",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
+    &quot;Python tests.pytest for test_config.TestConfiguration.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_config.test_configuration_with_sample_query.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_configurations.test_complete_rag_pipeline.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_evaluator.TestEvaluatorFunctions.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_enumerate_top_documents.executor&quot;: &quot;Debug&quot;,
+    &quot;Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_hill_climb_documents.executor&quot;: &quot;Debug&quot;,
+    &quot;Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_sanity_check.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_indexer.TestIndexerCompatible.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_indexer.TestIndexerCompatible.test_vector_store_type_and_query.executor&quot;: &quot;Debug&quot;,
+    &quot;Python tests.pytest for test_indexer.TestIndexerFunctions.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_main.TestMainFunctions.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_model_loader.TestModelLoader.executor&quot;: &quot;Debug&quot;,
+    &quot;Python tests.pytest for test_model_loader.TestModelLoaderSimple.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_detect_chroma_vectorstore_backend.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_detect_simple_vectorstore_backend.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_load_model_internal_logic_works.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_load_model_works.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_monitor_gpu_memory_works.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_test_model_loading_works.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_query.TestEmbeddingComparison.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_query.TestRetrieveContext.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_invalid_query.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query.executor&quot;: &quot;Debug&quot;,
+    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_no_convert_to_vector.executor&quot;: &quot;Debug&quot;,
+    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_vector_query.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_vector_db.TestLoadVectorDB.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_vector_db.TestVectorDBEmbedding.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_vector_db_and_embedding_model_creation.TestEmbeddingComparison.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest in model_loader.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest in query.py.executor&quot;: &quot;Debug&quot;,
+    &quot;Python tests.pytest in test_config.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest in test_configurations.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest in test_evaluator.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest in test_indexer.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest in test_main.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest in test_model_loader.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest in test_query.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest in test_vector_db.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python.EmbeddingVectorStoreIndex.executor&quot;: &quot;Debug&quot;,
+    &quot;Python.check_vector_db_store_functions.executor&quot;: &quot;Run&quot;,
+    &quot;Python.code_testing.executor&quot;: &quot;Run&quot;,
+    &quot;Python.combine.executor&quot;: &quot;Run&quot;,
+    &quot;Python.comprehensive_mps_test.executor&quot;: &quot;Run&quot;,
+    &quot;Python.dir_tree_printer.executor&quot;: &quot;Run&quot;,
+    &quot;Python.docsDownloader.executor&quot;: &quot;Run&quot;,
+    &quot;Python.embedding_utils.executor&quot;: &quot;Run&quot;,
+    &quot;Python.index_builder.executor&quot;: &quot;Run&quot;,
+    &quot;Python.indexer.executor&quot;: &quot;Debug&quot;,
+    &quot;Python.judge_llamaindex.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.query.executor&quot;: &quot;Debug&quot;,
+    &quot;Python.query_test_similarity.executor&quot;: &quot;Run&quot;,
+    &quot;Python.retrieve_answer.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
@@ -267,14 +270,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1739731226435</updated>
-    </task>
-    <task id="LOCAL-00006" summary="Creating the new code . Moving to llama and llama index so supporting RAG options">
-      <option name="closed" value="true" />
-      <created>1739990740872</created>
-      <option name="number" value="00006" />
-      <option name="presentableId" value="LOCAL-00006" />
-      <option name="project" value="LOCAL" />
-      <updated>1739990740872</updated>
     </task>
     <task id="LOCAL-00007" summary="moving the running to main and adding loop">
       <option name="closed" value="true" />
@@ -660,7 +655,15 @@
       <option name="project" value="LOCAL" />
       <updated>1752247753260</updated>
     </task>
-    <option name="localTasksCounter" value="55" />
+    <task id="LOCAL-00055" summary="adding storage to gitignore">
+      <option name="closed" value="true" />
+      <created>1752247853687</created>
+      <option name="number" value="00055" />
+      <option name="presentableId" value="LOCAL-00055" />
+      <option name="project" value="LOCAL" />
+      <updated>1752247853687</updated>
+    </task>
+    <option name="localTasksCounter" value="56" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -676,7 +679,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
-    <MESSAGE value="docs for llama index" />
     <MESSAGE value="adding the metrics and enumeration+hill climbing to the code" />
     <MESSAGE value="adding some prints and changing the report graph naming" />
     <MESSAGE value="starting with the mission to use the vector db embedding space." />
@@ -701,7 +703,8 @@
     <MESSAGE value="fixing push not working to github" />
     <MESSAGE value="chroma sqlite" />
     <MESSAGE value="fixing push to github not working" />
-    <option name="LAST_COMMIT_MESSAGE" value="fixing push to github not working" />
+    <MESSAGE value="adding storage to gitignore" />
+    <option name="LAST_COMMIT_MESSAGE" value="adding storage to gitignore" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
