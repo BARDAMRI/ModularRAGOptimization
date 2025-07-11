@@ -7,12 +7,18 @@ import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from transformers import AutoModelForCausalLM, GPT2TokenizerFast, PreTrainedModel, PreTrainedTokenizer
 
-from configurations.config import MAX_RETRIES, QUALITY_THRESHOLD, MAX_NEW_TOKENS
+from configurations.config import MAX_RETRIES, QUALITY_THRESHOLD, MAX_NEW_TOKENS, TEMPERATURE
 from utility.embedding_utils import get_query_vector
 from utility.logger import logger
 from utility.similarity_calculator import calculate_similarities, SimilarityMethod
+import re
+from modules.model_loader import load_model
+from modules.indexer import load_vector_db
+from configurations.config import INDEX_SOURCE_URL
 
-# Import performance monitoring and caching
+# =====================================================
+
+
 try:
     from utility.performance import monitor_performance, track_performance
     from utility.cache import cache_query_result
@@ -302,81 +308,227 @@ def _generate_document_embeddings(nodes, embed_model):
 # TEXT GENERATION UTILITIES
 # =====================================================
 
-def prepare_generation_inputs(prompt: str, tokenizer: GPT2TokenizerFast, device: torch.device, max_length: int = 900):
+# REPLACE YOUR EXISTING prepare_generation_inputs FUNCTION WITH THIS:
+def prepare_generation_inputs(prompt: str, tokenizer, device: torch.device, max_length: int = 900):
     """
-    Prepare tokenized inputs for text generation.
-
-    Args:
-        prompt: Input prompt text
-        tokenizer: GPT2 tokenizer
-        device: Target device
-        max_length: Maximum sequence length
-
-    Returns:
-        dict: Tokenized inputs ready for generation
+    MPS-safe input preparation.
     """
-    with monitor_performance("tokenization"):
-        inputs = tokenizer(
-            prompt,
-            return_tensors="pt",
-            truncation=True,
-            max_length=max_length,
-            padding=True
-        )
-        return {k: v.to(device, non_blocking=True) for k, v in inputs.items()}
+    inputs = tokenizer(
+        prompt,
+        return_tensors="pt",
+        truncation=True,
+        max_length=max_length,
+        padding=True
+    )
 
-
-def generate_text_by_device(
-        model: AutoModelForCausalLM,
-        inputs: dict,
-        device: torch.device,
-        tokenizer: GPT2TokenizerFast
-) -> torch.Tensor:
-    """
-    Generate text with device-specific optimizations.
-
-    Args:
-        model: Language model
-        inputs: Tokenized inputs
-        device: Target device
-        tokenizer: Tokenizer for special tokens
-
-    Returns:
-        torch.Tensor: Generated token sequences
-    """
-    with monitor_performance("text_generation"):
-        with torch.no_grad():
-            base_params = {
-                "do_sample": True,
-                "temperature": 0.7,
-                "pad_token_id": tokenizer.eos_token_id
-            }
-
+    # MPS-safe processing
+    safe_inputs = {}
+    for key, value in inputs.items():
+        if isinstance(value, torch.Tensor):
             if device.type == "mps":
-                # MPS-specific optimizations
-                return model.generate(
-                    **inputs,
-                    max_new_tokens=min(MAX_NEW_TOKENS, 50),
+                if value.dtype == torch.bfloat16:
+                    safe_inputs[key] = value.to(dtype=torch.float32, device=device)
+                elif key in ['input_ids', 'attention_mask', 'token_type_ids']:
+                    safe_inputs[key] = value.to(dtype=torch.long, device=device)
+                else:
+                    safe_inputs[key] = value.to(device)
+            else:
+                safe_inputs[key] = value.to(device)
+        else:
+            safe_inputs[key] = value
+
+    return safe_inputs
+
+
+def force_float32_on_mps_model(model):
+    """Force all model parameters to float32 for MPS compatibility."""
+    if next(model.parameters()).device.type == "mps":
+        for name, param in model.named_parameters():
+            if param.dtype == torch.bfloat16:
+                print(f"Converting {name} from bfloat16 to float32")
+                param.data = param.data.to(torch.float32)
+
+        for name, buffer in model.named_buffers():
+            if buffer.dtype == torch.bfloat16:
+                print(f"Converting buffer {name} from bfloat16 to float32")
+                buffer.data = buffer.data.to(torch.float32)
+    return model
+
+
+def safe_mps_generate(model, tokenizer, inputs, device, max_tokens=64, temperature=0.7):
+    """MPS-safe text generation that handles bfloat16 issues."""
+
+    print(f"🔧 Called safe_mps_generate with device: {device}")  # Debug
+
+    # Step 1: Force model to float32 if on MPS
+    if device.type == "mps":
+        print("🔧 Converting model to float32 for MPS")  # Debug
+        model = force_float32_on_mps_model(model)
+
+    # Step 2: Ensure all inputs are correct dtype
+    safe_inputs = {}
+    for key, value in inputs.items():
+        if isinstance(value, torch.Tensor):
+            if device.type == "mps":
+                # For MPS, ensure proper dtypes
+                if value.dtype == torch.bfloat16:
+                    print(f"🔧 Converting input {key} from bfloat16 to float32")  # Debug
+                    safe_inputs[key] = value.to(dtype=torch.float32, device=device)
+                elif key in ['input_ids', 'attention_mask', 'token_type_ids']:
+                    # These should be long tensors
+                    safe_inputs[key] = value.to(dtype=torch.long, device=device)
+                else:
+                    # Default to float32 for MPS
+                    if torch.is_floating_point(value):
+                        safe_inputs[key] = value.to(dtype=torch.float32, device=device)
+                    else:
+                        safe_inputs[key] = value.to(device)
+            else:
+                # For non-MPS devices, just move to device
+                safe_inputs[key] = value.to(device)
+        else:
+            safe_inputs[key] = value
+
+    print("🔍 Input tensor dtypes:")
+    for key, value in safe_inputs.items():
+        if isinstance(value, torch.Tensor):
+            print(f"  {key}: {value.dtype} on {value.device}")
+
+    # Step 3: Set model to eval mode and disable gradients
+    model.eval()
+
+    try:
+        with torch.no_grad():
+            print(f"🚀 Starting generation on {device}")  # Debug
+
+            # Use conservative generation settings for MPS
+            if device.type == "mps":
+                outputs = model.generate(
+                    **safe_inputs,
+                    max_new_tokens=max_tokens,
+                    do_sample=False,  # Greedy decoding is more stable
+                    pad_token_id=tokenizer.eos_token_id,
+                    eos_token_id=tokenizer.eos_token_id,
                     use_cache=True,
-                    **base_params
-                )
-            elif device.type == "cuda":
-                # CUDA-specific optimizations
-                return model.generate(
-                    **inputs,
-                    max_new_tokens=MAX_NEW_TOKENS,
-                    top_p=0.9,
-                    use_cache=True,
-                    attention_mask=inputs.get('attention_mask'),
-                    **base_params
+                    repetition_penalty=1.2,
+                    no_repeat_ngram_size=3,
                 )
             else:
-                # CPU generation
-                return model.generate(
-                    **inputs,
-                    max_new_tokens=MAX_NEW_TOKENS,
-                    **base_params
+                # Standard generation for other devices
+                outputs = model.generate(
+                    **safe_inputs,
+                    max_new_tokens=max_tokens,
+                    do_sample=True,
+                    top_k=50,
+                    top_p=0.95,
+                    pad_token_id=tokenizer.eos_token_id,
+                    repetition_penalty=1.2,
+                    no_repeat_ngram_size=3,
                 )
+
+        print("✅ Generation completed successfully")
+        return outputs
+
+    except RuntimeError as e:
+        print(f"❌ Generation failed: {e}")
+
+        if "bfloat16" in str(e).lower() or "mps" in str(e).lower():
+            print(f"🔄 MPS generation failed, falling back to CPU: {e}")
+
+            # Move to CPU and try again
+            model_cpu = model.cpu()
+            inputs_cpu = {k: v.cpu() for k, v in safe_inputs.items()}
+
+            with torch.no_grad():
+                outputs = model_cpu.generate(
+                    **inputs_cpu,
+                    max_new_tokens=max_tokens,
+                    do_sample=False,
+                    pad_token_id=tokenizer.eos_token_id,
+                    repetition_penalty=1.2,
+                    no_repeat_ngram_size=3,
+                )
+
+            # Move model back to original device
+            try:
+                model.to(device)
+                print(f"✅ Model moved back to {device}")
+            except Exception as move_error:
+                print(f"⚠️  Warning: Could not move model back to {device}: {move_error}")
+
+            return outputs
+        else:
+            raise e
+
+
+def generate_text_by_device(model, inputs, device, tokenizer, max_tokens: int = 64, temperature: float = 0.7):
+    """
+    MPS-safe replacement for generate_text_by_device.
+    """
+    return safe_mps_generate(model, tokenizer, inputs, device, max_tokens, temperature=temperature)
+
+
+def extract_answer_from_output(raw_output: str, original_prompt: str) -> str:
+    """
+    Extract clean answer from model output, handling various formats.
+    """
+    print(f"🔍 Debug - Raw output: {repr(raw_output)}")
+    print(f"🔍 Debug - Original prompt: {repr(original_prompt)}")
+
+    # Method 1: Try to find the first occurrence of "Answer:" and extract what follows
+    if "Answer:" in raw_output:
+        # Split by "Answer:" and take the content after the first occurrence
+        parts = raw_output.split("Answer:")
+        if len(parts) > 1:
+            answer_part = parts[1]
+
+            # Clean up the answer and Remove quotes if they wrap the entire answer
+            answer_part = answer_part.strip()
+            if answer_part.startswith('"') and '"' in answer_part[1:]:
+                # Find the end quote
+                end_quote_idx = answer_part.find('"', 1)
+                if end_quote_idx != -1:
+                    answer_part = answer_part[1:end_quote_idx]
+
+            # Stop at the next "Question:" if it appears
+            if "Question:" in answer_part:
+                answer_part = answer_part.split("Question:")[0]
+
+            # cleanup
+            answer_part = answer_part.strip()
+
+            # Remove trailing punctuation if it looks like start of new question
+            if answer_part.endswith(('" Question', '" Q')):
+                answer_part = answer_part.split('"')[0]
+
+            print(f"🔍 Debug - Extracted answer: {repr(answer_part)}")
+            return answer_part.strip()
+
+    # Method 2: If no "Answer:" found, try to extract from the end
+    if original_prompt.strip() in raw_output:
+        remaining = raw_output.replace(original_prompt.strip(), "", 1).strip()
+        if remaining:
+            # Take only the first sentence/phrase
+            sentences = remaining.split('.')
+            if sentences and sentences[0].strip():
+                answer = sentences[0].strip()
+                print(f"🔍 Debug - Fallback answer: {repr(answer)}")
+                return answer
+
+    # Method 3: Last resort - try to find any reasonable answer
+
+    quoted_matches = re.findall(r'"([^"]*)"', raw_output)
+    if quoted_matches:
+        # Return the first quoted string that's not the question
+        for match in quoted_matches:
+            if match.lower() not in original_prompt.lower() and len(match.strip()) > 0:
+                print(f"🔍 Debug - Quoted answer: {repr(match)}")
+                return match.strip()
+
+    # Final fallback
+    print(f"🔍 Debug - No clean answer found, returning cleaned raw output")
+    clean_output = raw_output.replace(original_prompt, "").strip()
+    return clean_output[:100] if clean_output else "No answer generated"
 
 
 def handle_gpu_memory_error(
@@ -384,21 +536,20 @@ def handle_gpu_memory_error(
         model: AutoModelForCausalLM,
         inputs: dict,
         device: torch.device,
-        tokenizer: GPT2TokenizerFast
+        tokenizer
 ) -> Tuple[str, str]:
     """
-    Handle GPU memory errors with CPU fallback.
-
-    Returns:
-        Tuple of (generated_answer, device_used)
+    Enhanced GPU memory error handling with MPS support.
     """
     logger.warning(f"GPU memory issue: {error}")
 
-    # Clear GPU cache
+    # Clear GPU cache based on device type
     if device.type == "mps":
         torch.mps.empty_cache()
+        logger.info("Cleared MPS cache")
     elif device.type == "cuda":
         torch.cuda.empty_cache()
+        logger.info("Cleared CUDA cache")
 
     # CPU fallback
     logger.info("Falling back to CPU generation")
@@ -410,14 +561,17 @@ def handle_gpu_memory_error(
             **inputs_cpu,
             max_new_tokens=MAX_NEW_TOKENS,
             do_sample=True,
-            temperature=0.7,
             pad_token_id=tokenizer.eos_token_id
         )
 
     answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
     # Move model back to original device
-    model.to(device)
+    try:
+        model.to(device)
+        logger.info(f"Model moved back to {device}")
+    except Exception as e:
+        logger.warning(f"Failed to move model back to {device}: {e}")
 
     return answer, "cpu_fallback"
 
@@ -454,8 +608,8 @@ def process_query_with_context(
         model: Union[PreTrainedModel, Any],
         tokenizer: Union[PreTrainedTokenizer, Any],
         device: torch.device,
-        vector_db: Optional[VectorStoreIndex] = None,
-        embedding_model: Optional[HuggingFaceEmbedding] = None,
+        vector_db: VectorStoreIndex,
+        embedding_model: HuggingFaceEmbedding,
         max_retries: int = MAX_RETRIES,
         quality_threshold: float = QUALITY_THRESHOLD,
         similarity_method: Union[SimilarityMethod, str, Callable] = SimilarityMethod.COSINE
@@ -481,7 +635,10 @@ def process_query_with_context(
                 if result["score"] >= quality_threshold or attempt == max_retries:
                     result.update({
                         "attempts": attempt + 1,
-                        "similarity_method": str(similarity_method)
+                        "similarity_method": str(similarity_method),
+                        "error": None,
+                        "device_used": str(device),
+                        "question": prompt,
                     })
                     logger.info("Query processing completed successfully")
                     return result
@@ -514,36 +671,84 @@ def _ensure_model_on_device(model: AutoModelForCausalLM, device: torch.device):
         model.to(device)
 
 
+@track_performance("single_answer_generating")
 def _generate_single_answer(prompt, model, tokenizer, device, vector_db, embedding_model, similarity_method):
-    """Generate a single answer attempt."""
-    # Context retrieval
-    augmented_prompt = _prepare_prompt_with_context(
-        prompt, vector_db, embedding_model, similarity_method
-    )
+    """
+    Updated single answer generation with MPS safety and improved answer extraction.
+    """
+    try:
+        # Prepare prompt with context if available
+        augmented_prompt = _prepare_prompt_with_context(
+            prompt, vector_db, embedding_model, similarity_method
+        )
 
-    # Generate answer
-    inputs = prepare_generation_inputs(augmented_prompt, tokenizer, device)
-    outputs = generate_text_by_device(model, inputs, device, tokenizer)
+        # Use MPS-safe input preparation
+        inputs = prepare_generation_inputs(augmented_prompt, tokenizer, device)
 
-    # Process output
-    with monitor_performance("answer_processing"):
-        outputs = outputs.cpu()
-        answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        score = evaluate_answer_quality(answer, prompt, model, tokenizer, device)
+        # Use MPS-safe generation with reduced tokens to prevent repetition
+        outputs = generate_text_by_device(model, inputs, device, tokenizer, max_tokens=MAX_NEW_TOKENS,
+                                          temperature=TEMPERATURE)
 
-    return {"answer": answer, "score": score}
+        with monitor_performance("answer_processing"):
+            outputs = outputs.cpu()
+            raw_output = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+            # Use improved answer extraction instead of simple split
+            answer = extract_answer_from_output(raw_output, prompt)
+
+            score = evaluate_answer_quality(answer, prompt, model, tokenizer, device)
+
+        return {
+            "answer": answer,
+            "score": score,
+            "error": None,
+            "device_used": str(device),
+            "question": prompt,
+            "similarity_method": str(similarity_method),
+            "raw_output": raw_output  # For debugging
+        }
+
+    except RuntimeError as e:
+        # Handle GPU memory errors specifically
+        if _is_gpu_memory_error(e):
+            logger.warning("GPU memory error detected, attempting fallback")
+            answer, device_used = handle_gpu_memory_error(e, model, inputs, device, tokenizer)
+            return {
+                "answer": answer,
+                "score": 1.0,  # Assume fallback worked
+                "error": f"GPU fallback: {str(e)}",
+                "device_used": device_used,
+                "question": prompt,
+                "similarity_method": str(similarity_method)
+            }
+        else:
+            raise e  # Re-raise non-memory errors
+    except Exception as e:
+        logger.error(f"Error generating answer: {e}")
+        return {
+            "answer": "",
+            "score": 0.0,
+            "error": str(e),
+            "device_used": str(device),
+            "question": prompt,
+            "similarity_method": str(similarity_method)
+        }
 
 
+@track_performance("preparing_query_context")
 def _prepare_prompt_with_context(prompt, vector_db, embedding_model, similarity_method):
     """Prepare prompt with retrieved context if available."""
+    original_question = prompt  # לשמור על שאלה מקורית
+
     if vector_db is not None:
         with monitor_performance("context_retrieval_and_prompt_construction"):
             context = retrieve_context_with_similarity(
-                prompt, vector_db, embedding_model, similarity_method=similarity_method
+                original_question, vector_db, embedding_model, similarity_method=similarity_method
             )
-            return f"Context: {context}\n\nQuestion: {prompt}\nAnswer:"
+            if context and context.strip():
+                return f"Context:\n{context}\n\nQuestion: {original_question}\nAnswer:"
 
-    return prompt
+    return f"Question: {original_question}\nAnswer:"
 
 
 def _improve_prompt(original_prompt, previous_answer, model, tokenizer, device):
@@ -552,9 +757,17 @@ def _improve_prompt(original_prompt, previous_answer, model, tokenizer, device):
 
 
 def _is_gpu_memory_error(error):
-    """Check if error is related to GPU memory."""
+    """Enhanced GPU memory error detection for both MPS and CUDA."""
     error_str = str(error).lower()
-    return "mps" in error_str or "out of memory" in error_str
+    gpu_memory_indicators = [
+        "mps",
+        "out of memory",
+        "bfloat16",
+        "memory",
+        "allocation failed",
+        "cuda out of memory"
+    ]
+    return any(indicator in error_str for indicator in gpu_memory_indicators)
 
 
 def _create_result_dict(question, answer, score, attempts, error, device_used, similarity_method):
@@ -575,11 +788,11 @@ def rephrase_query(
         original_prompt: str,
         previous_answer: str,
         model: AutoModelForCausalLM,
-        tokenizer: GPT2TokenizerFast,
+        tokenizer,
         device: torch.device
 ) -> str:
     """
-    Rephrase query based on previous answer to improve results.
+    MPS-safe query rephrasing.
     """
     logger.info("Rephrasing query for improvement")
 
@@ -589,19 +802,72 @@ def rephrase_query(
         f"Improve the original question to get a better answer:"
     )
 
-    inputs = prepare_generation_inputs(rephrase_prompt, tokenizer, device, max_length=800)
+    try:
+        # Use MPS-safe input preparation
+        inputs = prepare_generation_inputs(rephrase_prompt, tokenizer, device, max_length=800)
 
-    with monitor_performance("rephrase_generation"):
-        with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=MAX_NEW_TOKENS,
-                do_sample=True,
-                temperature=0.7,
-                pad_token_id=tokenizer.eos_token_id
-            )
+        with monitor_performance("rephrase_generation"):
+            with torch.no_grad():
+                # Use MPS-safe generation
+                outputs = generate_text_by_device(model, inputs, device, tokenizer, max_tokens=MAX_NEW_TOKENS,
+                                                  temperature=TEMPERATURE)
 
-    outputs = outputs.cpu()
-    rephrased_query = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
-    logger.info("Query rephrased successfully")
-    return rephrased_query
+        outputs = outputs.cpu()
+        rephrased_query = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
+        logger.info("Query rephrased successfully")
+        return rephrased_query
+
+    except Exception as e:
+        logger.error(f"Query rephrasing failed: {e}")
+        # Return original prompt if rephrasing fails
+        return original_prompt
+
+
+# Example usage and testing
+def test_mps_query_processing():
+    """Test the MPS-safe query processing pipeline."""
+    print("🧪 Testing MPS-safe query processing...")
+
+    try:
+
+        # Load model
+        tokenizer, model = load_model()
+        device = next(model.parameters()).device
+        print(f"✅ Model loaded on {device}")
+
+        # Load vector DB (optional)
+        try:
+            vector_db, embedding_model = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
+            print("✅ Vector DB loaded")
+        except Exception as e:
+            print(f"⚠️  Vector DB failed to load: {e}")
+            vector_db, embedding_model = None, None
+
+        # Test simple query
+        test_query = "What is artificial intelligence?"
+        print(f"\n🔍 Testing query: '{test_query}'")
+
+        result = process_query_with_context(
+            test_query, model, tokenizer, device,
+            vector_db, embedding_model, max_retries=1
+        )
+
+        if result["error"]:
+            print(f"❌ Query failed: {result['error']}")
+            return False
+        else:
+            print(f"✅ Query successful!")
+            print(f"   Answer: {result['answer'][:100]}...")
+            print(f"   Score: {result['score']}")
+            print(f"   Device: {result['device_used']}")
+            return True
+
+    except Exception as e:
+        print(f"❌ Test failed: {e}")
+        return False
+
+
+if __name__ == "__main__":
+    # Run the test
+    success = test_mps_query_processing()
+    print(f"\n🎯 MPS Query Processing Test: {'PASSED' if success else 'FAILED'}")

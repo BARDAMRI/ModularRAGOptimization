@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import unittest
 from unittest.mock import patch, MagicMock
-from modules.indexer import (
+from vector_db.simple_index import (
     parse_source_path,
     validate_url,
     download_and_save_from_hf,

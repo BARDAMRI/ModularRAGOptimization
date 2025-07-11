@@ -1,5 +1,6 @@
 # utility/cache.py
 import json
+import os
 import pickle
 import hashlib
 import time
@@ -8,17 +9,18 @@ from typing import Any, Optional, Dict
 import numpy as np
 from utility.logger import logger
 
+PROJECT_PATH = os.path.abspath(__file__)
+
 
 class SmartCache:
     """Intelligent caching system for RAG operations"""
 
     def __init__(self, cache_dir: str = "cache", ttl_seconds: int = 3600):
-        self.cache_dir = Path(cache_dir)
+        self.cache_dir = os.path.join(PROJECT_PATH, cache_dir)
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)  # Create parent directories too
         except Exception as err:
             logger.warning(f"Failed to create cache directory {cache_dir}: {err}")
-            # Fallback to a simple cache directory in current path
             self.cache_dir = Path("temp_cache")
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -31,7 +33,7 @@ class SmartCache:
         if self.metadata_file.exists():
             try:
                 return json.loads(self.metadata_file.read_text())
-            except IOError as IOE:
+            except IOError as _:
                 logger.warning("Cache metadata corrupted, starting fresh")
         return {}
 

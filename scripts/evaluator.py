@@ -10,7 +10,7 @@ from transformers import (
     PreTrainedModel,
     AutoModelForCausalLM
 )
-from configurations.config import HF_MODEL_NAME, LLM_MODEL_NAME
+from configurations.config import HF_MODEL_NAME, LLM_MODEL_NAME, MAX_NEW_TOKENS, TEMPERATURE
 from utility.logger import logger
 from utility.similarity_calculator import calculate_similarity, calculate_similarities, SimilarityMethod
 from utility.embedding_utils import get_text_embedding
@@ -61,7 +61,7 @@ def run_llm_query(
     inputs = tokenizer(query, return_tensors="pt")
 
     if hasattr(model, "generate"):
-        outputs = model.generate(**inputs, max_new_tokens=100, do_sample=False)
+        outputs = model.generate(**inputs, max_new_tokens=MAX_NEW_TOKENS, temperature=TEMPERATURE, do_sample=False)
         result = tokenizer.decode(outputs[0], skip_special_tokens=True)
         logger.info(f"Generated result: {result[:100]}...")  # Truncate long results
     else:
@@ -87,10 +87,10 @@ def enumerate_top_documents(
     Enumerate top documents using the new similarity calculator.
 
     Args:
-        i: Current query index
+        i: Current query vector_db
         num: Total number of queries
         query: Query string
-        index: Vector database index
+        index: Vector database vector_db
         embedding_model: HuggingFace embedding model
         top_k: Number of top documents to retrieve
         convert_to_vector: Whether to convert query to vector
@@ -166,6 +166,7 @@ def hill_climb_documents(
         embedding_model: HuggingFaceEmbedding,  # Fixed: Added type annotation
         top_k: int = 5,
         max_tokens: int = 100,
+        temperature: float = 0.07,
         convert_to_vector: bool = False,
         similarity_method: Union[SimilarityMethod, str] = SimilarityMethod.COSINE
 ) -> Dict[str, Any]:
@@ -173,10 +174,10 @@ def hill_climb_documents(
     Perform hill climbing with configurable similarity methods.
 
     Args:
-        i: Current query index
+        i: Current query vector_db
         num: Total number of queries
         query: Query string
-        index: Vector database index
+        index: Vector database vector_db
         llm_model: Language model for generating answers
         tokenizer: Tokenizer for the language model
         embedding_model: HuggingFace embedding model
@@ -217,7 +218,7 @@ def hill_climb_documents(
     # Handle tokenization with proper truncation
     try:
         inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=512)
-        outputs = llm_model.generate(**inputs, max_new_tokens=max_tokens, do_sample=False)
+        outputs = llm_model.generate(**inputs, max_new_tokens=max_tokens, temperature=temperature, do_sample=False)
         answers = [tokenizer.decode(output, skip_special_tokens=True).strip() for output in outputs]
     except Exception as e:
         logger.error(f"Error during answer generation: {e}")
@@ -435,16 +436,16 @@ Answer ONLY with exactly one word: "Optimized", "Original", or "Tie". Do not inc
             with torch.cuda.amp.autocast():
                 outputs = model.generate(
                     **inputs,
-                    max_new_tokens=5,
-                    temperature=0.0,
+                    max_new_tokens=MAX_NEW_TOKENS,
+                    temperature=TEMPERATURE,
                     pad_token_id=tokenizer.eos_token_id,
                     do_sample=False
                 )
         else:
             outputs = model.generate(
                 **inputs,
-                max_new_tokens=5,
-                temperature=0.0,
+                max_new_tokens=MAX_NEW_TOKENS,
+                temperature=TEMPERATURE,
                 pad_token_id=tokenizer.eos_token_id,
                 do_sample=False
             )

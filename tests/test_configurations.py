@@ -3,7 +3,7 @@ import torch
 from configurations.config import (
     MODEL_PATH, HF_MODEL_NAME, LLM_MODEL_NAME,
     MAX_RETRIES, QUALITY_THRESHOLD, INDEX_SOURCE_URL,
-    FORCE_CPU, OPTIMIZE_FOR_MPS, USE_MIXED_PRECISION
+    FORCE_CPU, OPTIMIZE_FOR_MPS, USE_MIXED_PRECISION, TEMPERATURE, MAX_NEW_TOKENS
 )
 from modules.model_loader import get_optimal_device, load_model
 from modules.query import process_query_with_context
@@ -54,7 +54,8 @@ def test_complete_rag_pipeline():
             with torch.no_grad():
                 outputs = model.generate(
                     **inputs,
-                    max_new_tokens=10,
+                    max_new_tokens=MAX_NEW_TOKENS,
+                    temperature=TEMPERATURE,
                     pad_token_id=tokenizer.eos_token_id,
                     do_sample=False  # Deterministic for testing
                 )

@@ -6,13 +6,14 @@ import os
 from llama_index.core import VectorStoreIndex
 from llama_index.core.vector_stores import SimpleVectorStore
 
+from utility.device_utils import get_optimal_device
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import unittest
 from unittest.mock import patch, MagicMock
 import torch
 from modules.model_loader import (
-    get_optimal_device,
     load_model,
     get_model_capabilities,
     monitor_gpu_memory,
