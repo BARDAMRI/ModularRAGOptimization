@@ -63,47 +63,35 @@ if name and len(name) > 0 and URL and len(URL) > 0:
 
 
 # === File: main.py ===
-# main.py - Enhanced MPS Support Version
+# main.py
 import os
 import sys
 import warnings
-
-from utility.device_utils import get_optimal_device
+import torch
+from matrics.results_logger import ResultsLogger, plot_score_distribution
+from utility.logger import logger
+from utility.user_interface import display_main_menu, show_system_info, run_interactive_mode, run_evaluation_mode, \
+    run_development_test, startup_initialization, setup_vector_database, display_startup_banner
 
 # Set MPS environment variables before importing PyTorch
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-
-import torch
 
 if torch.backends.mps.is_available():
     torch.backends.mps.allow_tf32 = False
     print("🔧 MPS configured for compatibility")
 
-# Your existing imports
-from modules.model_loader import load_model
-from modules.indexer import load_vector_db
-from configurations.config import INDEX_SOURCE_URL, NQ_SAMPLE_SIZE, TEMPERATURE
-import termios
-from modules.query import process_query_with_context
-from scripts.evaluator import enumerate_top_documents
-import json
-from matrics.results_logger import ResultsLogger, plot_score_distribution
-from utility.logger import logger
-
-# Suppress FutureWarning specifically from huggingface_hub related to resume_download
+# Suppress FutureWarning specifically from huggingface_hub
 warnings.filterwarnings(
     "ignore",
-    message="`resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.",
+    message="`resume_download` is deprecated and will be removed in version 1.0.0.*",
     category=FutureWarning,
-    module='huggingface_hub'  # Specify the module to be more precise
+    module='huggingface_hub'
 )
 
+# Import performance monitoring with fallbacks
 try:
     from utility.performance import (
-        monitor_performance,
-        performance_report,
-        performance_monitor,
-        track_performance
+        monitor_performance, performance_report, performance_monitor, track_performance
     )
     from utility.cache import cache_stats, clear_all_caches
 
@@ -142,243 +130,50 @@ except ImportError:
     def clear_all_caches():
         print("Cache clearing not available")
 
-# Load model and tokenizer at startup with performance monitoring
-print("🚀 Loading model with MPS support...")
-with monitor_performance("startup_model_loading"):
-    tokenizer, model = load_model()
-    print(f"✅ Model loaded on device: {next(model.parameters()).device}")
-
-
-@track_performance("gpu_profiling")
-def profile_gpu():
-    """
-    Enhanced GPU profiling with MPS support.
-    """
-    device = get_optimal_device()
-
-    if device.type == "mps":
-        print("\nMPS (Apple Silicon) GPU detected:")
-        print("  - Memory monitoring is limited on MPS")
-        print("  - Using float32 precision for compatibility")
-        # Try to get some basic info
-        try:
-            print(f"  - Model device: {next(model.parameters()).device}")
-            print(f"  - Model dtype: {next(model.parameters()).dtype}")
-
-            # Check for any remaining bfloat16 parameters
-            bfloat16_count = sum(1 for p in model.parameters() if p.dtype == torch.bfloat16)
-            if bfloat16_count > 0:
-                print(f"  ⚠️  Warning: {bfloat16_count} bfloat16 parameters detected!")
-            else:
-                print("  ✅ All parameters are MPS-compatible")
-
-        except Exception as e:
-            print(f"  - Could not get model info: {e}")
-    elif device.type == "cuda":
-        print("\nCUDA GPU Utilization:")
-        print(torch.cuda.memory_summary(device="cuda"))
-    else:
-        print("\nNo GPU detected. Using CPU.")
-
-
-def check_device():
-    """
-    Enhanced device checking with MPS-specific information.
-    """
-    device = get_optimal_device()
-
-    if device.type == "mps":
-        print("MPS backend is available. Using Apple Silicon GPU for acceleration.")
-        print("  - Configured for float32 precision")
-        print("  - BFloat16 compatibility issues resolved")
-        print("  - Conservative generation settings enabled")
-    elif device.type == "cuda":
-        print("CUDA backend is available. Using CUDA for acceleration.")
-    else:
-        print("No GPU detected. Using CPU.")
-
-    return device
-
-
-def flush_input():
-    """
-    Flushes accidental keyboard input from the terminal buffer before reading input.
-    """
-    try:
-        termios.tcflush(sys.stdin, termios.TCIFLUSH)
-    except Exception as e:
-        # This error is normal in some environments (like PyCharm debugger)
-        pass  # Don't print the error as it's often harmless
-
-
-@track_performance("complete_query_evaluation")
-def run_query_evaluation():
-    """Enhanced query evaluation with MPS safety."""
-    logger.info("Starting query evaluation...")
-    profile_gpu()
-
-    with monitor_performance("vector_db_loading"):
-        logger.info("Loading external Vector DB...")
-        try:
-            vector_db, embedding_model = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
-            print("✅ Vector DB loaded successfully")
-        except Exception as e:
-            logger.error(f"Failed to load vector DB: {e}")
-            vector_db, embedding_model = None, None
-            logger.info("Continuing without vector DB...")
-            print("⚠️  Vector DB not available - running in simple Q&A mode")
-
-    run_mode = input("\nRun in enumeration mode? (y/n): ").strip().lower()
-
-    if run_mode == "y":
-        if vector_db is None:
-            print("❌ Enumeration mode requires Vector DB. Please set up vector database first.")
-            return
-
-        with monitor_performance("enumeration_mode_execution"):
-            from scripts.evaluator import hill_climb_documents
-
-            mode_choice = input("\nSelect mode: (e)numeration / (h)ill climbing: ").strip().lower()
-            results_logger = ResultsLogger(top_k=5, mode="hill" if mode_choice == "h" else "enum")
-            nq_file_path = "data/user_query_datasets/natural-questions-master/nq_open/NQ-open.dev.jsonl"
-
-            if not os.path.exists(nq_file_path):
-                logger.error(f"NQ file not found at: {nq_file_path}")
-                print(f"❌ Dataset file not found: {nq_file_path}")
-                return
-
-            with open(nq_file_path, "r") as f:
-                for i, line in enumerate(f):
-                    if i >= NQ_SAMPLE_SIZE:
-                        break
-                    data = json.loads(line)
-                    query = data.get("question")
-                    logger.info(f"Running for NQ Query #{i + 1}: {query}")
-                    print(f"🔍 Processing query {i + 1}/{NQ_SAMPLE_SIZE}: {query[:50]}...")
-
-                    with monitor_performance(f"query_processing_{i + 1}"):
-                        if mode_choice == "h":
-                            result = hill_climb_documents(i, NQ_SAMPLE_SIZE, query, vector_db, model, tokenizer,
-                                                          embedding_model, top_k=5)
-                            results_logger.log(result)
-                        elif mode_choice == "e":
-                            result = enumerate_top_documents(i, NQ_SAMPLE_SIZE, query, vector_db, embedding_model,
-                                                             top_k=5)
-                            results_logger.log(result)
-        return
-    else:
-        logger.info("Entering interactive query mode...")
-        device = check_device()
-
-        print("\n💬 Interactive Q&A Mode")
-        print("=" * 30)
-        if vector_db is None:
-            print("📝 Running in simple Q&A mode (no context retrieval)")
-        else:
-            print("📚 Running with context retrieval enabled")
-        print("💡 Type 'exit' to quit\n")
-
-        while True:
-            flush_input()
-            user_prompt = input("🤔 Your question: ")
-            if user_prompt.lower() in ['exit', 'quit', 'q']:
-                logger.info("Exiting application.")
-                print("👋 Goodbye!")
-                break
-
-            if not user_prompt.strip():
-                print("Please enter a question.")
-                continue
-
-            print("🧠 Thinking...")
-            with monitor_performance("interactive_query"):
-                try:
-                    result = process_query_with_context(
-                        user_prompt, model, tokenizer, device,
-                        vector_db, embedding_model,
-                        max_retries=3,
-                        quality_threshold=0.5
-                    )
-
-                    if result["error"]:
-                        logger.error(f"Error: {result['error']}")
-                        print(f"❌ Sorry, there was an error: {result['error']}")
-                    else:
-                        logger.info(f"Question: {result['question']}, Answer: {result['answer'].strip()}")
-                        print(f"\n🤖 Answer: {result['answer'].strip()}")
-                        if 'score' in result:
-                            print(f"📊 Confidence: {result['score']:.2f}")
-                        print(f"🖥️  Device: {result.get('device_used', 'unknown')}")
-                        print("-" * 50)
-
-                except Exception as e:
-                    logger.error(f"Unexpected error during query processing: {e}")
-                    print(f"❌ Unexpected error: {e}")
+# Global variables for model and vector DB
+tokenizer = None
+model = None
+vector_db = None
+embedding_model = None
 
 
 @track_performance("results_analysis")
 def run_analysis():
-    """
-    Runs analysis on logged results, summarizing scores and plotting score distributions.
-    """
+    """Run analysis on logged results."""
+    print("\n📈 RESULTS ANALYSIS")
+    print("=" * 25)
+
     logger.info("Running analysis on logged results...")
-    logger_instance = ResultsLogger()
-    logger_instance.summarize_scores()  # Print average, min, max
-    plot_score_distribution()  # Show histogram of score distribution
-
-
-@track_performance("development_test")
-def run_development_test():
-    """Enhanced development test with MPS compatibility."""
-    print("Development Mode - MPS Enhanced")
-    print("=" * 40)
-
-    # System info
-    device = check_device()
-    profile_gpu()
-
-    # Test MPS compatibility
-    print("\n🧪 Testing MPS compatibility...")
     try:
-        from modules.model_loader import test_mps_compatibility
-        mps_test_result = test_mps_compatibility()
-        print(f"MPS Test: {'✅ PASSED' if mps_test_result else '❌ FAILED'}")
+        logger_instance = ResultsLogger()
+        logger_instance.summarize_scores()
+        plot_score_distribution()
+        print("✅ Analysis completed")
     except Exception as e:
-        print(f"MPS Test: ❌ FAILED - {e}")
+        print(f"❌ Analysis failed: {e}")
+        logger.error(f"Analysis error: {e}")
 
-    # Quick model test
-    print("\n🤖 Testing model capabilities...")
-    from modules.model_loader import get_model_capabilities
-    capabilities = get_model_capabilities(model)
-    for key, value in capabilities.items():
-        status = "✅" if value else "⚠️" if key == 'is_causal_lm' else "ℹ️"
-        print(f"  {status} {key}: {value}")
 
-    # Vector DB test (optional)
-    print("\n📚 Testing vector database...")
-    try:
-        with monitor_performance("dev_vector_db_test"):
-            vector_db, embedding_model = load_vector_db("url", INDEX_SOURCE_URL)
-            print(f"✅ Vector DB loaded: {type(vector_db).__name__}")
-    except Exception as e:
-        print(f"⚠️  Vector DB test failed: {e}")
-        vector_db, embedding_model = None, None
+def main_loop():
+    """Main application loop with clean menu system."""
+    global vector_db, embedding_model
 
-    # Query test
-    print("\n💬 Testing query processing...")
-    test_query = "What is artificial intelligence?"
-    try:
-        with monitor_performance("dev_query_test"):
-            result = process_query_with_context(test_query, model, tokenizer, device, vector_db, embedding_model)
+    while True:
+        choice = display_main_menu()
 
-        print(f"✅ Test query result: {result['answer'][:100]}...")
-        if 'score' in result:
-            print(f"📊 Score: {result['score']}")
-        print(f"🖥️  Device used: {result.get('device_used', 'unknown')}")
-    except Exception as e:
-        print(f"❌ Query test failed: {e}")
-
-    print("\n🎉 Development test completed")
+        if choice == '1':
+            run_interactive_mode(vector_db, embedding_model, tokenizer, model)
+        elif choice == '2':
+            run_evaluation_mode(vector_db, embedding_model, tokenizer, model)
+        elif choice == '3':
+            run_development_test(vector_db, embedding_model, tokenizer ,model)
+        elif choice == '4':
+            run_analysis(vector_db, embedding_model)
+        elif choice == '5':
+            show_system_info(vector_db, model)
+        elif choice == '6':
+            print("👋 Goodbye!")
+            break
 
 
 def main():
@@ -390,31 +185,43 @@ def main():
 
     logger.info("Application started with enhanced MPS support.")
 
+    global vector_db, embedding_model, tokenizer, model
     try:
-        # Handle command line arguments
+        # Handle special command line arguments
+        if "--help" in sys.argv:
+            print_help()
+            return
+
         if "--clear-cache" in sys.argv:
             if CACHE_AVAILABLE:
                 clear_all_caches()
                 print("✅ Cache cleared")
-            else:
-                print("❌ Cache functionality not available")
+            return
 
         if "--analyze" in sys.argv:
+            tokenizer, model = startup_initialization()
             run_analysis()
-        elif "--performance" in sys.argv:
+            return
+
+        if "--performance" in sys.argv:
             if PERFORMANCE_AVAILABLE:
                 performance_report()
-            else:
-                print("❌ Performance monitoring not available")
-        elif "--cache-stats" in sys.argv:
+            return
+
+        if "--cache-stats" in sys.argv:
             if CACHE_AVAILABLE:
                 cache_stats()
-            else:
-                print("❌ Cache monitoring not available")
-        elif "--dev" in sys.argv:
-            run_development_test()
-        else:
-            run_query_evaluation()
+            return
+
+        # Normal application flow
+        display_startup_banner()
+        startup_initialization()
+
+        # Setup vector database
+        vector_db, embedding_model = setup_vector_database()
+
+        # Run main application loop
+        main_loop()
 
     except KeyboardInterrupt:
         logger.info("Application interrupted by user")
@@ -424,14 +231,13 @@ def main():
         print(f"❌ Application error: {e}")
         import traceback
         traceback.print_exc()
-        raise
     finally:
-        # Print final reports
-        if PERFORMANCE_AVAILABLE:
-            print("\n📊 Final Performance Report:")
-            performance_report()
+        # Cleanup and final reports
+        print("\n📊 SESSION SUMMARY")
+        print("-" * 20)
 
-            # Save metrics for later analysis
+        if PERFORMANCE_AVAILABLE:
+            performance_report()
             try:
                 os.makedirs("results", exist_ok=True)
                 performance_monitor.save_metrics("results/performance_metrics.json")
@@ -440,7 +246,6 @@ def main():
                 logger.warning(f"Failed to save performance metrics: {e}")
 
         if CACHE_AVAILABLE:
-            print("\n💾 Final Cache Statistics:")
             cache_stats()
 
         # MPS cleanup
@@ -453,6 +258,7 @@ def main():
 
 
 def print_help():
+    """Display comprehensive help information."""
     print("🚀 RAG System - Command Line Usage (MPS Enhanced)")
     print("=" * 60)
     print("USAGE:")
@@ -461,7 +267,6 @@ def print_help():
     print("  python main.py --performance   - Show performance report")
     print("  python main.py --cache-stats   - Show cache statistics")
     print("  python main.py --clear-cache   - Clear all caches")
-    print("  python main.py --dev           - Run development test")
     print("  python main.py --help          - Show this help")
     print("\n🍎 MPS (Apple Silicon) Features:")
     print("  • Automatic float32 conversion for compatibility")
@@ -469,22 +274,24 @@ def print_help():
     print("  • Memory fallback to CPU when needed")
     print("  • Conservative generation settings for stability")
     print("  • Real-time device monitoring and diagnostics")
-    print("\n💬 Interactive Mode:")
-    print("  • Type your questions naturally")
-    print("  • Use 'exit', 'quit', or 'q' to quit")
-    print("  • Watch for device indicators: 🖥️ MPS/CUDA/CPU")
-    print("  • Confidence scores show answer quality")
+    print("\n📚 Vector Database Support:")
+    print("  • ChromaDB - Advanced persistent vector database")
+    print("  • Simple Storage - LlamaIndex default storage")
+    print("  • Interactive setup wizard with validation")
+    print("  • Support for local, URL, and HuggingFace sources")
+    print("\n💬 Interactive Features:")
+    print("  • Natural language Q&A interface")
+    print("  • Real-time confidence scoring")
+    print("  • Device usage indicators")
+    print("  • Built-in help and statistics commands")
     print("\n🔧 Troubleshooting:")
-    print("  • Use --dev mode to test your setup")
+    print("  • Use Development Test mode for diagnostics")
     print("  • Check logs in logger.log for details")
     print("  • Vector DB is optional for basic Q&A")
 
 
 if __name__ == "__main__":
-    if "--help" in sys.argv:
-        print_help()
-    else:
-        main()
+    main()
 
 
 # === File: configurations/config.py ===
@@ -535,9 +342,9 @@ MAX_RETRIES = 3
 QUALITY_THRESHOLD = 0.7
 RETRIEVER_TOP_K = 2
 SIMILARITY_CUTOFF = 0.85
-MAX_NEW_TOKENS = 64
+MAX_NEW_TOKENS = 50
 NQ_SAMPLE_SIZE = 5
-
+TEMPERATURE = 0.05
 # === DATA SOURCE ===
 DEFAULT_HF_DATASET = "wikipedia"
 DEFAULT_HF_CONFIG = "20220301.en"
@@ -548,6 +355,939 @@ FORCE_CPU = False  # Set to True to force CPU usage
 OPTIMIZE_FOR_MPS = True
 MAX_GPU_MEMORY_GB = 8
 USE_MIXED_PRECISION = False  # Recommended: False for MPS
+
+# === File: vector_db/storing_methods.py ===
+"""
+Enumeration for vector database storing methods
+"""
+
+from enum import Enum
+from typing import Dict, List
+
+
+class StoringMethod(Enum):
+    """
+    Enumeration of available vector database storing methods.
+    """
+    CHROMA = "chroma"
+    SIMPLE = "simple"
+    LLAMA_INDEX = "llama_index"  # Backward compatibility alias for simple
+
+    @classmethod
+    def get_all_methods(cls) -> List[str]:
+        """
+        Get all available storing method values.
+
+        Returns:
+            List[str]: List of storing method strings
+        """
+        return [method.value for method in cls]
+
+    @classmethod
+    def get_descriptions(cls) -> Dict[str, str]:
+        """
+        Get descriptions for each storing method.
+
+        Returns:
+            Dict[str, str]: Method name to description mapping
+        """
+        return {
+            cls.CHROMA.value: "ChromaDB - Persistent vector database with advanced filtering capabilities",
+            cls.SIMPLE.value: "Simple Storage - LlamaIndex default storage with local persistence",
+            cls.LLAMA_INDEX.value: "LlamaIndex (Alias) - Same as Simple Storage for backward compatibility"
+        }
+
+    @classmethod
+    def get_recommendations(cls) -> Dict[str, str]:
+        """
+        Get recommendations for when to use each method.
+
+        Returns:
+            Dict[str, str]: Method name to recommendation mapping
+        """
+        return {
+            cls.CHROMA.value: "Best for: Large datasets, advanced filtering, production deployments",
+            cls.SIMPLE.value: "Best for: Small to medium datasets, quick prototyping, simple use cases",
+            cls.LLAMA_INDEX.value: "Best for: Legacy code compatibility (same as Simple)"
+        }
+
+    @classmethod
+    def is_valid_method(cls, method: str) -> bool:
+        """
+        Check if a storing method is valid.
+
+        Args:
+            method (str): Method to validate
+
+        Returns:
+            bool: True if valid, False otherwise
+        """
+        return method in cls.get_all_methods()
+
+    @classmethod
+    def get_default(cls) -> str:
+        """
+        Get the default storing method.
+
+        Returns:
+            str: Default method
+        """
+        return cls.CHROMA.value
+
+    def __str__(self) -> str:
+        """String representation"""
+        return self.value
+
+    def __repr__(self) -> str:
+        """Representation"""
+        return f"StoringMethod.{self.name}"
+
+
+# Convenience constants for backward compatibility
+CHROMA = StoringMethod.CHROMA.value
+SIMPLE = StoringMethod.SIMPLE.value
+LLAMA_INDEX = StoringMethod.LLAMA_INDEX.value
+
+# List of all methods for easy access
+ALL_STORING_METHODS = StoringMethod.get_all_methods()
+
+
+# === File: vector_db/vector_db_interface.py ===
+"""
+Base interface for vector database implementations
+"""
+
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Optional
+from llama_index.core.schema import NodeWithScore
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
+
+class VectorDBInterface(ABC):
+    """
+    Abstract base class for all vector database implementations.
+    Provides a unified interface for different vector store types.
+    """
+
+    def __init__(self, source_path: str, embedding_model: HuggingFaceEmbedding):
+        """
+        Initialize the vector database.
+
+        Args:
+            source_path (str): Path to the data source
+            embedding_model: Embedding model to use
+        """
+        self.source_path = source_path
+        self.embedding_model = embedding_model
+        self.vector_db = None
+        self._initialize()
+
+    @abstractmethod
+    def _initialize(self) -> None:
+        """
+        Initialize the specific vector database implementation.
+        Should set self.vector_db to the appropriate vector store.
+        """
+        pass
+
+    @abstractmethod
+    def retrieve(self, query: str, top_k: int = 5) -> List[NodeWithScore]:
+        """
+        Retrieve relevant documents for a given query.
+
+        Args:
+            query (str): Query string
+            top_k (int): Number of top results to return
+
+        Returns:
+            List[NodeWithScore]: Retrieved documents with scores
+        """
+        pass
+
+    @abstractmethod
+    def add_documents(self, documents: List[Any]) -> None:
+        """
+        Add documents to the vector database.
+
+        Args:
+            documents: List of documents to add
+        """
+        pass
+
+    @abstractmethod
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about the vector database.
+
+        Returns:
+            Dict containing stats like document count, storage size, etc.
+        """
+        pass
+
+    @abstractmethod
+    def persist(self) -> None:
+        """
+        Persist the vector database to storage.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def db_type(self) -> str:
+        """
+        Return the type of vector database.
+
+        Returns:
+            str: Database type identifier
+        """
+        pass
+
+    def as_query_engine(self, **kwargs):
+        """
+        Get a query engine for this vector database.
+        Default implementation - delegates to underlying VectorStoreIndex.
+        """
+        if self.vector_db is None:
+            raise RuntimeError("Vector database not initialized")
+
+        if hasattr(self.vector_db, 'as_query_engine'):
+            return self.vector_db.as_query_engine(**kwargs)
+        else:
+            raise NotImplementedError(f"Query engine not available for this vector DB type: {type(self.vector_db)}")
+
+    def as_retriever(self, **kwargs):
+        """
+        Get a retriever for this vector database.
+        Default implementation - delegates to underlying VectorStoreIndex.
+        """
+        if self.vector_db is None:
+            raise RuntimeError("Vector database not initialized")
+
+        if hasattr(self.vector_db, 'as_retriever'):
+            return self.vector_db.as_retriever(**kwargs)
+        else:
+            raise NotImplementedError(f"Retriever not available for this vector DB type: {type(self.vector_db)}")
+
+
+# === File: vector_db/chroma_vector_db.py ===
+"""
+Chroma Vector Database Implementation
+"""
+
+import os
+from typing import List, Dict, Any
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext
+from llama_index.core.schema import NodeWithScore
+from llama_index.vector_stores.chroma import ChromaVectorStore
+from chromadb import PersistentClient
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from utility.vector_db_utils import parse_source_path, download_and_save_from_hf, download_and_save_from_url
+from utility.logger import logger
+from vector_db.vector_db_interface import VectorDBInterface
+
+# Get the project root directory properly
+PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+class ChromaVectorDB(VectorDBInterface):
+    """
+    Chroma-based vector database implementation.
+    """
+
+    def __init__(self, source_path: str, embedding_model: HuggingFaceEmbedding):
+        """
+        Initialize Chroma vector database.
+
+        Args:
+            source_path (str): Path to the data source
+            embedding_model: Embedding model to use
+        """
+        self.chroma_client = None
+        self.collection = None
+        self.chroma_store = None
+        super().__init__(source_path, embedding_model)
+
+    def _initialize(self) -> None:
+        """Initialize the Chroma vector database."""
+        logger.info(f"Initializing Chroma vector database for source: {self.source_path}")
+
+        # Parse source and prepare data
+        source_type, parsed_name = parse_source_path(self.source_path)
+        data_dir = self._prepare_data_directory(source_type, parsed_name)
+
+        # Setup Chroma storage
+        chroma_path = os.path.join(PROJECT_PATH, "storage", "chroma", parsed_name.replace(":", "_"))
+        os.makedirs(chroma_path, exist_ok=True)
+
+        # Initialize Chroma client and collection
+        self.chroma_client = PersistentClient(path=chroma_path)
+        collection_name = f"collection_{parsed_name.replace(':', '_')}"
+        self.collection = self.chroma_client.get_or_create_collection(name=collection_name)
+        self.chroma_store = ChromaVectorStore(chroma_collection=self.collection)
+
+        # Create storage context
+        storage_context = StorageContext.from_defaults(vector_store=self.chroma_store)
+
+        # Load or create index
+        if self.collection.count() > 0:
+            logger.info(f"Loading existing Chroma index (collection count: {self.collection.count()})")
+            self.vector_db = VectorStoreIndex.from_vector_store(
+                vector_store=self.chroma_store,
+                embed_model=self.embedding_model,
+                storage_context=storage_context
+            )
+        else:
+            logger.info(f"Creating new Chroma index from {data_dir}")
+            documents = self._load_documents(data_dir)
+            self.vector_db = VectorStoreIndex.from_documents(
+                documents,
+                embed_model=self.embedding_model,
+                storage_context=storage_context
+            )
+            logger.info(f"Indexed {len(documents)} documents into Chroma")
+
+        # Verify the vector_db is properly set
+        if not isinstance(self.vector_db, VectorStoreIndex):
+            raise RuntimeError(f"Expected VectorStoreIndex, got {type(self.vector_db)}")
+
+        logger.info(f"Chroma VectorDB initialized successfully with {type(self.vector_db).__name__}")
+
+    def retrieve(self, query: str, top_k: int = 5) -> List[NodeWithScore]:
+        """
+        Retrieve documents using Chroma-specific optimizations.
+
+        Args:
+            query (str): Query string
+            top_k (int): Number of top results to return
+
+        Returns:
+            List[NodeWithScore]: Retrieved documents with scores
+        """
+        logger.info(f"Chroma retrieval for query: '{query}' (top_k={top_k})")
+
+        retriever = self.vector_db.as_retriever(similarity_top_k=top_k)
+        nodes_with_scores = retriever.retrieve(query)
+
+        # Chroma-specific post-processing could go here
+        # For example: additional filtering, re-ranking, etc.
+
+        logger.info(f"Chroma retrieved {len(nodes_with_scores)} documents")
+        return nodes_with_scores
+
+    def advanced_retrieve(self, query: str, top_k: int = 5,
+                          where_filter: Dict = None,
+                          include_metadata: bool = True) -> List[NodeWithScore]:
+        """
+        Advanced Chroma-specific retrieval with filtering capabilities.
+
+        Args:
+            query (str): Query string
+            top_k (int): Number of results
+            where_filter (Dict): Chroma where filter
+            include_metadata (bool): Whether to include metadata
+
+        Returns:
+            List[NodeWithScore]: Retrieved documents
+        """
+        if where_filter:
+            # Use Chroma's native filtering capabilities
+            logger.info(f"Using Chroma advanced search with filter: {where_filter}")
+            # This would require direct Chroma collection querying
+            # Implementation depends on your specific filtering needs
+
+        return self.retrieve(query, top_k)
+
+    def add_documents(self, documents: List[Any]) -> None:
+        """
+        Add documents to the Chroma vector database.
+
+        Args:
+            documents: List of documents to add
+        """
+        logger.info(f"Adding {len(documents)} documents to Chroma")
+        self.vector_db.insert_nodes(documents)
+        logger.info("Documents added to Chroma successfully")
+
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Get Chroma database statistics.
+
+        Returns:
+            Dict containing Chroma-specific stats
+        """
+        return {
+            "db_type": self.db_type,
+            "collection_count": self.collection.count() if self.collection else 0,
+            "collection_name": self.collection.name if self.collection else None,
+            "storage_path": self.chroma_client._settings.persist_directory if self.chroma_client else None,
+            "embedding_model": self.embedding_model.model_name
+        }
+
+    def persist(self) -> None:
+        """
+        Persist the Chroma database.
+        Note: Chroma automatically persists data, but this can force a save.
+        """
+        logger.info("Persisting Chroma database")
+        # Chroma handles persistence automatically with PersistentClient
+        # Additional explicit persistence logic can go here if needed
+
+    @property
+    def db_type(self) -> str:
+        """Return the database type identifier."""
+        return "chroma"
+
+    def _prepare_data_directory(self, source_type: str, parsed_name: str) -> str:
+        """Prepare and return the data directory path."""
+        if source_type == "url":
+            data_dir = os.path.join(PROJECT_PATH, "data", "url_downloads", parsed_name)
+            if not os.path.exists(data_dir) or not os.listdir(data_dir):
+                logger.info(f"Downloading data from URL into {data_dir}")
+                download_and_save_from_url(self.source_path, data_dir)
+        elif source_type == "hf":
+            data_dir = os.path.join(PROJECT_PATH, "data", "hf_downloads", parsed_name.replace(":", "_"))
+            if not os.path.exists(data_dir) or not os.listdir(data_dir):
+                logger.info(f"Downloading data from Hugging Face into {data_dir}")
+                # Parse dataset_name and config from source_path
+                if ":" in self.source_path:
+                    dataset_name, config = self.source_path.split(":", 1)
+                else:
+                    dataset_name, config = self.source_path, None
+                download_and_save_from_hf(dataset_name, config, data_dir, max_docs=1000)
+        else:  # local source
+            data_dir = self.source_path
+
+        return data_dir
+
+    def _load_documents(self, data_dir: str):
+        """Load documents from the data directory."""
+        if not os.path.exists(data_dir) or not os.listdir(data_dir):
+            logger.error(f"No documents found in {data_dir}")
+            raise FileNotFoundError(f"No documents found in {data_dir}")
+
+        documents = SimpleDirectoryReader(data_dir).load_data()
+        if not documents:
+            logger.warning(f"No documents loaded from {data_dir}")
+            return []
+
+        return documents
+
+
+# === File: vector_db/vector_db_factory.py ===
+"""
+Vector Database Factory - Creates vector database instances based on type
+"""
+
+import logging
+from typing import Dict, Type
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
+from .vector_db_interface import VectorDBInterface
+from .simple_vector_db import SimpleVectorDB
+from .chroma_vector_db import ChromaVectorDB
+
+logger = logging.getLogger(__name__)
+
+
+class VectorDBFactory:
+    """
+    Factory class for creating different types of vector databases.
+    """
+
+    # Registry of available vector database implementations
+    _implementations: Dict[str, Type[VectorDBInterface]] = {
+        'simple': SimpleVectorDB,
+        'chroma': ChromaVectorDB,
+    }
+
+    @classmethod
+    def create_vector_db(cls,
+                         db_type: str,
+                         source_path: str,
+                         embedding_model: HuggingFaceEmbedding) -> VectorDBInterface:
+        """
+        Create a vector database instance based on the specified type.
+
+        Args:
+            db_type (str): Type of vector database ('simple', 'chroma')
+            source_path (str): Path or identifier for the source
+            embedding_model: Embedding model to use
+
+        Returns:
+            VectorDBInterface: The created vector database instance
+
+        Raises:
+            ValueError: If db_type is not supported
+        """
+        if db_type not in cls._implementations:
+            available_types = list(cls._implementations.keys())
+            logger.error(f"Unsupported vector database type: {db_type}. Available types: {available_types}")
+            raise ValueError(f"Unsupported vector database type: {db_type}. Available types: {available_types}")
+
+        logger.info(f"Creating {db_type} vector database for source: {source_path}")
+
+        # Get the implementation class and instantiate it
+        implementation_class = cls._implementations[db_type]
+        return implementation_class(source_path, embedding_model)
+
+    @classmethod
+    def register_implementation(cls, db_type: str, implementation_class: Type[VectorDBInterface]):
+        """
+        Register a new vector database implementation.
+
+        Args:
+            db_type (str): Name of the database type
+            implementation_class (Type[VectorDBInterface]): Implementation class
+        """
+        if not issubclass(implementation_class, VectorDBInterface):
+            raise TypeError(f"Implementation class must inherit from VectorDBInterface")
+
+        cls._implementations[db_type] = implementation_class
+        logger.info(f"Registered new vector database implementation: {db_type}")
+
+    @classmethod
+    def get_available_types(cls) -> list:
+        """Get list of available vector database types."""
+        return list(cls._implementations.keys())
+
+    @classmethod
+    def get_implementation_info(cls, db_type: str) -> Dict:
+        """
+        Get information about a specific implementation.
+
+        Args:
+            db_type (str): Database type
+
+        Returns:
+            Dict: Information about the implementation
+        """
+        if db_type not in cls._implementations:
+            raise ValueError(f"Unknown database type: {db_type}")
+
+        impl_class = cls._implementations[db_type]
+        return {
+            "type": db_type,
+            "class": impl_class.__name__,
+            "module": impl_class.__module__,
+            "docstring": impl_class.__doc__ or "No description available"
+        }
+
+
+# === File: vector_db/indexer.py ===
+# modules/indexer.py
+import os
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from configurations.config import HF_MODEL_NAME, USE_MIXED_PRECISION
+from vector_db.vector_db_factory import VectorDBFactory
+from vector_db.vector_db_interface import VectorDBInterface
+from utility.logger import logger
+from utility.device_utils import get_optimal_device
+from typing import Tuple
+from sentence_transformers import SentenceTransformer
+
+
+def load_vector_db(source_path: str = "local_data_dir",
+                   storing_method: str = "chroma") -> Tuple[VectorDBInterface, HuggingFaceEmbedding]:
+    """
+    Loads or creates a vector database for document retrieval with optimized embedding model caching.
+    Now returns a VectorDBInterface instead of raw VectorStoreIndex.
+
+    Args:
+        source_path (str): Path to the data source (local directory, URL, or HF dataset identifier)
+        storing_method (str): Storage method to use ('chroma', 'simple', 'llama_index')
+
+    Returns:
+        Tuple[VectorDBInterface, HuggingFaceEmbedding]: Vector database interface and embedding model
+    """
+    logger.info(f"Loading vector database for source_path: '{source_path}', storing_method: '{storing_method}'")
+
+    # Get or create cached embedding model
+    embedding_model = _get_cached_embedding_model()
+
+    # Map storing_method to factory db_type for backward compatibility
+    db_type_mapping = {
+        "chroma": "chroma",
+        "llama_index": "simple",  # Keep backward compatibility
+        "simple": "simple"
+    }
+
+    if storing_method not in db_type_mapping:
+        available_methods = list(db_type_mapping.keys())
+        logger.error(f"Unsupported storing method: {storing_method}. Available methods: {available_methods}")
+        raise ValueError(f"Unsupported storing method: {storing_method}. Available methods: {available_methods}")
+
+    db_type = db_type_mapping[storing_method]
+
+    try:
+        # Use the factory to create the vector database interface
+        vector_db = VectorDBFactory.create_vector_db(
+            db_type=db_type,
+            source_path=source_path,
+            embedding_model=embedding_model
+        )
+
+        logger.info(f"✅ Vector database interface created successfully using {storing_method} method")
+        logger.info(f"Database stats: {vector_db.get_stats()}")
+
+        return vector_db, embedding_model
+
+    except Exception as e:
+        logger.error(f"Failed to create vector database: {e}")
+        raise e
+
+
+def _get_cached_embedding_model() -> HuggingFaceEmbedding:
+    """
+    Get or create a cached embedding model to avoid reloading.
+
+    Returns:
+        HuggingFaceEmbedding: The cached embedding model
+    """
+    # Check if we already have a cached model
+    if not hasattr(load_vector_db, "_embed_model"):
+        try:
+            logger.info(f"Loading embedding model: {HF_MODEL_NAME}")
+            device = get_optimal_device()
+
+            # Create SentenceTransformer with device-specific settings
+            if device.type == "mps":
+                logger.info(f"Loading SentenceTransformer for MPS with float32")
+                sbert_model = SentenceTransformer(HF_MODEL_NAME, device=str(device))
+                # Convert to float32 for MPS compatibility
+                sbert_model = sbert_model.float()
+            elif device.type == "cuda":
+                logger.info(f"Loading SentenceTransformer for CUDA")
+                sbert_model = SentenceTransformer(HF_MODEL_NAME, device=str(device))
+                if USE_MIXED_PRECISION:
+                    logger.info("Converting model to float16 for mixed precision")
+                    sbert_model = sbert_model.half()
+                else:
+                    logger.info("Using float32 for CUDA")
+                    sbert_model = sbert_model.float()
+            else:  # CPU
+                logger.info(f"Loading SentenceTransformer for CPU with float32")
+                sbert_model = SentenceTransformer(HF_MODEL_NAME, device=str(device))
+                sbert_model = sbert_model.float()
+
+            # Create HuggingFaceEmbedding with pre-loaded model
+            embedding_model = HuggingFaceEmbedding(
+                model=sbert_model,
+                model_name=HF_MODEL_NAME,
+                device=str(device)
+            )
+
+            # Cache the embedding model
+            load_vector_db._embed_model = embedding_model
+            logger.info(f"✅ Embedding model loaded and cached successfully")
+
+        except Exception as e:
+            logger.error(f"Failed to load embedding model: {e}")
+            raise e
+    else:
+        logger.info("Using cached embedding model")
+
+    return load_vector_db._embed_model
+
+
+def get_available_storing_methods() -> list:
+    """
+    Get list of available storing methods.
+
+    Returns:
+        list: Available storing methods
+    """
+    return ["chroma", "simple", "llama_index"]
+
+
+def get_vector_db_info(storing_method: str) -> dict:
+    """
+    Get information about a specific vector database implementation.
+
+    Args:
+        storing_method (str): The storing method name
+
+    Returns:
+        dict: Information about the implementation
+    """
+    db_type_mapping = {
+        "chroma": "chroma",
+        "llama_index": "simple",
+        "simple": "simple"
+    }
+
+    if storing_method in db_type_mapping:
+        db_type = db_type_mapping[storing_method]
+        return VectorDBFactory.get_implementation_info(db_type)
+    else:
+        raise ValueError(f"Unknown storing method: {storing_method}")
+
+
+def clear_embedding_cache():
+    """Clear the cached embedding model (useful for testing or memory management)"""
+    if hasattr(load_vector_db, "_embed_model"):
+        delattr(load_vector_db, "_embed_model")
+        logger.info("Embedding model cache cleared")
+
+
+# Utility functions for debugging and testing
+def test_vector_db_creation(source_path: str = "test_data", storing_method: str = "simple"):
+    """
+    Test function to verify vector database creation works correctly.
+
+    Args:
+        source_path (str): Path to test data
+        storing_method (str): Method to test
+    """
+    try:
+        logger.info(f"Testing vector DB creation with method: {storing_method}")
+        vector_db, embedding_model = load_vector_db(source_path, storing_method)
+
+        # Test basic functionality
+        stats = vector_db.get_stats()
+        logger.info(f"Test successful! Stats: {stats}")
+
+        # Test retrieval if data exists
+        try:
+            results = vector_db.retrieve("test query", top_k=3)
+            logger.info(f"Retrieval test: Found {len(results)} results")
+        except Exception as e:
+            logger.warning(f"Retrieval test failed (this is normal if no data): {e}")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Vector DB creation test failed: {e}")
+        return False
+
+
+def get_embedding_model_info() -> dict:
+    """
+    Get information about the current embedding model.
+
+    Returns:
+        dict: Embedding model information
+    """
+    if hasattr(load_vector_db, "_embed_model"):
+        model = load_vector_db._embed_model
+        return {
+            "model_name": model.model_name,
+            "device": model.device,
+            "is_cached": True,
+            "model_type": type(model).__name__
+        }
+    else:
+        return {
+            "model_name": HF_MODEL_NAME,
+            "device": str(get_optimal_device()),
+            "is_cached": False,
+            "model_type": "Not loaded"
+        }
+
+
+# === File: vector_db/simple_vector_db.py ===
+"""
+Simple Vector Database Implementation
+"""
+
+import os
+from typing import List, Dict, Any
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext, load_index_from_storage
+from llama_index.core.schema import NodeWithScore
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from utility.vector_db_utils import parse_source_path, download_and_save_from_hf, download_and_save_from_url
+from utility.logger import logger
+from vector_db.vector_db_interface import VectorDBInterface
+
+# Get the project root directory properly
+PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+class SimpleVectorDB(VectorDBInterface):
+    """
+    Simple vector database implementation using LlamaIndex's default storage.
+    """
+
+    def __init__(self, source_path: str, embedding_model: HuggingFaceEmbedding):
+        """
+        Initialize Simple vector database.
+
+        Args:
+            source_path (str): Path to the data source
+            embedding_model: Embedding model to use
+        """
+        self.storage_dir = None
+        super().__init__(source_path, embedding_model)
+
+    def _initialize(self) -> None:
+        """Initialize the Simple vector database."""
+        logger.info(f"Initializing Simple vector database for source: {self.source_path}")
+
+        # Parse source and prepare data
+        source_type, parsed_name = parse_source_path(self.source_path)
+        data_dir = self._prepare_data_directory(source_type, parsed_name)
+
+        # Setup storage directory
+        self.storage_dir = os.path.join(PROJECT_PATH, "storage", "simple", parsed_name.replace(":", "_"))
+        os.makedirs(self.storage_dir, exist_ok=True)
+
+        # Load existing index or create new one
+        if self._index_exists():
+            logger.info(f"Loading existing Simple vector database from {self.storage_dir}")
+            storage_context = StorageContext.from_defaults(persist_dir=self.storage_dir)
+            self.vector_db = load_index_from_storage(storage_context, embed_model=self.embedding_model)
+        else:
+            logger.info(f"Creating new Simple vector database from {data_dir}")
+            documents = self._load_documents(data_dir)
+            self.vector_db = VectorStoreIndex.from_documents(
+                documents,
+                embed_model=self.embedding_model
+            )
+            self.persist()
+            logger.info(f"Indexed {len(documents)} documents into Simple vector DB")
+
+        # Verify the vector_db is properly set
+        if not isinstance(self.vector_db, VectorStoreIndex):
+            raise RuntimeError(f"Expected VectorStoreIndex, got {type(self.vector_db)}")
+
+        logger.info(f"Simple VectorDB initialized successfully with {type(self.vector_db).__name__}")
+
+    def retrieve(self, query: str, top_k: int = 5) -> List[NodeWithScore]:
+        """
+        Retrieve documents using Simple vector store.
+
+        Args:
+            query (str): Query string
+            top_k (int): Number of top results to return
+
+        Returns:
+            List[NodeWithScore]: Retrieved documents with scores
+        """
+        logger.info(f"Simple retrieval for query: '{query}' (top_k={top_k})")
+
+        retriever = self.vector_db.as_retriever(similarity_top_k=top_k)
+        nodes_with_scores = retriever.retrieve(query)
+
+        # Simple store specific post-processing could go here
+        # For example: custom scoring, filtering, etc.
+
+        logger.info(f"Simple vector DB retrieved {len(nodes_with_scores)} documents")
+        return nodes_with_scores
+
+    def semantic_search(self, query: str, top_k: int = 5,
+                        similarity_threshold: float = 0.0) -> List[NodeWithScore]:
+        """
+        Simple store specific semantic search with threshold filtering.
+
+        Args:
+            query (str): Query string
+            top_k (int): Number of results
+            similarity_threshold (float): Minimum similarity score
+
+        Returns:
+            List[NodeWithScore]: Retrieved documents above threshold
+        """
+        nodes_with_scores = self.retrieve(query, top_k)
+
+        # Filter by similarity threshold
+        if similarity_threshold > 0.0:
+            filtered_nodes = [
+                node for node in nodes_with_scores
+                if node.score >= similarity_threshold
+            ]
+            logger.info(
+                f"Filtered {len(nodes_with_scores)} -> {len(filtered_nodes)} nodes by threshold {similarity_threshold}")
+            return filtered_nodes
+
+        return nodes_with_scores
+
+    def add_documents(self, documents: List[Any]) -> None:
+        """
+        Add documents to the Simple vector database.
+
+        Args:
+            documents: List of documents to add
+        """
+        logger.info(f"Adding {len(documents)} documents to Simple vector DB")
+        self.vector_db.insert_nodes(documents)
+        self.persist()
+        logger.info("Documents added to Simple vector DB successfully")
+
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Get Simple database statistics.
+
+        Returns:
+            Dict containing Simple vector DB stats
+        """
+        stats = {
+            "db_type": self.db_type,
+            "storage_dir": self.storage_dir,
+            "embedding_model": self.embedding_model.model_name,
+            "index_exists": self._index_exists()
+        }
+
+        # Try to get document count if possible
+        try:
+            if hasattr(self.vector_db, 'docstore') and hasattr(self.vector_db.docstore, 'docs'):
+                stats["document_count"] = len(self.vector_db.docstore.docs)
+        except Exception as e:
+            logger.debug(f"Could not get document count: {e}")
+            stats["document_count"] = "unknown"
+
+        return stats
+
+    def persist(self) -> None:
+        """
+        Persist the Simple vector database to storage.
+        """
+        logger.info(f"Persisting Simple vector database to {self.storage_dir}")
+        self.vector_db.storage_context.persist(persist_dir=self.storage_dir)
+
+    @property
+    def db_type(self) -> str:
+        """Return the database type identifier."""
+        return "simple"
+
+    def _index_exists(self) -> bool:
+        """Check if an index already exists in the storage directory."""
+        return (os.path.exists(self.storage_dir) and
+                os.path.exists(os.path.join(self.storage_dir, "docstore.json")))
+
+    def _prepare_data_directory(self, source_type: str, parsed_name: str) -> str:
+        """Prepare and return the data directory path."""
+        if source_type == "url":
+            data_dir = os.path.join(PROJECT_PATH, "data", "url_downloads", parsed_name)
+            if not os.path.exists(data_dir) or not os.listdir(data_dir):
+                logger.info(f"Downloading data from URL into {data_dir}")
+                download_and_save_from_url(self.source_path, data_dir)
+        elif source_type == "hf":
+            data_dir = os.path.join(PROJECT_PATH, "data", "hf_downloads", parsed_name.replace(":", "_"))
+            if not os.path.exists(data_dir) or not os.listdir(data_dir):
+                logger.info(f"Downloading data from Hugging Face into {data_dir}")
+                # Parse dataset_name and config from source_path
+                if ":" in self.source_path:
+                    dataset_name, config = self.source_path.split(":", 1)
+                else:
+                    dataset_name, config = self.source_path, None
+                download_and_save_from_hf(dataset_name, config, data_dir, max_docs=1000)
+        else:  # local source
+            data_dir = self.source_path
+
+        return data_dir
+
+    def _load_documents(self, data_dir: str):
+        """Load documents from the data directory."""
+        if not os.path.exists(data_dir) or not os.listdir(data_dir):
+            logger.error(f"No documents found in {data_dir}")
+            raise FileNotFoundError(f"No documents found in {data_dir}")
+
+        documents = SimpleDirectoryReader(data_dir).load_data()
+        if not documents:
+            logger.warning(f"No documents loaded from {data_dir}")
+            return []
+
+        return documents
+
 
 # === File: matrics/analyze_results.py ===
 from results_logger import ResultsLogger, plot_score_distribution
@@ -733,7 +1473,7 @@ from transformers import (
     PreTrainedModel,
     AutoModelForCausalLM
 )
-from configurations.config import HF_MODEL_NAME, LLM_MODEL_NAME
+from configurations.config import HF_MODEL_NAME, LLM_MODEL_NAME, MAX_NEW_TOKENS, TEMPERATURE
 from utility.logger import logger
 from utility.similarity_calculator import calculate_similarity, calculate_similarities, SimilarityMethod
 from utility.embedding_utils import get_text_embedding
@@ -784,7 +1524,7 @@ def run_llm_query(
     inputs = tokenizer(query, return_tensors="pt")
 
     if hasattr(model, "generate"):
-        outputs = model.generate(**inputs, max_new_tokens=MAX_NEW_TOKENS, do_sample=False)
+        outputs = model.generate(**inputs, max_new_tokens=MAX_NEW_TOKENS, temperature=TEMPERATURE, do_sample=False)
         result = tokenizer.decode(outputs[0], skip_special_tokens=True)
         logger.info(f"Generated result: {result[:100]}...")  # Truncate long results
     else:
@@ -889,6 +1629,7 @@ def hill_climb_documents(
         embedding_model: HuggingFaceEmbedding,  # Fixed: Added type annotation
         top_k: int = 5,
         max_tokens: int = 100,
+        temperature: float = 0.07,
         convert_to_vector: bool = False,
         similarity_method: Union[SimilarityMethod, str] = SimilarityMethod.COSINE
 ) -> Dict[str, Any]:
@@ -940,7 +1681,7 @@ def hill_climb_documents(
     # Handle tokenization with proper truncation
     try:
         inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=512)
-        outputs = llm_model.generate(**inputs, max_new_tokens=max_tokens, do_sample=False)
+        outputs = llm_model.generate(**inputs, max_new_tokens=max_tokens, temperature=temperature, do_sample=False)
         answers = [tokenizer.decode(output, skip_special_tokens=True).strip() for output in outputs]
     except Exception as e:
         logger.error(f"Error during answer generation: {e}")
@@ -1166,8 +1907,8 @@ Answer ONLY with exactly one word: "Optimized", "Original", or "Tie". Do not inc
         else:
             outputs = model.generate(
                 **inputs,
-                max_new_tokens=5,
-                temperature=0.0,
+                max_new_tokens=MAX_NEW_TOKENS,
+                temperature=TEMPERATURE,
                 pad_token_id=tokenizer.eos_token_id,
                 do_sample=False
             )
@@ -1282,6 +2023,7 @@ def advanced_sanity_check(
             "success": False
         }
 
+
 # === File: scripts/modelHuggingFaceDownload.py ===
 # modelHuggingFaceDownload.py
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -1299,230 +2041,6 @@ tokenizer.save_pretrained(LLAMA_MODEL_DIR)
 print("> Model downloaded successfully!")
 
 
-# === File: vector_db/chroma_index.py ===
-# modules/vector_db/chroma_index.py
-import os
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext
-from llama_index.vector_stores.chroma import ChromaVectorStore
-from chromadb import PersistentClient
-
-
-def build_chroma_vector_db(source: str, source_path: str, embedding_model) -> VectorStoreIndex:
-    """
-    Build a Chroma-based vector database vector_db.
-
-    Args:
-        source (str): 'local' or 'url'
-        source_path (str): Path or identifier for the source.
-        embedding_model: Embedding model to use.
-
-    Returns:
-        VectorStoreIndex: Index based on Chroma vector store.
-    """
-    if source == "url":
-        corpus_name = source_path.split("/")[-1] if "://" in source_path else source_path.replace(":", "_")
-        data_dir = os.path.join("data", corpus_name)
-        chroma_path = os.path.join("storage", "chroma", corpus_name)
-    else:
-        data_dir = os.path.join("data", "chroma")
-        chroma_path = os.path.join("storage", "chroma", "local")
-
-    os.makedirs(chroma_path, exist_ok=True)
-
-    client = PersistentClient(path=chroma_path)
-    collection = client.get_or_create_collection(name="chroma_collection")
-    chroma_store = ChromaVectorStore(chroma_collection=collection)
-    storage_context = StorageContext.from_defaults(vector_store=chroma_store)
-
-    if collection.count() > 0:
-        return VectorStoreIndex.from_vector_store(
-            vector_store=chroma_store,
-            embed_model=embedding_model,
-            storage_context=storage_context
-        )
-    else:
-        documents = SimpleDirectoryReader(data_dir).load_data()
-        return VectorStoreIndex.from_documents(
-            documents,
-            embed_model=embedding_model,
-            storage_context=storage_context
-        )
-
-
-# === File: vector_db/simple_index.py ===
-import os
-from typing import Tuple
-from urllib.parse import urlparse
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext, load_index_from_storage
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from utility.logger import logger
-import requests
-from datasets import load_dataset
-
-
-def parse_source_path(source_path: str) -> Tuple[str, str]:
-    """
-    Parses the source path to determine its type and extract relevant information.
-
-    Args:
-        source_path (str): The source path to parse.
-
-    Returns:
-        Tuple[str, str]: A tuple containing the source type ('url' or 'hf') and the parsed corpus or dataset configuration.
-
-    Raises:
-        ValueError: If the source path format is unsupported.
-    """
-    logger.info(f"Parsing source path: {source_path}")
-    if source_path.startswith("http://") or source_path.startswith("https://"):
-        corpus_name = source_path.split("/")[-1]
-        logger.info(f"Source type identified as URL with corpus name: {corpus_name}")
-        return "url", corpus_name
-    elif ":" in source_path:
-        dataset_config = source_path.replace(":", "_")
-        logger.info(f"Source type identified as Hugging Face dataset with config: {dataset_config}")
-        return "hf", dataset_config
-    else:
-        logger.error(f"Unsupported source path format: {source_path}")
-        raise ValueError(f"Unsupported source path format: {source_path}")
-
-
-def validate_url(url: str) -> bool:
-    """
-    Validates the URL to ensure it is safe and matches expected patterns.
-
-    Args:
-        url (str): The URL to validate.
-
-    Returns:
-        bool: True if the URL is valid, False otherwise.
-
-    Raises:
-        ValueError: If the URL is invalid or unsafe.
-    """
-    logger.info(f"Validating URL: {url}")
-    parsed_url = urlparse(url)
-    if parsed_url.scheme != "https":
-        logger.error("URL must use HTTPS.")
-        raise ValueError("URL must use HTTPS.")
-    allowed_domains = ["example.com", "trusted-source.com"]
-    if parsed_url.netloc not in allowed_domains:
-        logger.error(f"Domain '{parsed_url.netloc}' is not allowed.")
-        raise ValueError(f"Domain '{parsed_url.netloc}' is not allowed.")
-    return True
-
-
-def download_and_save_from_url(url: str, target_dir: str) -> None:
-    """
-    Downloads text data from a URL and saves it locally using streaming.
-
-    Args:
-        url (str): URL to download the data from.
-        target_dir (str): Directory to save the downloaded data.
-
-    Returns:
-        None
-    """
-    validate_url(url)
-    logger.info(f"Downloading data from URL: {url}")
-    os.makedirs(target_dir, exist_ok=True)
-    file_path = os.path.join(target_dir, "corpus.txt")
-
-    with requests.get(url, stream=True) as response:
-        if response.status_code != 200:
-            logger.error(f"Failed to download from {url}, status code: {response.status_code}")
-            raise Exception(f"Failed to download from {url}, status code: {response.status_code}")
-        with open(file_path, "w", encoding="utf-8") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk.decode("utf-8"))
-    logger.info(f"Downloaded and saved corpus to {file_path}")
-
-
-def download_and_save_from_hf(dataset_name: str, config: str, target_dir: str, max_docs: int = 1000) -> None:
-    """
-    Downloads a dataset from Hugging Face and saves it locally as text files in batches.
-
-    Args:
-        dataset_name (str): Name of the Hugging Face dataset.
-        config (str): Configuration for the dataset.
-        target_dir (str): Directory to save the downloaded documents.
-        max_docs (int): Maximum number of documents to download.
-
-    Returns:
-        None
-    """
-    logger.info(f"Downloading dataset '{dataset_name}' with config '{config}' from Hugging Face...")
-    dataset = load_dataset(dataset_name, config, split="train", trust_remote_code=True)
-    os.makedirs(target_dir, exist_ok=True)
-
-    batch_size = 100
-    batch = []
-    for i, item in enumerate(dataset):
-        if i >= max_docs:
-            break
-        text = item["text"].strip()
-        if text:
-            batch.append((i, text))
-        if len(batch) == batch_size or i == max_docs - 1:
-            for doc_id, doc_text in batch:
-                with open(os.path.join(target_dir, f"doc_{doc_id}.txt"), "w", encoding="utf-8") as f:
-                    f.write(doc_text)
-            batch.clear()
-    logger.info(f"Saved {min(max_docs, len(dataset))} documents to {target_dir}")
-
-
-def build_simple_vector_db(source: str, source_path: str, embedding_model: HuggingFaceEmbedding) -> VectorStoreIndex:
-    """
-    Build a simple vector database vector_db using GPTVectorStoreIndex with persistent storage.
-
-    Args:
-        source (str): 'local' or 'url'
-        source_path (str): Path or identifier for the source.
-        embedding_model: Embedding model to use.
-
-    Returns:
-        VectorStoreIndex: The loaded or newly created vector store vector_db.
-    """
-    if source == "url":
-        if source_path is None:
-            logger.error("source_path must be provided for 'url' source.")
-            raise ValueError("source_path must be provided for 'url' source.")
-
-        source_type, corpus_name = parse_source_path(source_path)
-        corpus_dir = os.path.join("data", corpus_name)
-        storage_dir = os.path.join("storage", "simple", corpus_name)
-
-        if not os.path.exists(corpus_dir):
-            logger.info(f"Downloading corpus into {corpus_dir}...")
-            if source_type == "hf":
-                dataset, config = source_path.split(":", 1)
-                download_and_save_from_hf(dataset, config, corpus_dir)
-            else:
-                download_and_save_from_url(source_path, corpus_dir)
-
-    else:
-        corpus_dir = os.path.join("data", "simple")
-        storage_dir = os.path.join("storage", "simple")
-
-    os.makedirs(storage_dir, exist_ok=True)
-
-    if os.path.exists(storage_dir) and os.path.exists(os.path.join(storage_dir, "docstore.json")):
-        logger.info(f"Loading existing simple vector database from {storage_dir}...")
-        storage_context = StorageContext.from_defaults(persist_dir=storage_dir)
-        return load_index_from_storage(storage_context, embed_model=embedding_model)
-
-    logger.info(f"Indexing documents from {corpus_dir}...")
-    documents = SimpleDirectoryReader(corpus_dir).load_data()
-    vector_db = VectorStoreIndex.from_documents(
-        documents,
-        embed_model=embedding_model
-    )
-    vector_db.storage_context.persist(persist_dir=storage_dir)
-    logger.info(f"Indexed {len(documents)} documents and saved to {storage_dir}.")
-    return vector_db
-
-
 # === File: modules/query.py ===
 # modules/query.py - Refactored for better organization
 import numpy as np
@@ -1533,12 +2051,18 @@ import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from transformers import AutoModelForCausalLM, GPT2TokenizerFast, PreTrainedModel, PreTrainedTokenizer
 
-from configurations.config import MAX_RETRIES, QUALITY_THRESHOLD, MAX_NEW_TOKENS
+from configurations.config import MAX_RETRIES, QUALITY_THRESHOLD, MAX_NEW_TOKENS, TEMPERATURE
 from utility.embedding_utils import get_query_vector
 from utility.logger import logger
 from utility.similarity_calculator import calculate_similarities, SimilarityMethod
+import re
+from modules.model_loader import load_model
+from vector_db.indexer import load_vector_db
+from configurations.config import INDEX_SOURCE_URL
 
-# Import performance monitoring and caching
+# =====================================================
+
+
 try:
     from utility.performance import monitor_performance, track_performance
     from utility.cache import cache_query_result
@@ -1875,9 +2399,7 @@ def force_float32_on_mps_model(model):
     return model
 
 
-# Fixed safe_mps_generate function - Remove torch_dtype parameter
-
-def safe_mps_generate(model, tokenizer, inputs, device, max_tokens=64):
+def safe_mps_generate(model, tokenizer, inputs, device, max_tokens=64, temperature=0.7):
     """MPS-safe text generation that handles bfloat16 issues."""
 
     print(f"🔧 Called safe_mps_generate with device: {device}")  # Debug
@@ -1911,7 +2433,6 @@ def safe_mps_generate(model, tokenizer, inputs, device, max_tokens=64):
         else:
             safe_inputs[key] = value
 
-    # Debug: Print tensor dtypes
     print("🔍 Input tensor dtypes:")
     for key, value in safe_inputs.items():
         if isinstance(value, torch.Tensor):
@@ -1933,7 +2454,8 @@ def safe_mps_generate(model, tokenizer, inputs, device, max_tokens=64):
                     pad_token_id=tokenizer.eos_token_id,
                     eos_token_id=tokenizer.eos_token_id,
                     use_cache=True,
-                    # REMOVED: torch_dtype=torch.float32,  # This is not a valid parameter for generate()
+                    repetition_penalty=1.2,
+                    no_repeat_ngram_size=3,
                 )
             else:
                 # Standard generation for other devices
@@ -1943,15 +2465,16 @@ def safe_mps_generate(model, tokenizer, inputs, device, max_tokens=64):
                     do_sample=True,
                     top_k=50,
                     top_p=0.95,
-                    temperature=0.8,
                     pad_token_id=tokenizer.eos_token_id,
+                    repetition_penalty=1.2,
+                    no_repeat_ngram_size=3,
                 )
 
-        print("✅ Generation completed successfully")  # Debug
+        print("✅ Generation completed successfully")
         return outputs
 
     except RuntimeError as e:
-        print(f"❌ Generation failed: {e}")  # Debug
+        print(f"❌ Generation failed: {e}")
 
         if "bfloat16" in str(e).lower() or "mps" in str(e).lower():
             print(f"🔄 MPS generation failed, falling back to CPU: {e}")
@@ -1965,7 +2488,9 @@ def safe_mps_generate(model, tokenizer, inputs, device, max_tokens=64):
                     **inputs_cpu,
                     max_new_tokens=max_tokens,
                     do_sample=False,
-                    pad_token_id=tokenizer.eos_token_id
+                    pad_token_id=tokenizer.eos_token_id,
+                    repetition_penalty=1.2,
+                    no_repeat_ngram_size=3,
                 )
 
             # Move model back to original device
@@ -1980,11 +2505,74 @@ def safe_mps_generate(model, tokenizer, inputs, device, max_tokens=64):
             raise e
 
 
-def generate_text_by_device(model, inputs, device, tokenizer, max_tokens: int = 64):
+def generate_text_by_device(model, inputs, device, tokenizer, max_tokens: int = 64, temperature: float = 0.7):
     """
     MPS-safe replacement for generate_text_by_device.
     """
-    return safe_mps_generate(model, tokenizer, inputs, device, max_tokens)
+    return safe_mps_generate(model, tokenizer, inputs, device, max_tokens, temperature=temperature)
+
+
+def extract_answer_from_output(raw_output: str, original_prompt: str) -> str:
+    """
+    Extract clean answer from model output, handling various formats.
+    """
+    print(f"🔍 Debug - Raw output: {repr(raw_output)}")
+    print(f"🔍 Debug - Original prompt: {repr(original_prompt)}")
+
+    # Method 1: Try to find the first occurrence of "Answer:" and extract what follows
+    if "Answer:" in raw_output:
+        # Split by "Answer:" and take the content after the first occurrence
+        parts = raw_output.split("Answer:")
+        if len(parts) > 1:
+            answer_part = parts[1]
+
+            # Clean up the answer and Remove quotes if they wrap the entire answer
+            answer_part = answer_part.strip()
+            if answer_part.startswith('"') and '"' in answer_part[1:]:
+                # Find the end quote
+                end_quote_idx = answer_part.find('"', 1)
+                if end_quote_idx != -1:
+                    answer_part = answer_part[1:end_quote_idx]
+
+            # Stop at the next "Question:" if it appears
+            if "Question:" in answer_part:
+                answer_part = answer_part.split("Question:")[0]
+
+            # cleanup
+            answer_part = answer_part.strip()
+
+            # Remove trailing punctuation if it looks like start of new question
+            if answer_part.endswith(('" Question', '" Q')):
+                answer_part = answer_part.split('"')[0]
+
+            print(f"🔍 Debug - Extracted answer: {repr(answer_part)}")
+            return answer_part.strip()
+
+    # Method 2: If no "Answer:" found, try to extract from the end
+    if original_prompt.strip() in raw_output:
+        remaining = raw_output.replace(original_prompt.strip(), "", 1).strip()
+        if remaining:
+            # Take only the first sentence/phrase
+            sentences = remaining.split('.')
+            if sentences and sentences[0].strip():
+                answer = sentences[0].strip()
+                print(f"🔍 Debug - Fallback answer: {repr(answer)}")
+                return answer
+
+    # Method 3: Last resort - try to find any reasonable answer
+
+    quoted_matches = re.findall(r'"([^"]*)"', raw_output)
+    if quoted_matches:
+        # Return the first quoted string that's not the question
+        for match in quoted_matches:
+            if match.lower() not in original_prompt.lower() and len(match.strip()) > 0:
+                print(f"🔍 Debug - Quoted answer: {repr(match)}")
+                return match.strip()
+
+    # Final fallback
+    print(f"🔍 Debug - No clean answer found, returning cleaned raw output")
+    clean_output = raw_output.replace(original_prompt, "").strip()
+    return clean_output[:100] if clean_output else "No answer generated"
 
 
 def handle_gpu_memory_error(
@@ -2017,7 +2605,6 @@ def handle_gpu_memory_error(
             **inputs_cpu,
             max_new_tokens=MAX_NEW_TOKENS,
             do_sample=True,
-            temperature=0.7,
             pad_token_id=tokenizer.eos_token_id
         )
 
@@ -2065,8 +2652,8 @@ def process_query_with_context(
         model: Union[PreTrainedModel, Any],
         tokenizer: Union[PreTrainedTokenizer, Any],
         device: torch.device,
-        vector_db: Optional[VectorStoreIndex] = None,
-        embedding_model: Optional[HuggingFaceEmbedding] = None,
+        vector_db: VectorStoreIndex,
+        embedding_model: HuggingFaceEmbedding,
         max_retries: int = MAX_RETRIES,
         quality_threshold: float = QUALITY_THRESHOLD,
         similarity_method: Union[SimilarityMethod, str, Callable] = SimilarityMethod.COSINE
@@ -2131,7 +2718,7 @@ def _ensure_model_on_device(model: AutoModelForCausalLM, device: torch.device):
 @track_performance("single_answer_generating")
 def _generate_single_answer(prompt, model, tokenizer, device, vector_db, embedding_model, similarity_method):
     """
-    Updated single answer generation with MPS safety.
+    Updated single answer generation with MPS safety and improved answer extraction.
     """
     try:
         # Prepare prompt with context if available
@@ -2142,13 +2729,17 @@ def _generate_single_answer(prompt, model, tokenizer, device, vector_db, embeddi
         # Use MPS-safe input preparation
         inputs = prepare_generation_inputs(augmented_prompt, tokenizer, device)
 
-        # Use MPS-safe generation
-        outputs = generate_text_by_device(model, inputs, device, tokenizer)
+        # Use MPS-safe generation with reduced tokens to prevent repetition
+        outputs = generate_text_by_device(model, inputs, device, tokenizer, max_tokens=MAX_NEW_TOKENS,
+                                          temperature=TEMPERATURE)
 
         with monitor_performance("answer_processing"):
             outputs = outputs.cpu()
             raw_output = tokenizer.decode(outputs[0], skip_special_tokens=True)
-            answer = raw_output.split("Answer:")[-1].strip()
+
+            # Use improved answer extraction instead of simple split
+            answer = extract_answer_from_output(raw_output, prompt)
+
             score = evaluate_answer_quality(answer, prompt, model, tokenizer, device)
 
         return {
@@ -2157,7 +2748,8 @@ def _generate_single_answer(prompt, model, tokenizer, device, vector_db, embeddi
             "error": None,
             "device_used": str(device),
             "question": prompt,
-            "similarity_method": str(similarity_method)
+            "similarity_method": str(similarity_method),
+            "raw_output": raw_output  # For debugging
         }
 
     except RuntimeError as e:
@@ -2190,7 +2782,7 @@ def _generate_single_answer(prompt, model, tokenizer, device, vector_db, embeddi
 @track_performance("preparing_query_context")
 def _prepare_prompt_with_context(prompt, vector_db, embedding_model, similarity_method):
     """Prepare prompt with retrieved context if available."""
-    original_question = prompt  # לשמור על שאלה מקורית
+    original_question = prompt
 
     if vector_db is not None:
         with monitor_performance("context_retrieval_and_prompt_construction"):
@@ -2261,7 +2853,8 @@ def rephrase_query(
         with monitor_performance("rephrase_generation"):
             with torch.no_grad():
                 # Use MPS-safe generation
-                outputs = generate_text_by_device(model, inputs, device, tokenizer, max_tokens=MAX_NEW_TOKENS)
+                outputs = generate_text_by_device(model, inputs, device, tokenizer, max_tokens=MAX_NEW_TOKENS,
+                                                  temperature=TEMPERATURE)
 
         outputs = outputs.cpu()
         rephrased_query = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
@@ -2280,10 +2873,8 @@ def test_mps_query_processing():
     print("🧪 Testing MPS-safe query processing...")
 
     try:
-        from modules.model_loader import load_model
-        from modules.indexer import load_vector_db
-        from configurations.config import INDEX_SOURCE_URL
 
+        from utility.logger import logger
         # Load model
         tokenizer, model = load_model()
         device = next(model.parameters()).device
@@ -2291,7 +2882,7 @@ def test_mps_query_processing():
 
         # Load vector DB (optional)
         try:
-            vector_db, embedding_model = load_vector_db(source="url", source_path=INDEX_SOURCE_URL)
+            vector_db, embedding_model = load_vector_db(logger=logger, source="url", source_path=INDEX_SOURCE_URL)
             print("✅ Vector DB loaded")
         except Exception as e:
             print(f"⚠️  Vector DB failed to load: {e}")
@@ -2327,80 +2918,6 @@ if __name__ == "__main__":
     print(f"\n🎯 MPS Query Processing Test: {'PASSED' if success else 'FAILED'}")
 
 
-# === File: modules/indexer.py ===
-# indexer.py
-import os
-from llama_index.core import VectorStoreIndex
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from configurations.config import HF_MODEL_NAME
-from vector_db.chroma_index import build_chroma_vector_db
-from vector_db.simple_index import build_simple_vector_db
-from utility.device_utils import get_optimal_device
-from utility.logger import logger
-from typing import Optional
-import torch
-
-
-def load_vector_db(source: str = "local", source_path: Optional[str] = None, storing_method: str = "chroma") -> (
-        VectorStoreIndex, HuggingFaceEmbedding):
-    """
-    Loads or creates a vector database for document retrieval with optimized embedding model caching.
-
-    Args:
-        source (str): Source type ('local' or 'url').
-        source_path (Optional[str]): Path to the data source.
-        storing_method (str): Storage method to use ('chroma' or 'llama_index').
-
-    Returns:
-        Tuple[VectorStoreIndex, HuggingFaceEmbedding]: Loaded or newly created vector database and embedding model.
-    """
-    logger.info(
-        f"Loading vector database from source: {source}, source_path: {source_path}, storing_method: {storing_method}")
-
-    device = get_optimal_device()  # Now you can directly call it
-
-    # Initialize HuggingFaceEmbedding with explicit device and dtype for MPS
-    if device.type == "mps":
-        logger.info(f"Initializing HuggingFaceEmbedding for MPS with torch_dtype=torch.float32")
-        embedding_model = HuggingFaceEmbedding(
-            model_name=HF_MODEL_NAME,
-            device=str(device),  # Pass the device as a string "mps"
-            model_kwargs={"torch_dtype": torch.float32}
-        )
-    elif device.type == "cuda":
-        # Ensure USE_MIXED_PRECISION is also imported or handled
-        from configurations.config import USE_MIXED_PRECISION
-        torch_dtype = torch.float16 if USE_MIXED_PRECISION else torch.float32
-        logger.info(f"Initializing HuggingFaceEmbedding for CUDA with torch_dtype={torch_dtype}")
-        embedding_model = HuggingFaceEmbedding(
-            model_name=HF_MODEL_NAME,
-            device=str(device),
-            model_kwargs={"torch_dtype": torch_dtype}
-        )
-    else:  # CPU
-        logger.info(f"Initializing HuggingFaceEmbedding for CPU")
-        embedding_model = HuggingFaceEmbedding(
-            model_name=HF_MODEL_NAME,
-            device=str(device),
-            model_kwargs={"torch_dtype": torch.float32}  # Always use float32 on CPU
-        )
-
-    if not hasattr(load_vector_db, "_embed_model"):
-        load_vector_db._embed_model = embedding_model
-
-    if storing_method == "chroma":
-        vector_db = build_chroma_vector_db(source=source, source_path=source_path, embedding_model=embedding_model)
-        return vector_db, embedding_model
-
-    elif storing_method == "llama_index":
-        vector_db = build_simple_vector_db(source=source, source_path=source_path, embedding_model=embedding_model)
-        return vector_db, embedding_model
-
-    else:
-        logger.error(f"Unsupported storing method: {storing_method}")
-        raise ValueError(f"Unsupported storing method: {storing_method}")
-
-
 # === File: modules/model_loader.py ===
 # modules/model_loader.py - Complete version with performance monitoring
 from transformers import (
@@ -2408,7 +2925,7 @@ from transformers import (
     AutoTokenizer,
 )
 import torch
-from configurations.config import MODEL_PATH, FORCE_CPU, OPTIMIZE_FOR_MPS, USE_MIXED_PRECISION
+from configurations.config import MODEL_PATH, FORCE_CPU, OPTIMIZE_FOR_MPS, USE_MIXED_PRECISION, TEMPERATURE
 from typing import Tuple
 
 from utility.device_utils import get_optimal_device
@@ -2561,7 +3078,7 @@ def load_model() -> Tuple[AutoTokenizer, torch.nn.Module]:
         raise e
 
 
-def generate_text_mps_safe(model, inputs, device, tokenizer, max_tokens: int = 64):
+def generate_text_mps_safe(model, inputs, device, tokenizer, max_tokens: int = 64, temperature: float = 0.07):
     """
     MPS-safe text generation function.
     """
@@ -2579,6 +3096,7 @@ def generate_text_mps_safe(model, inputs, device, tokenizer, max_tokens: int = 6
                 generated_ids = model.generate(
                     **inputs,
                     max_new_tokens=max_tokens,
+                    temperature=temperature,
                     do_sample=False,  # Greedy decoding is more stable on MPS
                     pad_token_id=tokenizer.eos_token_id,
                     eos_token_id=tokenizer.eos_token_id,
@@ -2589,11 +3107,11 @@ def generate_text_mps_safe(model, inputs, device, tokenizer, max_tokens: int = 6
                 generated_ids = model.generate(
                     **inputs,
                     max_new_tokens=max_tokens,
+                    temperature=temperature,
                     pad_token_id=tokenizer.eos_token_id,
                     do_sample=True,
                     top_k=50,
-                    top_p=0.95,
-                    temperature=0.8,
+                    top_p=0.95
                 )
 
         return generated_ids
@@ -2609,6 +3127,7 @@ def generate_text_mps_safe(model, inputs, device, tokenizer, max_tokens: int = 6
             outputs = model_cpu.generate(
                 **inputs_cpu,
                 max_new_tokens=max_tokens,
+                temperature=temperature,
                 do_sample=False,
                 pad_token_id=tokenizer.eos_token_id
             )
@@ -2678,9 +3197,7 @@ def process_query_with_context_mps_safe(
         tokenizer,
         device: torch.device,
         vector_db=None,
-        embedding_model=None,
-        max_retries: int = 3,
-        quality_threshold: float = 0.5
+        embedding_model=None
 ):
     """
     MPS-safe query processing with proper error handling.
@@ -2915,6 +3432,650 @@ if __name__ == "__main__":
         print(f"Benchmark failed: {e}")
 
     print("\n🎉 All tests completed!")
+
+
+# === File: utility/user_interface.py ===
+"""
+User interface utilities for selecting vector database configurations
+"""
+import json
+import os
+import sys
+import termios
+from typing import Optional, Tuple
+
+import torch
+
+from configurations.config import NQ_SAMPLE_SIZE, MAX_NEW_TOKENS, TEMPERATURE, QUALITY_THRESHOLD, MAX_RETRIES
+from matrics.results_logger import ResultsLogger
+from modules.model_loader import load_model
+from modules.query import process_query_with_context
+from scripts.evaluator import enumerate_top_documents
+from utility.device_utils import get_optimal_device
+from utility.logger import logger
+from vector_db.indexer import get_embedding_model_info, load_vector_db
+from vector_db.storing_methods import StoringMethod
+
+# Import performance monitoring with fallbacks
+try:
+    from utility.performance import (
+        monitor_performance, performance_report, performance_monitor, track_performance
+    )
+    from utility.cache import cache_stats, clear_all_caches
+
+    PERFORMANCE_AVAILABLE = True
+    CACHE_AVAILABLE = True
+except ImportError:
+    logger.warning("Performance monitoring or caching not available")
+    PERFORMANCE_AVAILABLE = False
+    CACHE_AVAILABLE = False
+
+
+    def monitor_performance(name):
+        from contextlib import contextmanager
+        @contextmanager
+        def dummy_context():
+            yield
+
+        return dummy_context()
+
+
+    def track_performance(name=None):
+        def decorator(func):
+            return func
+
+        return decorator
+
+
+    def performance_report():
+        print("Performance monitoring not available")
+
+
+    def cache_stats():
+        print("Cache monitoring not available")
+
+
+    def clear_all_caches():
+        print("Cache clearing not available")
+
+
+def display_storing_methods():
+    """Display available storing methods with descriptions."""
+    print("\n" + "=" * 60)
+    print("📊 AVAILABLE VECTOR DATABASE STORING METHODS")
+    print("=" * 60)
+
+    descriptions = StoringMethod.get_descriptions()
+    recommendations = StoringMethod.get_recommendations()
+
+    for i, method in enumerate(StoringMethod.get_all_methods(), 1):
+        print(f"\n{i}. {method.upper()}")
+        print(f"   Description: {descriptions[method]}")
+        print(f"   {recommendations[method]}")
+
+    print("\n" + "=" * 60)
+
+
+def get_user_storing_method(default_method: Optional[str] = None) -> str:
+    """
+    Interactive prompt for user to select a storing method.
+
+    Args:
+        default_method (Optional[str]): Default method if user presses Enter
+
+    Returns:
+        str: Selected storing method
+    """
+    if default_method is None:
+        default_method = StoringMethod.get_default()
+
+    display_storing_methods()
+
+    methods = StoringMethod.get_all_methods()
+
+    while True:
+        print(f"\nSelect a storing method (1-{len(methods)}) or press Enter for default ({default_method}):")
+        choice = input("Your choice: ").strip()
+
+        # Handle default (empty input)
+        if not choice:
+            print(f"✅ Using default method: {default_method}")
+            return default_method
+
+        # Handle numeric choice
+        try:
+            choice_num = int(choice)
+            if 1 <= choice_num <= len(methods):
+                selected_method = methods[choice_num - 1]
+                print(f"✅ Selected method: {selected_method}")
+                return selected_method
+            else:
+                print(f"❌ Please enter a number between 1 and {len(methods)}")
+                continue
+        except ValueError:
+            pass
+
+        # Handle string choice (method name)
+        if StoringMethod.is_valid_method(choice.lower()):
+            print(f"✅ Selected method: {choice.lower()}")
+            return choice.lower()
+
+        print("❌ Invalid choice. Please try again.")
+
+
+def get_user_source_path() -> str:
+    """
+    Interactive prompt for user to input source path.
+
+    Returns:
+        str: Source path entered by user
+    """
+    print("\n" + "=" * 60)
+    print("📁 DATA SOURCE CONFIGURATION")
+    print("=" * 60)
+    print("Enter the path to your data source:")
+    print("  • Local directory: /path/to/your/documents")
+    print("  • URL: https://example.com/data.txt")
+    print("  • HuggingFace dataset: squad:plain_text")
+    print("  • HuggingFace dataset (no config): wikitext")
+
+    while True:
+        source_path = input("\nSource path: ").strip()
+        if source_path:
+            print(f"✅ Source path set to: {source_path}")
+            return source_path
+        print("❌ Please enter a valid source path.")
+
+
+def confirm_configuration(storing_method: str, source_path: str) -> bool:
+    """
+    Show configuration summary and ask for confirmation.
+
+    Args:
+        storing_method (str): Selected storing method
+        source_path (str): Selected source path
+
+    Returns:
+        bool: True if user confirms, False otherwise
+    """
+    print("\n" + "=" * 60)
+    print("⚙️  CONFIGURATION SUMMARY")
+    print("=" * 60)
+    print(f"Storing Method: {storing_method}")
+    print(f"Source Path:    {source_path}")
+
+    # Show method description
+    descriptions = StoringMethod.get_descriptions()
+    if storing_method in descriptions:
+        print(f"Description:    {descriptions[storing_method]}")
+
+    print("=" * 60)
+
+    while True:
+        confirm = input("Proceed with this configuration? (y/n): ").strip().lower()
+        if confirm in ['y', 'yes']:
+            return True
+        elif confirm in ['n', 'no']:
+            return False
+        print("❌ Please enter 'y' for yes or 'n' for no.")
+
+
+def interactive_vector_db_setup() -> Tuple[str, str]:
+    """
+    Complete interactive setup for vector database configuration.
+
+    Returns:
+        Tuple[str, str]: (storing_method, source_path)
+    """
+    print("\n🤖 VECTOR DATABASE SETUP WIZARD")
+    print("Welcome! Let's configure your vector database.")
+
+    try:
+        # Get storing method
+        storing_method = get_user_storing_method()
+
+        # Get source path
+        source_path = get_user_source_path()
+
+        # Confirm configuration
+        if confirm_configuration(storing_method, source_path):
+            logger.info(f"User selected configuration: method={storing_method}, source={source_path}")
+            return storing_method, source_path
+        else:
+            print("\n🔄 Let's try again...")
+            return interactive_vector_db_setup()  # Recursive call to restart
+
+    except KeyboardInterrupt:
+        print("\n\n❌ Setup cancelled by user.")
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n❌ An error occurred during setup: {e}")
+        logger.error(f"Error in interactive setup: {e}")
+        sys.exit(1)
+
+
+def quick_setup(method: Optional[str] = None, source: Optional[str] = None) -> Tuple[str, str]:
+    """
+    Quick setup with minimal prompts. Falls back to interactive if parameters missing.
+
+    Args:
+        method (Optional[str]): Storing method (if None, will prompt)
+        source (Optional[str]): Source path (if None, will prompt)
+
+    Returns:
+        Tuple[str, str]: (storing_method, source_path)
+    """
+    # Validate and get method
+    if method and StoringMethod.is_valid_method(method):
+        storing_method = method
+        print(f"✅ Using method: {storing_method}")
+    else:
+        if method:
+            print(f"⚠️  Invalid method '{method}', please select a valid one:")
+        storing_method = get_user_storing_method()
+
+    # Get source path
+    if source:
+        source_path = source
+        print(f"✅ Using source: {source_path}")
+    else:
+        source_path = get_user_source_path()
+
+    return storing_method, source_path
+
+
+# Convenience function for command line usage
+def setup_from_args(args) -> Tuple[str, str]:
+    """
+    Setup configuration from command line arguments.
+
+    Args:
+        args: Argument parser object with 'method' and 'source' attributes
+
+    Returns:
+        Tuple[str, str]: (storing_method, source_path)
+    """
+    method = getattr(args, 'method', None)
+    source = getattr(args, 'source', None)
+
+    if method and source:
+        # Both provided, validate and use
+        if not StoringMethod.is_valid_method(method):
+            print(f"❌ Invalid storing method: {method}")
+            print(f"Available methods: {', '.join(StoringMethod.get_all_methods())}")
+            sys.exit(1)
+
+        print(f"✅ Using command line configuration:")
+        print(f"   Method: {method}")
+        print(f"   Source: {source}")
+        return method, source
+    else:
+        # Missing parameters, use interactive setup
+        print("⚠️  Missing configuration parameters, starting interactive setup...")
+        return interactive_vector_db_setup()
+
+
+def startup_initialization():
+    """Initialize model and display startup information."""
+
+    print("🚀 Loading model with MPS support...")
+    with monitor_performance("startup_model_loading"):
+        tokenizer, model = load_model()
+        print(f"✅ Model loaded on device: {next(model.parameters()).device}")
+        return tokenizer, model
+
+
+def display_startup_banner():
+    """Display the application startup banner."""
+    print("\n" + "=" * 60)
+    print("🤖 RAG SYSTEM - Enhanced MPS Support")
+    print("=" * 60)
+    device = get_optimal_device()
+    if device.type == "mps":
+        print("🍎 Apple Silicon GPU Detected - MPS Enabled")
+    elif device.type == "cuda":
+        print("🔥 NVIDIA GPU Detected - CUDA Enabled")
+    else:
+        print("💻 CPU Mode - No GPU Acceleration")
+    print("=" * 60)
+
+
+def setup_vector_database() -> Tuple[Optional[object], Optional[object]]:
+    """Setup vector database with user interaction."""
+
+    print("\n📚 VECTOR DATABASE SETUP")
+    print("-" * 30)
+
+    # Check if user wants to use vector DB
+    use_vector_db = input("Do you want to use vector database for context retrieval? (y/n): ").strip().lower()
+
+    if use_vector_db != 'y':
+        print("📝 Running in simple Q&A mode (no context retrieval)")
+        return None, None
+
+    try:
+        # Get vector DB configuration
+        print("\nConfiguring vector database...")
+        storing_method, source_path = interactive_vector_db_setup()
+
+        with monitor_performance("vector_db_loading"):
+            logger.info(f"Loading Vector DB with method: {storing_method}, source: {source_path}")
+            vector_db, embedding_model = load_vector_db(
+                source_path=source_path,
+                storing_method=storing_method
+            )
+
+            print("✅ Vector DB loaded successfully")
+
+            # Show database stats
+            stats = vector_db.get_stats()
+            print(f"\n📊 Database Statistics:")
+            for key, value in stats.items():
+                print(f"  • {key}: {value}")
+
+            return vector_db, embedding_model
+
+    except Exception as e:
+        logger.error(f"Failed to load vector DB: {e}")
+        print(f"❌ Vector DB setup failed: {e}")
+
+        retry = input("Continue without vector DB? (y/n): ").strip().lower()
+        if retry == 'y':
+            print("⚠️  Continuing without vector database...")
+            return None, None
+        else:
+            sys.exit(1)
+
+
+def display_main_menu():
+    """Display the main menu and get user choice."""
+    print("\n🎯 SELECT MODE")
+    print("-" * 20)
+    print("1. 💬 Interactive Q&A Mode")
+    print("2. 📊 Evaluation Mode (Natural Questions)")
+    print("3. 🔧 Development Test Mode")
+    print("4. 📈 Results Analysis")
+    print("5. ⚙️  System Information")
+    print("6. 🚪 Exit")
+
+    while True:
+        choice = input("\nEnter your choice (1-6): ").strip()
+        if choice in ['1', '2', '3', '4', '5', '6']:
+            return choice
+        print("❌ Invalid choice. Please enter 1-6.")
+
+
+def flush_input():
+    """Flush accidental keyboard input from the terminal buffer."""
+    try:
+        termios.tcflush(sys.stdin, termios.TCIFLUSH)
+    except Exception:
+        pass  # Normal in some environments
+
+
+def show_system_info(vector_db, model):
+    """Display comprehensive system information."""
+    print("\n⚙️  SYSTEM INFORMATION")
+    print("=" * 25)
+
+    # Device information
+    profile_gpu(model)
+
+    # Model information
+    print(f"\n🤖 Model Information:")
+    try:
+        info = get_embedding_model_info()
+        for key, value in info.items():
+            print(f"  • {key}: {value}")
+    except Exception as e:
+        print(f"  ❌ Could not get model info: {e}")
+
+    # Vector DB information
+    if vector_db:
+        print(f"\n📚 Vector Database:")
+        stats = vector_db.get_stats()
+        for key, value in stats.items():
+            print(f"  • {key}: {value}")
+    else:
+        print(f"\n📚 Vector Database: Not loaded")
+
+    # Performance stats
+    if PERFORMANCE_AVAILABLE:
+        print(f"\n📊 Performance Statistics:")
+        performance_report()
+
+    # Cache stats
+    if CACHE_AVAILABLE:
+        print(f"\n💾 Cache Statistics:")
+        cache_stats()
+
+
+@track_performance("gpu_profiling")
+def profile_gpu(model):
+    """Enhanced GPU profiling with MPS support."""
+    device = get_optimal_device()
+
+    print(f"\n🖥️  DEVICE INFORMATION")
+    print("-" * 25)
+
+    if device.type == "mps":
+        print("🍎 MPS (Apple Silicon) GPU detected:")
+        print("  • Memory monitoring is limited on MPS")
+        print("  • Using float32 precision for compatibility")
+        try:
+            print(f"  • Model device: {next(model.parameters()).device}")
+            print(f"  • Model dtype: {next(model.parameters()).dtype}")
+
+            bfloat16_count = sum(1 for p in model.parameters() if p.dtype == torch.bfloat16)
+            if bfloat16_count > 0:
+                print(f"  ⚠️  Warning: {bfloat16_count} bfloat16 parameters detected!")
+            else:
+                print("  ✅ All parameters are MPS-compatible")
+
+        except Exception as e:
+            print(f"  • Could not get model info: {e}")
+
+    elif device.type == "cuda":
+        print("🔥 CUDA GPU Utilization:")
+        print(torch.cuda.memory_summary(device="cuda"))
+    else:
+        print("💻 CPU Mode - No GPU acceleration")
+
+
+@track_performance("interactive_mode")
+def run_interactive_mode(vector_db, embedding_model, tokenizer, model):
+    """Run the interactive Q&A mode."""
+    device = get_optimal_device()
+
+    print("\n💬 INTERACTIVE Q&A MODE")
+    print("=" * 30)
+
+    if vector_db is None:
+        print("📝 Running in simple Q&A mode (no context retrieval)")
+    else:
+        print("📚 Running with context retrieval enabled")
+        print(f"🗃️  Database type: {vector_db.db_type}")
+
+    print("💡 Type 'exit', 'quit', or 'q' to return to main menu")
+    print("💡 Type 'help' for available commands\n")
+
+    while True:
+        flush_input()
+        user_prompt = input("🤔 Your question: ").strip()
+
+        if user_prompt.lower() in ['exit', 'quit', 'q']:
+            print("🔙 Returning to main menu...")
+            break
+
+        if user_prompt.lower() == 'help':
+            print("\n📖 Available Commands:")
+            print("  • exit/quit/q - Return to main menu")
+            print("  • help - Show this help")
+            print("  • stats - Show database statistics")
+            print("  • device - Show device information")
+            continue
+
+        if user_prompt.lower() == 'stats' and vector_db:
+            stats = vector_db.get_stats()
+            print("\n📊 Database Statistics:")
+            for key, value in stats.items():
+                print(f"  • {key}: {value}")
+            continue
+
+        if user_prompt.lower() == 'device':
+            profile_gpu(model)
+            continue
+
+        if not user_prompt:
+            print("Please enter a question.")
+            continue
+
+        print("🧠 Thinking...")
+        with monitor_performance("interactive_query"):
+            try:
+                result = process_query_with_context(
+                    user_prompt, model, tokenizer, device,
+                    vector_db, embedding_model,
+                    max_retries=3,
+                    quality_threshold=0.5
+                )
+
+                if result["error"]:
+                    logger.error(f"Error: {result['error']}")
+                    print(f"❌ Sorry, there was an error: {result['error']}")
+                else:
+                    logger.info(f"Question: {result['question']}, Answer: {result['answer'].strip()}")
+                    print(f"\n🤖 Answer: {result['answer'].strip()}")
+                    if 'score' in result:
+                        print(f"📊 Confidence: {result['score']:.2f}")
+                    print(f"🖥️  Device: {result.get('device_used', 'unknown')}")
+                    print("-" * 50)
+
+            except Exception as e:
+                logger.error(f"Unexpected error during query processing: {e}")
+                print(f"❌ Unexpected error: {e}")
+
+
+@track_performance("evaluation_mode")
+def run_evaluation_mode(vector_db, embedding_model, tokenizer, model):
+    """Run the evaluation mode with Natural Questions dataset."""
+    if vector_db is None:
+        print("❌ Evaluation mode requires Vector DB. Please restart and set up vector database.")
+        return
+
+    print("\n📊 EVALUATION MODE")
+    print("=" * 25)
+
+    mode_choice = input("Select mode: (e)numeration / (h)ill climbing: ").strip().lower()
+    if mode_choice not in ['e', 'h']:
+        print("❌ Invalid choice. Returning to main menu.")
+        return
+
+    results_logger = ResultsLogger(top_k=5, mode="hill" if mode_choice == "h" else "enum")
+    nq_file_path = "data/user_query_datasets/natural-questions-master/nq_open/NQ-open.dev.jsonl"
+
+    if not os.path.exists(nq_file_path):
+        logger.error(f"NQ file not found at: {nq_file_path}")
+        print(f"❌ Dataset file not found: {nq_file_path}")
+        return
+
+    print(f"📁 Processing {NQ_SAMPLE_SIZE} queries from Natural Questions dataset...")
+
+    with monitor_performance("enumeration_mode_execution"):
+        with open(nq_file_path, "r") as f:
+            for i, line in enumerate(f):
+                if i >= NQ_SAMPLE_SIZE:
+                    break
+
+                data = json.loads(line)
+                query = data.get("question")
+                logger.info(f"Running for NQ Query #{i + 1}: {query}")
+                print(f"🔍 Processing query {i + 1}/{NQ_SAMPLE_SIZE}: {query[:50]}...")
+
+                with monitor_performance(f"query_processing_{i + 1}"):
+                    try:
+                        if mode_choice == "h":
+                            from scripts.evaluator import hill_climb_documents
+                            result = hill_climb_documents(
+                                i=i, num=NQ_SAMPLE_SIZE, query=query, index=vector_db,
+                                llm_model=model, tokenizer=tokenizer,
+                                embedding_model=embedding_model, top_k=5,
+                                max_tokens=MAX_NEW_TOKENS, temperature=TEMPERATURE,
+                                quality_threshold=QUALITY_THRESHOLD, max_retries=MAX_RETRIES
+                            )
+                        else:  # enumeration mode
+                            result = enumerate_top_documents(
+                                i=i, num=NQ_SAMPLE_SIZE, query=query, index=vector_db,
+                                embedding_model=embedding_model,
+                                top_k=5, convert_to_vector=False
+                            )
+                        results_logger.log(result)
+                    except Exception as e:
+                        print(f"❌ Error processing query {i + 1}: {e}")
+                        logger.error(f"Error in evaluation query {i + 1}: {e}")
+
+    print("✅ Evaluation completed!")
+
+
+@track_performance("development_test")
+def run_development_test(vector_db, embedding_model, tokenizer, model):
+    """Enhanced development test with MPS compatibility."""
+    print("\n🔧 DEVELOPMENT TEST MODE")
+    print("=" * 30)
+
+    # System info
+    profile_gpu(model)
+
+    # Test MPS compatibility
+    print("\n🧪 Testing MPS compatibility...")
+    try:
+        from modules.model_loader import test_mps_compatibility
+        mps_test_result = test_mps_compatibility()
+        print(f"MPS Test: {'✅ PASSED' if mps_test_result else '❌ FAILED'}")
+    except Exception as e:
+        print(f"MPS Test: ❌ FAILED - {e}")
+
+    # Quick model test
+    print("\n🤖 Testing model capabilities...")
+    try:
+        from modules.model_loader import get_model_capabilities
+        capabilities = get_model_capabilities(model)
+        for key, value in capabilities.items():
+            status = "✅" if value else "⚠️" if key == 'is_causal_lm' else "ℹ️"
+            print(f"  {status} {key}: {value}")
+    except Exception as e:
+        print(f"❌ Model capabilities test failed: {e}")
+
+    # Vector DB test
+    print("\n📚 Testing vector database...")
+    if vector_db:
+        try:
+            stats = vector_db.get_stats()
+            print(f"✅ Vector DB loaded: {stats['db_type']}")
+            print(f"  Statistics: {stats}")
+        except Exception as e:
+            print(f"❌ Vector DB stats failed: {e}")
+    else:
+        print("⚠️  No vector database loaded")
+
+    # Query test
+    print("\n💬 Testing query processing...")
+    test_query = "What is artificial intelligence?"
+    try:
+        device = get_optimal_device()
+        with monitor_performance("dev_query_test"):
+            result = process_query_with_context(
+                test_query, model, tokenizer, device, vector_db, embedding_model
+            )
+
+        print(f"✅ Test query result: {result['answer'][:100]}...")
+        if 'score' in result:
+            print(f"📊 Score: {result['score']}")
+        print(f"🖥️  Device used: {result.get('device_used', 'unknown')}")
+    except Exception as e:
+        print(f"❌ Query test failed: {e}")
+
+    print("\n🎉 Development test completed")
 
 
 # === File: utility/similarity_calculator.py ===
@@ -3183,9 +4344,180 @@ def get_text_embedding(text: str, embed_model: HuggingFaceEmbedding) -> np.ndarr
     return np.array(vector, dtype=np.float32)
 
 
+# === File: utility/vector_db_utils.py ===
+import os
+from typing import Tuple, Optional
+from urllib.parse import urlparse
+
+import requests
+from datasets import load_dataset
+
+from utility.logger import logger
+
+
+def parse_source_path(source_path: str) -> Tuple[str, str]:
+    """
+    Parses the source path to determine its type and extract relevant information.
+
+    Args:
+        source_path (str): The source path to parse.
+
+    Returns:
+        Tuple[str, str]: A tuple containing the source type ('url' or 'hf') and the parsed corpus or dataset configuration.
+
+    Raises:
+        ValueError: If the source path format is unsupported.
+    """
+    logger.info(f"Parsing source path: {source_path}")
+    if source_path.startswith("http://") or source_path.startswith("https://"):
+        corpus_name = source_path.split("/")[-1]
+        logger.info(f"Source type identified as URL with corpus name: {corpus_name}")
+        return "url", corpus_name
+    elif ":" in source_path:
+        dataset_config = source_path.replace(":", "_")
+        logger.info(f"Source type identified as Hugging Face dataset with config: {dataset_config}")
+        return "hf", dataset_config
+    else:
+        logger.error(f"Unsupported source path format: {source_path}")
+        raise ValueError(f"Unsupported source path format: {source_path}")
+
+
+def validate_url(url: str) -> bool:
+    """
+    Validates the URL to ensure it is safe and matches expected patterns.
+
+    Args:
+        url (str): The URL to validate.
+
+    Returns:
+        bool: True if the URL is valid, False otherwise.
+
+    Raises:
+        ValueError: If the URL is invalid or unsafe.
+    """
+    logger.info(f"Validating URL: {url}")
+    parsed_url = urlparse(url)
+    if parsed_url.scheme != "https":
+        logger.error("URL must use HTTPS.")
+        raise ValueError("URL must use HTTPS.")
+    allowed_domains = ["example.com", "trusted-source.com"]
+    if parsed_url.netloc not in allowed_domains:
+        logger.error(f"Domain '{parsed_url.netloc}' is not allowed.")
+        raise ValueError(f"Domain '{parsed_url.netloc}' is not allowed.")
+    return True
+
+
+def download_and_save_from_url(url: str, target_dir: str) -> None:
+    """
+    Downloads text data from a URL and saves it locally using streaming.
+
+    Args:
+        url (str): URL to download the data from.
+        target_dir (str): Directory to save the downloaded data.
+
+    Returns:
+        None
+    """
+    validate_url(url)
+    logger.info(f"Downloading data from URL: {url}")
+    os.makedirs(target_dir, exist_ok=True)
+    file_path = os.path.join(target_dir, "corpus.txt")
+
+    with requests.get(url, stream=True) as response:
+        if response.status_code != 200:
+            logger.error(f"Failed to download from {url}, status code: {response.status_code}")
+            raise Exception(f"Failed to download from {url}, status code: {response.status_code}")
+        with open(file_path, "w", encoding="utf-8") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk.decode("utf-8"))
+    logger.info(f"Downloaded and saved corpus to {file_path}")
+
+
+def download_and_save_from_hf(dataset_name: str, config: Optional[str], target_dir: str, max_docs: int = 1000) -> None:
+    """
+    Downloads a dataset from Hugging Face and saves it locally as text files in batches.
+
+    Args:
+        dataset_name (str): Name of the Hugging Face dataset.
+        config (Optional[str]): Configuration for the dataset (can be None).
+        target_dir (str): Directory to save the downloaded documents.
+        max_docs (int): Maximum number of documents to download.
+
+    Returns:
+        None
+    """
+    if config:
+        logger.info(f"Downloading dataset '{dataset_name}' with config '{config}' from Hugging Face...")
+        dataset_identifier = f"{dataset_name}:{config}"
+    else:
+        logger.info(f"Downloading dataset '{dataset_name}' from Hugging Face...")
+        dataset_identifier = dataset_name
+
+    try:
+        if config:
+            dataset = load_dataset(dataset_name, config, split="train", trust_remote_code=True)
+        else:
+            dataset = load_dataset(dataset_name, split="train", trust_remote_code=True)
+
+        os.makedirs(target_dir, exist_ok=True)
+
+        batch_size = 100
+        batch = []
+        doc_count = 0
+
+        # Heuristic to find a text column if 'text' isn't present
+        text_column = None
+        if 'text' in dataset.column_names:
+            text_column = 'text'
+        else:
+            # Try to find a reasonable text column
+            for col_name in dataset.column_names:
+                if 'text' in col_name.lower() or 'document' in col_name.lower() or 'content' in col_name.lower():
+                    # Check if the first item in this column is a string
+                    if len(dataset) > 0 and isinstance(dataset[0][col_name], str):
+                        text_column = col_name
+                        logger.warning(f"Using column '{text_column}' as text content for HF dataset.")
+                        break
+
+            if text_column is None:
+                raise ValueError(f"No obvious text column found in dataset '{dataset_identifier}'. "
+                                 f"Available columns: {dataset.column_names}. Please specify manually if possible.")
+
+        for i, item in enumerate(dataset):
+            if doc_count >= max_docs:
+                break
+
+            text_content = item.get(text_column, "").strip()
+
+            if text_content:  # Only process if text content is not empty
+                batch.append((doc_count, text_content))
+                doc_count += 1
+
+            if len(batch) >= batch_size or doc_count >= max_docs:
+                for doc_id, doc_text in batch:
+                    with open(os.path.join(target_dir, f"doc_{doc_id}.txt"), "w", encoding="utf-8") as f:
+                        f.write(doc_text)
+                batch.clear()
+
+        # Save any remaining documents in the last batch
+        if batch:
+            for doc_id, doc_text in batch:
+                with open(os.path.join(target_dir, f"doc_{doc_id}.txt"), "w", encoding="utf-8") as f:
+                    f.write(doc_text)
+            batch.clear()
+
+        logger.info(f"Saved {doc_count} documents to {target_dir}")
+
+    except Exception as e:
+        logger.error(f"Failed to download or process HF dataset '{dataset_identifier}': {e}")
+        raise
+
+
 # === File: utility/cache.py ===
 # utility/cache.py
 import json
+import os
 import pickle
 import hashlib
 import time
@@ -3194,17 +4526,18 @@ from typing import Any, Optional, Dict
 import numpy as np
 from utility.logger import logger
 
+PROJECT_PATH = os.path.abspath(__file__)
+
 
 class SmartCache:
     """Intelligent caching system for RAG operations"""
 
     def __init__(self, cache_dir: str = "cache", ttl_seconds: int = 3600):
-        self.cache_dir = Path(cache_dir)
+        self.cache_dir = os.path.join(PROJECT_PATH, '..', cache_dir)
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)  # Create parent directories too
         except Exception as err:
             logger.warning(f"Failed to create cache directory {cache_dir}: {err}")
-            # Fallback to a simple cache directory in current path
             self.cache_dir = Path("temp_cache")
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -3217,7 +4550,7 @@ class SmartCache:
         if self.metadata_file.exists():
             try:
                 return json.loads(self.metadata_file.read_text())
-            except IOError as IOE:
+            except IOError as _:
                 logger.warning("Cache metadata corrupted, starting fresh")
         return {}
 
@@ -3457,7 +4790,9 @@ def clear_all_caches():
 
 # === File: utility/logger.py ===
 import logging
+import os
 
+PROJECT_PATH = os.path.abspath(__file__)
 # Configure logger
 logger = logging.getLogger("ModularRAGOptimization")
 logger.setLevel(logging.INFO)
@@ -3468,7 +4803,7 @@ logger.setLevel(logging.INFO)
 # stream_handler.setFormatter(stream_formatter)
 
 # File handler for logging to a file
-file_handler = logging.FileHandler("logger.log")
+file_handler = logging.FileHandler(os.path.join(PROJECT_PATH, '..', "logger.log"))
 file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(file_formatter)
 

@@ -165,7 +165,7 @@ class TestIndexerCompatible(unittest.TestCase):
     def test_load_vector_db_import(self, mock_exists):
         """Test that load_vector_db can be imported"""
         try:
-            from modules.indexer import load_vector_db
+            from vector_db.indexer import load_vector_db
             self.assertTrue(callable(load_vector_db))
             print("load_vector_db import test passed")
         except ImportError as e:
@@ -190,7 +190,7 @@ class TestIndexerCompatible(unittest.TestCase):
                 with open(os.path.join(data_dir, "test_doc.txt"), "w") as f:
                     f.write("Test document for vector store testing.")
 
-            from modules.indexer import load_vector_db
+            from vector_db.indexer import load_vector_db
             from llama_index.vector_stores.chroma import ChromaVectorStore
 
             vector_db, embed_model = load_vector_db(source="local")
@@ -256,7 +256,7 @@ def run_quick_test():
             print("HTTP URL validation: PASS (correctly rejected)")
 
         # Test function imports
-        from modules.indexer import load_vector_db
+        from vector_db.indexer import load_vector_db
         print("load_vector_db import: PASS")
 
         print("Quick compatibility test completed successfully")

@@ -4,17 +4,29 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="adding home dir to paths">
+    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="separating the storing method into filed and making the vector db loading generic">
       <change afterPath="$PROJECT_DIR$/storage/chroma/wikipedia_20220301.en/01f79942-679d-4916-ad9f-5c37f6b8bcf2/data_level0.bin" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/storage/chroma/wikipedia_20220301.en/chroma.sqlite3" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utility/vector_db_utils.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utility/logger.log" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utility/user_interface.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/vector_db/chroma_vector_db.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/vector_db/simple_vector_db.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/vector_db/storing_methods.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/vector_db/vector_db_interface.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/combined_project.py" beforeDir="false" afterPath="$PROJECT_DIR$/combined_project.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/indexer.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/indexer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/indexer.py" beforeDir="false" afterPath="$PROJECT_DIR$/vector_db/indexer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/query.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/query.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/results/performance_metrics.json" beforeDir="false" afterPath="$PROJECT_DIR$/results/performance_metrics.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/comprehensive_mps_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/comprehensive_mps_test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_indexer.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_indexer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_query.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_query.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utility/cache.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/cache.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utility/logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/logger.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vector_db/chroma_index.py" beforeDir="false" afterPath="$PROJECT_DIR$/vector_db/chroma_index.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vector_db/simple_index.py" beforeDir="false" afterPath="$PROJECT_DIR$/vector_db/simple_index.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utility/vector_db_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/vector_db_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vector_db/chroma_index.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vector_db/simple_index.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/vector_db/vector_db_factory.py" beforeDir="false" afterPath="$PROJECT_DIR$/vector_db/vector_db_factory.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -52,79 +64,81 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
-    &quot;Python tests.pytest for test_config.TestConfiguration.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_config.test_configuration_with_sample_query.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_configurations.test_complete_rag_pipeline.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_evaluator.TestEvaluatorFunctions.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_enumerate_top_documents.executor&quot;: &quot;Debug&quot;,
-    &quot;Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_hill_climb_documents.executor&quot;: &quot;Debug&quot;,
-    &quot;Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_sanity_check.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_indexer.TestIndexerCompatible.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_indexer.TestIndexerCompatible.test_vector_store_type_and_query.executor&quot;: &quot;Debug&quot;,
-    &quot;Python tests.pytest for test_indexer.TestIndexerFunctions.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_main.TestMainFunctions.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_model_loader.TestModelLoader.executor&quot;: &quot;Debug&quot;,
-    &quot;Python tests.pytest for test_model_loader.TestModelLoaderSimple.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_detect_chroma_vectorstore_backend.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_detect_simple_vectorstore_backend.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_load_model_internal_logic_works.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_load_model_works.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_monitor_gpu_memory_works.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_test_model_loading_works.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_query.TestEmbeddingComparison.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_query.TestRetrieveContext.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_invalid_query.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query.executor&quot;: &quot;Debug&quot;,
-    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_no_convert_to_vector.executor&quot;: &quot;Debug&quot;,
-    &quot;Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_vector_query.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_vector_db.TestLoadVectorDB.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_vector_db.TestVectorDBEmbedding.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest for test_vector_db_and_embedding_model_creation.TestEmbeddingComparison.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in model_loader.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in query.py.executor&quot;: &quot;Debug&quot;,
-    &quot;Python tests.pytest in test_config.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_configurations.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_evaluator.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_indexer.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_main.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_model_loader.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_query.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.pytest in test_vector_db.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python.EmbeddingVectorStoreIndex.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.check_vector_db_store_functions.executor&quot;: &quot;Run&quot;,
-    &quot;Python.code_testing.executor&quot;: &quot;Run&quot;,
-    &quot;Python.combine.executor&quot;: &quot;Run&quot;,
-    &quot;Python.comprehensive_mps_test.executor&quot;: &quot;Run&quot;,
-    &quot;Python.dir_tree_printer.executor&quot;: &quot;Run&quot;,
-    &quot;Python.docsDownloader.executor&quot;: &quot;Run&quot;,
-    &quot;Python.embedding_utils.executor&quot;: &quot;Run&quot;,
-    &quot;Python.index_builder.executor&quot;: &quot;Run&quot;,
-    &quot;Python.indexer.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.judge_llamaindex.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;Python.query.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.query_test_similarity.executor&quot;: &quot;Run&quot;,
-    &quot;Python.retrieve_answer.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_ADD_EXTERNAL_FILES": "true",
+    "Python tests.pytest for test_config.TestConfiguration.executor": "Run",
+    "Python tests.pytest for test_config.test_configuration_with_sample_query.executor": "Run",
+    "Python tests.pytest for test_configurations.test_complete_rag_pipeline.executor": "Run",
+    "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.executor": "Run",
+    "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_enumerate_top_documents.executor": "Debug",
+    "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_hill_climb_documents.executor": "Debug",
+    "Python tests.pytest for test_evaluator.TestEvaluatorFunctions.test_sanity_check.executor": "Run",
+    "Python tests.pytest for test_indexer.TestIndexerCompatible.executor": "Run",
+    "Python tests.pytest for test_indexer.TestIndexerCompatible.test_vector_store_type_and_query.executor": "Debug",
+    "Python tests.pytest for test_indexer.TestIndexerFunctions.executor": "Run",
+    "Python tests.pytest for test_main.TestMainFunctions.executor": "Run",
+    "Python tests.pytest for test_model_loader.TestModelLoader.executor": "Debug",
+    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.executor": "Run",
+    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_detect_chroma_vectorstore_backend.executor": "Run",
+    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_detect_simple_vectorstore_backend.executor": "Run",
+    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_load_model_internal_logic_works.executor": "Run",
+    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_load_model_works.executor": "Run",
+    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_monitor_gpu_memory_works.executor": "Run",
+    "Python tests.pytest for test_model_loader.TestModelLoaderSimple.test_test_model_loading_works.executor": "Run",
+    "Python tests.pytest for test_query.TestEmbeddingComparison.executor": "Run",
+    "Python tests.pytest for test_query.TestRetrieveContext.executor": "Run",
+    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_invalid_query.executor": "Run",
+    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query.executor": "Debug",
+    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_convert_to_vector.executor": "Run",
+    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_string_query_no_convert_to_vector.executor": "Debug",
+    "Python tests.pytest for test_query.TestRetrieveContext.test_retrieve_context_with_vector_query.executor": "Run",
+    "Python tests.pytest for test_vector_db.TestLoadVectorDB.executor": "Run",
+    "Python tests.pytest for test_vector_db.TestVectorDBEmbedding.executor": "Run",
+    "Python tests.pytest for test_vector_db_and_embedding_model_creation.TestEmbeddingComparison.executor": "Run",
+    "Python tests.pytest in model_loader.py.executor": "Run",
+    "Python tests.pytest in query.py.executor": "Debug",
+    "Python tests.pytest in test_config.py.executor": "Run",
+    "Python tests.pytest in test_configurations.py.executor": "Run",
+    "Python tests.pytest in test_evaluator.py.executor": "Run",
+    "Python tests.pytest in test_indexer.py.executor": "Run",
+    "Python tests.pytest in test_main.py.executor": "Run",
+    "Python tests.pytest in test_model_loader.py.executor": "Run",
+    "Python tests.pytest in test_query.py.executor": "Run",
+    "Python tests.pytest in test_vector_db.py.executor": "Run",
+    "Python.EmbeddingVectorStoreIndex.executor": "Debug",
+    "Python.check_vector_db_store_functions.executor": "Run",
+    "Python.chroma_vector_db.executor": "Debug",
+    "Python.code_testing.executor": "Run",
+    "Python.combine.executor": "Run",
+    "Python.comprehensive_mps_test.executor": "Run",
+    "Python.dir_tree_printer.executor": "Run",
+    "Python.docsDownloader.executor": "Run",
+    "Python.embedding_utils.executor": "Run",
+    "Python.index_builder.executor": "Run",
+    "Python.indexer.executor": "Debug",
+    "Python.judge_llamaindex.executor": "Run",
+    "Python.main.executor": "Debug",
+    "Python.query.executor": "Debug",
+    "Python.query_test_similarity.executor": "Run",
+    "Python.retrieve_answer.executor": "Run",
+    "Python.user_interface.executor": "Debug",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "run.code.analysis.last.selected.profile": "pProject Default",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/vector_db" />
       <recent name="$PROJECT_DIR$" />
       <recent name="$PROJECT_DIR$/configurations" />
       <recent name="$PROJECT_DIR$/scripts" />
       <recent name="$PROJECT_DIR$/modules" />
-      <recent name="$PROJECT_DIR$/data" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.main">
+  <component name="RunManager">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
@@ -274,14 +288,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1739731226435</updated>
-    </task>
-    <task id="LOCAL-00008" summary="adding judge model">
-      <option name="closed" value="true" />
-      <created>1739995113822</created>
-      <option name="number" value="00008" />
-      <option name="presentableId" value="LOCAL-00008" />
-      <option name="project" value="LOCAL" />
-      <updated>1739995113822</updated>
     </task>
     <task id="LOCAL-00009" summary="adding judge model. putting loop in main">
       <option name="closed" value="true" />
@@ -667,7 +673,15 @@
       <option name="project" value="LOCAL" />
       <updated>1752248103565</updated>
     </task>
-    <option name="localTasksCounter" value="57" />
+    <task id="LOCAL-00057" summary="separating the storing method into filed and making the vector db loading generic">
+      <option name="closed" value="true" />
+      <created>1752249314386</created>
+      <option name="number" value="00057" />
+      <option name="presentableId" value="LOCAL-00057" />
+      <option name="project" value="LOCAL" />
+      <updated>1752249314386</updated>
+    </task>
+    <option name="localTasksCounter" value="58" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -683,7 +697,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
-    <MESSAGE value="adding some prints and changing the report graph naming" />
     <MESSAGE value="starting with the mission to use the vector db embedding space." />
     <MESSAGE value="adding the embedding model as an argument" />
     <MESSAGE value="setting the cosine similarity to be the similarity method" />
@@ -708,7 +721,8 @@
     <MESSAGE value="fixing push to github not working" />
     <MESSAGE value="adding storage to gitignore" />
     <MESSAGE value="adding home dir to paths" />
-    <option name="LAST_COMMIT_MESSAGE" value="adding home dir to paths" />
+    <MESSAGE value="separating the storing method into filed and making the vector db loading generic" />
+    <option name="LAST_COMMIT_MESSAGE" value="separating the storing method into filed and making the vector db loading generic" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -719,19 +733,54 @@
           <option name="timeStamp" value="12" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/modules/query.py</url>
-          <line>634</line>
-          <option name="timeStamp" value="40" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/modules/model_loader.py</url>
           <line>171</line>
           <option name="timeStamp" value="53" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/modules/indexer.py</url>
+          <url>file://$PROJECT_DIR$/vector_db/chroma_vector_db.py</url>
+          <line>42</line>
+          <option name="timeStamp" value="62" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/vector_db/vector_db_interface.py</url>
+          <line>110</line>
+          <option name="timeStamp" value="65" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/vector_db/chroma_vector_db.py</url>
+          <line>32</line>
+          <option name="timeStamp" value="66" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/vector_db/simple_vector_db.py</url>
           <line>30</line>
-          <option name="timeStamp" value="61" />
+          <option name="timeStamp" value="67" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/vector_db/indexer.py</url>
+          <line>28</line>
+          <option name="timeStamp" value="68" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/vector_db/indexer.py</url>
+          <line>25</line>
+          <option name="timeStamp" value="69" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/main.py</url>
+          <line>74</line>
+          <option name="timeStamp" value="70" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/utility/user_interface.py</url>
+          <line>420</line>
+          <option name="timeStamp" value="71" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/utility/user_interface.py</url>
+          <line>498</line>
+          <option name="timeStamp" value="74" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>

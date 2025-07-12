@@ -1,69 +1,97 @@
 """
-Vector Database Factory - Main entry point for creating different types of vector databases
+Vector Database Factory - Creates vector database instances based on type
 """
 
-from utility.logger import logger as global_logger
-from typing import Dict, Callable
-from llama_index.core import VectorStoreIndex
+import logging
+from typing import Dict, Type
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
-from vector_db.chroma_index import build_chroma_vector_db
-from vector_db.simple_index import build_simple_vector_db
+from .vector_db_interface import VectorDBInterface
+from .simple_vector_db import SimpleVectorDB
+from .chroma_vector_db import ChromaVectorDB
+
+logger = logging.getLogger(__name__)
 
 
 class VectorDBFactory:
-    """Factory class for creating different types of vector databases"""
+    """
+    Factory class for creating different types of vector databases.
+    """
 
-    # Registry of available vector database builders
-    _builders: Dict[str, Callable] = {
-        'simple': build_simple_vector_db,
-        'chroma': build_chroma_vector_db,
+    # Registry of available vector database implementations
+    _implementations: Dict[str, Type[VectorDBInterface]] = {
+        'simple': SimpleVectorDB,
+        'chroma': ChromaVectorDB,
     }
 
     @classmethod
     def create_vector_db(cls,
                          db_type: str,
-                         source: str,
                          source_path: str,
-                         embedding_model: HuggingFaceEmbedding,
-                         logger) -> VectorStoreIndex:
+                         embedding_model: HuggingFaceEmbedding) -> VectorDBInterface:
         """
-        Create a vector database based on the specified type.
+        Create a vector database instance based on the specified type.
 
         Args:
             db_type (str): Type of vector database ('simple', 'chroma')
-            source (str): 'local' or 'url'
             source_path (str): Path or identifier for the source
             embedding_model: Embedding model to use
 
         Returns:
-            VectorStoreIndex: The created vector store index
+            VectorDBInterface: The created vector database instance
 
         Raises:
             ValueError: If db_type is not supported
         """
-        if db_type not in cls._builders:
-            available_types = list(cls._builders.keys())
+        if db_type not in cls._implementations:
+            available_types = list(cls._implementations.keys())
             logger.error(f"Unsupported vector database type: {db_type}. Available types: {available_types}")
             raise ValueError(f"Unsupported vector database type: {db_type}. Available types: {available_types}")
 
-        logger.info(f"Creating {db_type} vector database with source: {source}")
-        builder_func = cls._builders[db_type]
-        return builder_func(source, source_path, embedding_model, logger)
+        logger.info(f"Creating {db_type} vector database for source: {source_path}")
+
+        # Get the implementation class and instantiate it
+        implementation_class = cls._implementations[db_type]
+        return implementation_class(source_path, embedding_model)
 
     @classmethod
-    def register_builder(cls, db_type: str, builder_func: Callable):
+    def register_implementation(cls, db_type: str, implementation_class: Type[VectorDBInterface]):
         """
-        Register a new vector database builder.
+        Register a new vector database implementation.
 
         Args:
             db_type (str): Name of the database type
-            builder_func (Callable): Function that builds the database
+            implementation_class (Type[VectorDBInterface]): Implementation class
         """
-        cls._builders[db_type] = builder_func
-        global_logger.info(f"Registered new vector database builder: {db_type}")
+        if not issubclass(implementation_class, VectorDBInterface):
+            raise TypeError(f"Implementation class must inherit from VectorDBInterface")
+
+        cls._implementations[db_type] = implementation_class
+        logger.info(f"Registered new vector database implementation: {db_type}")
 
     @classmethod
     def get_available_types(cls) -> list:
-        """Get list of available vector database types"""
-        return list(cls._builders.keys())
+        """Get list of available vector database types."""
+        return list(cls._implementations.keys())
+
+    @classmethod
+    def get_implementation_info(cls, db_type: str) -> Dict:
+        """
+        Get information about a specific implementation.
+
+        Args:
+            db_type (str): Database type
+
+        Returns:
+            Dict: Information about the implementation
+        """
+        if db_type not in cls._implementations:
+            raise ValueError(f"Unknown database type: {db_type}")
+
+        impl_class = cls._implementations[db_type]
+        return {
+            "type": db_type,
+            "class": impl_class.__name__,
+            "module": impl_class.__module__,
+            "docstring": impl_class.__doc__ or "No description available"
+        }

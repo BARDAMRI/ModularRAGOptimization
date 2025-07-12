@@ -1,3 +1,13 @@
+import os
+from typing import Tuple, Optional
+from urllib.parse import urlparse
+
+import requests
+from datasets import load_dataset
+
+from utility.logger import logger
+
+
 def parse_source_path(source_path: str) -> Tuple[str, str]:
     """
     Parses the source path to determine its type and extract relevant information.
@@ -77,34 +87,81 @@ def download_and_save_from_url(url: str, target_dir: str) -> None:
     logger.info(f"Downloaded and saved corpus to {file_path}")
 
 
-def download_and_save_from_hf(dataset_name: str, config: str, target_dir: str, max_docs: int = 1000) -> None:
+def download_and_save_from_hf(dataset_name: str, config: Optional[str], target_dir: str, max_docs: int = 1000) -> None:
     """
     Downloads a dataset from Hugging Face and saves it locally as text files in batches.
 
     Args:
         dataset_name (str): Name of the Hugging Face dataset.
-        config (str): Configuration for the dataset.
+        config (Optional[str]): Configuration for the dataset (can be None).
         target_dir (str): Directory to save the downloaded documents.
         max_docs (int): Maximum number of documents to download.
 
     Returns:
         None
     """
-    logger.info(f"Downloading dataset '{dataset_name}' with config '{config}' from Hugging Face...")
-    dataset = load_dataset(dataset_name, config, split="train", trust_remote_code=True)
-    os.makedirs(target_dir, exist_ok=True)
+    if config:
+        logger.info(f"Downloading dataset '{dataset_name}' with config '{config}' from Hugging Face...")
+        dataset_identifier = f"{dataset_name}:{config}"
+    else:
+        logger.info(f"Downloading dataset '{dataset_name}' from Hugging Face...")
+        dataset_identifier = dataset_name
 
-    batch_size = 100
-    batch = []
-    for i, item in enumerate(dataset):
-        if i >= max_docs:
-            break
-        text = item["text"].strip()
-        if text:
-            batch.append((i, text))
-        if len(batch) == batch_size or i == max_docs - 1:
+    try:
+        if config:
+            dataset = load_dataset(dataset_name, config, split="train", trust_remote_code=True)
+        else:
+            dataset = load_dataset(dataset_name, split="train", trust_remote_code=True)
+
+        os.makedirs(target_dir, exist_ok=True)
+
+        batch_size = 100
+        batch = []
+        doc_count = 0
+
+        # Heuristic to find a text column if 'text' isn't present
+        text_column = None
+        if 'text' in dataset.column_names:
+            text_column = 'text'
+        else:
+            # Try to find a reasonable text column
+            for col_name in dataset.column_names:
+                if 'text' in col_name.lower() or 'document' in col_name.lower() or 'content' in col_name.lower():
+                    # Check if the first item in this column is a string
+                    if len(dataset) > 0 and isinstance(dataset[0][col_name], str):
+                        text_column = col_name
+                        logger.warning(f"Using column '{text_column}' as text content for HF dataset.")
+                        break
+
+            if text_column is None:
+                raise ValueError(f"No obvious text column found in dataset '{dataset_identifier}'. "
+                                 f"Available columns: {dataset.column_names}. Please specify manually if possible.")
+
+        for i, item in enumerate(dataset):
+            if doc_count >= max_docs:
+                break
+
+            text_content = item.get(text_column, "").strip()
+
+            if text_content:  # Only process if text content is not empty
+                batch.append((doc_count, text_content))
+                doc_count += 1
+
+            if len(batch) >= batch_size or doc_count >= max_docs:
+                for doc_id, doc_text in batch:
+                    with open(os.path.join(target_dir, f"doc_{doc_id}.txt"), "w", encoding="utf-8") as f:
+                        f.write(doc_text)
+                batch.clear()
+
+        # Save any remaining documents in the last batch
+        if batch:
             for doc_id, doc_text in batch:
                 with open(os.path.join(target_dir, f"doc_{doc_id}.txt"), "w", encoding="utf-8") as f:
                     f.write(doc_text)
             batch.clear()
-    logger.info(f"Saved {min(max_docs, len(dataset))} documents to {target_dir}")
+
+        logger.info(f"Saved {doc_count} documents to {target_dir}")
+
+    except Exception as e:
+        logger.error(f"Failed to download or process HF dataset '{dataset_identifier}': {e}")
+        raise

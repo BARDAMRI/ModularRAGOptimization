@@ -214,7 +214,7 @@ class MPSTestSuite:
     def test_vector_db_integration(self):
         """Test vector database integration (optional)."""
         try:
-            from modules.indexer import load_vector_db
+            from vector_db.indexer import load_vector_db
             from configurations.config import INDEX_SOURCE_URL
 
             print(f"  ✓ Attempting to load vector DB...")

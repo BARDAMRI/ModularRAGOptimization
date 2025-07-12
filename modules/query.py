@@ -13,7 +13,7 @@ from utility.logger import logger
 from utility.similarity_calculator import calculate_similarities, SimilarityMethod
 import re
 from modules.model_loader import load_model
-from modules.indexer import load_vector_db
+from vector_db.indexer import load_vector_db
 from configurations.config import INDEX_SOURCE_URL
 
 # =====================================================
@@ -738,7 +738,7 @@ def _generate_single_answer(prompt, model, tokenizer, device, vector_db, embeddi
 @track_performance("preparing_query_context")
 def _prepare_prompt_with_context(prompt, vector_db, embedding_model, similarity_method):
     """Prepare prompt with retrieved context if available."""
-    original_question = prompt  # לשמור על שאלה מקורית
+    original_question = prompt
 
     if vector_db is not None:
         with monitor_performance("context_retrieval_and_prompt_construction"):
@@ -823,9 +823,6 @@ def rephrase_query(
         return original_prompt
 
 
-from utility.logger import logger
-
-
 # Example usage and testing
 def test_mps_query_processing():
     """Test the MPS-safe query processing pipeline."""
@@ -833,6 +830,7 @@ def test_mps_query_processing():
 
     try:
 
+        from utility.logger import logger
         # Load model
         tokenizer, model = load_model()
         device = next(model.parameters()).device

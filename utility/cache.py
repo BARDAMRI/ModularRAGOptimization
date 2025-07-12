@@ -16,7 +16,7 @@ class SmartCache:
     """Intelligent caching system for RAG operations"""
 
     def __init__(self, cache_dir: str = "cache", ttl_seconds: int = 3600):
-        self.cache_dir = os.path.join(PROJECT_PATH, cache_dir)
+        self.cache_dir = os.path.join(PROJECT_PATH, '..', cache_dir)
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)  # Create parent directories too
         except Exception as err:

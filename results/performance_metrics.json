@@ -2,349 +2,46 @@
   "complete_model_loading": [
     {
       "operation": "complete_model_loading",
-      "duration": 6.841917276382446,
-      "memory_delta_mb": -357.15625,
+      "duration": 8.171093940734863,
+      "memory_delta_mb": -261.03125,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244734.2175329
+      "timestamp": 1752316041.3779268
     }
   ],
   "startup_model_loading": [
     {
       "operation": "startup_model_loading",
-      "duration": 6.842768907546997,
-      "memory_delta_mb": -356.890625,
+      "duration": 21.96127200126648,
+      "memory_delta_mb": -232.9375,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244734.217719
-    }
-  ],
-  "gpu_profiling": [
-    {
-      "operation": "gpu_profiling",
-      "duration": 0.0004947185516357422,
-      "memory_delta_mb": 0.046875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244734.218427
-    }
-  ],
-  "vector_db_loading": [
-    {
-      "operation": "vector_db_loading",
-      "duration": 3.807191848754883,
-      "memory_delta_mb": 401.6875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244738.025811
-    }
-  ],
-  "llamaindex_retrieval": [
-    {
-      "operation": "llamaindex_retrieval",
-      "duration": 0.2000119686126709,
-      "memory_delta_mb": 33.703125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244866.376151
-    },
-    {
-      "operation": "llamaindex_retrieval",
-      "duration": 0.09743785858154297,
-      "memory_delta_mb": -2.125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.727527
-    }
-  ],
-  "query_embedding": [
-    {
-      "operation": "query_embedding",
-      "duration": 0.0004260540008544922,
-      "memory_delta_mb": 0.03125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244866.376672
-    },
-    {
-      "operation": "query_embedding",
-      "duration": 0.013882160186767578,
-      "memory_delta_mb": 0.03125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.741478
-    }
-  ],
-  "embedding_generation": [
-    {
-      "operation": "embedding_generation",
-      "duration": 0.06685495376586914,
-      "memory_delta_mb": 12.296875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244866.443737
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.01862621307373047,
-      "memory_delta_mb": 0.6875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244866.462579
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.019516944885253906,
-      "memory_delta_mb": 0.296875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244866.4823208
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.02077198028564453,
-      "memory_delta_mb": 0.140625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244866.503318
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.019708871841430664,
-      "memory_delta_mb": 0.375,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244866.523238
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.01204228401184082,
-      "memory_delta_mb": 0.015625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.7397408
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.02348017692565918,
-      "memory_delta_mb": -0.0625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.7651892
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.019920825958251953,
-      "memory_delta_mb": 0.125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.785324
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.019765853881835938,
-      "memory_delta_mb": 0.09375,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.805284
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.0196683406829834,
-      "memory_delta_mb": 0.03125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.8251562
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.019263029098510742,
-      "memory_delta_mb": 0.0,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.8446069
-    }
-  ],
-  "batch_embedding_generation": [
-    {
-      "operation": "batch_embedding_generation",
-      "duration": 0.14658403396606445,
-      "memory_delta_mb": 13.796875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244866.523378
-    },
-    {
-      "operation": "batch_embedding_generation",
-      "duration": 0.10312604904174805,
-      "memory_delta_mb": 0.1875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.8447292
-    }
-  ],
-  "document_embedding_extraction": [
-    {
-      "operation": "document_embedding_extraction",
-      "duration": 0.14670014381408691,
-      "memory_delta_mb": 13.796875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244866.523438
-    },
-    {
-      "operation": "document_embedding_extraction",
-      "duration": 0.1032400131225586,
-      "memory_delta_mb": 0.1875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.844785
-    }
-  ],
-  "similarity_calculation": [
-    {
-      "operation": "similarity_calculation",
-      "duration": 0.0002989768981933594,
-      "memory_delta_mb": 0.078125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244866.523791
-    },
-    {
-      "operation": "similarity_calculation",
-      "duration": 0.0002338886260986328,
-      "memory_delta_mb": 0.0,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.845068
-    }
-  ],
-  "result_filtering_and_ranking": [
-    {
-      "operation": "result_filtering_and_ranking",
-      "duration": 7.176399230957031e-05,
-      "memory_delta_mb": 0.015625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244866.523916
-    },
-    {
-      "operation": "result_filtering_and_ranking",
-      "duration": 5.459785461425781e-05,
-      "memory_delta_mb": 0.0,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.8451772
-    }
-  ],
-  "context_retrieval": [
-    {
-      "operation": "context_retrieval",
-      "duration": 0.3481709957122803,
-      "memory_delta_mb": 47.640625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244866.523998
-    },
-    {
-      "operation": "context_retrieval",
-      "duration": 0.21536684036254883,
-      "memory_delta_mb": -1.90625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.845255
-    }
-  ],
-  "context_retrieval_and_prompt_construction": [
-    {
-      "operation": "context_retrieval_and_prompt_construction",
-      "duration": 0.3482401371002197,
-      "memory_delta_mb": 47.640625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244866.5240378
-    },
-    {
-      "operation": "context_retrieval_and_prompt_construction",
-      "duration": 0.21544122695922852,
-      "memory_delta_mb": -1.90625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.8452978
-    }
-  ],
-  "preparing_query_context": [
-    {
-      "operation": "preparing_query_context",
-      "duration": 0.3483099937438965,
-      "memory_delta_mb": 47.640625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244866.52408
-    },
-    {
-      "operation": "preparing_query_context",
-      "duration": 0.2155160903930664,
-      "memory_delta_mb": -1.90625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244963.8453388
-    }
-  ],
-  "answer_quality_evaluation": [
-    {
-      "operation": "answer_quality_evaluation",
-      "duration": 0.0006849765777587891,
-      "memory_delta_mb": 0.0,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244868.956629
-    },
-    {
-      "operation": "answer_quality_evaluation",
-      "duration": 0.00017189979553222656,
-      "memory_delta_mb": 0.0,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244965.405005
-    }
-  ],
-  "answer_processing": [
-    {
-      "operation": "answer_processing",
-      "duration": 0.0014770030975341797,
-      "memory_delta_mb": 0.5625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244868.9566941
-    },
-    {
-      "operation": "answer_processing",
-      "duration": 0.0007679462432861328,
-      "memory_delta_mb": 0.140625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244965.405062
-    }
-  ],
-  "single_answer_generating": [
-    {
-      "operation": "single_answer_generating",
-      "duration": 2.781153917312622,
-      "memory_delta_mb": 391.296875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244868.956757
-    },
-    {
-      "operation": "single_answer_generating",
-      "duration": 1.7753520011901855,
-      "memory_delta_mb": 48.671875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244965.405115
+      "timestamp": 1752316055.168221
     }
   ],
   "complete_query_processing": [
     {
       "operation": "complete_query_processing",
-      "duration": 2.7841901779174805,
-      "memory_delta_mb": 391.296875,
+      "duration": 0.0012841224670410156,
+      "memory_delta_mb": 0.078125,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244868.956835
-    },
-    {
-      "operation": "complete_query_processing",
-      "duration": 1.7783961296081543,
-      "memory_delta_mb": 48.671875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244965.405185
+      "timestamp": 1752316070.302498
     }
   ],
   "interactive_query": [
     {
       "operation": "interactive_query",
-      "duration": 2.7891480922698975,
-      "memory_delta_mb": 391.328125,
+      "duration": 0.00273895263671875,
+      "memory_delta_mb": 0.5,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244868.958091
-    },
-    {
-      "operation": "interactive_query",
-      "duration": 1.781378984451294,
-      "memory_delta_mb": 48.6875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752244965.405782
+      "timestamp": 1752316070.302899
     }
   ],
-  "complete_query_evaluation": [
+  "interactive_mode": [
     {
-      "operation": "complete_query_evaluation",
-      "duration": 2231.6307990550995,
-      "memory_delta_mb": -31.90625,
+      "operation": "interactive_mode",
+      "duration": 182.4776201248169,
+      "memory_delta_mb": -215.875,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752246965.8495371
+      "timestamp": 1752316244.504247
     }
   ]
 }
