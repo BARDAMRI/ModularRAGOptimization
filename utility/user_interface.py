@@ -9,7 +9,7 @@ from typing import Optional, Tuple, Callable
 import torch
 
 from configurations.config import NQ_SAMPLE_SIZE, MAX_NEW_TOKENS, TEMPERATURE, QUALITY_THRESHOLD, MAX_RETRIES, \
-    QA_DATASET_NAME
+    QA_DATASET_NAME, INDEX_SOURCE_URL
 from matrics.results_logger import ResultsLogger
 from modules.model_loader import load_model
 from modules.query import process_query_with_context
@@ -85,16 +85,26 @@ def prompt_with_validation(
 ) -> str:
     while True:
         user_input = input(prompt_text).strip()
+
+        # Remove surrounding quotes if present
+        if user_input.startswith('"') and user_input.endswith('"'):
+            user_input = user_input[1:-1].strip()
+        elif user_input.startswith("'") and user_input.endswith("'"):
+            user_input = user_input[1:-1].strip()
+
         if not user_input and default is not None:
             print(f"✅ Using default: {default}")
             return default
+
         try:
-            if validation_fn(user_input):
-                result = transform_fn(user_input) if transform_fn else user_input
+            normalized_input = user_input.lower()
+            if validation_fn(normalized_input):
+                result = transform_fn(normalized_input) if transform_fn else normalized_input
                 print(f"✅ Selected: {result}")
                 return result
         except Exception:
             pass
+
         print(error_msg)
 
 
@@ -179,15 +189,41 @@ def get_user_storing_method(default_method: Optional[str] = None) -> str:
     )
 
 
+import re
+from urllib.parse import urlparse
+
+
+def detect_source_type(source: str) -> str:
+    """Detect the type of the input source."""
+    if re.match(r"^\w+:\w+$", source):  # HuggingFace dataset with config
+        return "huggingface_dataset_with_config"
+    elif re.match(r"^\w+$", source):  # HuggingFace dataset without config
+        return "huggingface_dataset"
+    elif re.match(r"^https?://", source):  # URL
+        parsed = urlparse(source)
+        if parsed.netloc and parsed.path:
+            return "url"
+    elif os.path.exists(source):  # Local path
+        return "local_path"
+    return "invalid"
+
+
 def get_user_source_path() -> str:
     print_section_header("📁 DATA SOURCE CONFIGURATION")
-    print("Enter the path to your data source:")
+    print("Enter the path to your data source. Supported formats:")
     print("  • Local directory: /path/to/your/documents")
     print("  • URL: https://example.com/data.txt")
     print("  • HuggingFace dataset: squad:plain_text")
     print("  • HuggingFace dataset (no config): wikitext")
+    print(f"\n🔁 Press Enter to use default: {INDEX_SOURCE_URL}")
 
-    return ask_nonempty_string("\nSource path: ")
+    return prompt_with_validation(
+        prompt_text="🔤 Source path: ",
+        validation_fn=lambda x: detect_source_type(x) != "invalid",
+        default=INDEX_SOURCE_URL,
+        transform_fn=lambda x: x.strip().strip('"').strip("'"),
+        error_msg="❌ Invalid path format. Please try again."
+    )
 
 
 def confirm_configuration(storing_method: str, source_path: str) -> bool:

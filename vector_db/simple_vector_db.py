@@ -11,8 +11,20 @@ from utility.vector_db_utils import parse_source_path, download_and_save_from_hf
 from utility.logger import logger
 from vector_db.vector_db_interface import VectorDBInterface
 
-# Get the project root directory properly
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _get_storage_directory(self, parsed_name: str) -> str:
+    """
+    Construct and return the consistent storage directory path based on parsed name.
+
+    Args:
+        parsed_name (str): Cleaned version of source path name
+
+    Returns:
+        str: Full storage directory path
+    """
+    return os.path.join(PROJECT_PATH, "storage", self.db_type, parsed_name.replace(":", "_"))
 
 
 class SimpleVectorDB(VectorDBInterface):
@@ -40,7 +52,7 @@ class SimpleVectorDB(VectorDBInterface):
         data_dir = self._prepare_data_directory(source_type, parsed_name)
 
         # Setup storage directory
-        self.storage_dir = os.path.join(PROJECT_PATH, "storage", "simple", parsed_name.replace(":", "_"))
+        self.storage_dir = _get_storage_directory(self.db_type, parsed_name)
         os.makedirs(self.storage_dir, exist_ok=True)
 
         # Load existing index or create new one

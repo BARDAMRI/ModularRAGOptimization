@@ -1,16 +1,19 @@
+# vector_db_factory.py
+
 """
 Vector Database Factory - Creates vector database instances based on type
 """
 
 import logging
+import os
 from typing import Dict, Type
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-
-from .vector_db_interface import VectorDBInterface
-from .simple_vector_db import SimpleVectorDB
-from .chroma_vector_db import ChromaVectorDB
+from vector_db.simple_vector_db import SimpleVectorDB
+from vector_db.chroma_vector_db import ChromaVectorDB
+from vector_db.vector_db_interface import VectorDBInterface
 
 logger = logging.getLogger(__name__)
+PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class VectorDBFactory:

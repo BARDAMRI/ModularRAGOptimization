@@ -1,13 +1,11 @@
 # modules/indexer.py
-import os
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from configurations.config import HF_MODEL_NAME, USE_MIXED_PRECISION
+from configurations.config import HF_MODEL_NAME
 from vector_db.vector_db_factory import VectorDBFactory
 from vector_db.vector_db_interface import VectorDBInterface
 from utility.logger import logger
 from utility.device_utils import get_optimal_device
 from typing import Tuple
-from sentence_transformers import SentenceTransformer
 
 
 def load_vector_db(source_path: str = "local_data_dir",
@@ -67,40 +65,16 @@ def _get_cached_embedding_model() -> HuggingFaceEmbedding:
     Returns:
         HuggingFaceEmbedding: The cached embedding model
     """
-    # Check if we already have a cached model
     if not hasattr(load_vector_db, "_embed_model"):
         try:
-            logger.info(f"Loading embedding model: {HF_MODEL_NAME}")
+            logger.info(f"Loading HuggingFaceEmbedding with model_name: {HF_MODEL_NAME}")
             device = get_optimal_device()
 
-            # Create SentenceTransformer with device-specific settings
-            if device.type == "mps":
-                logger.info(f"Loading SentenceTransformer for MPS with float32")
-                sbert_model = SentenceTransformer(HF_MODEL_NAME, device=str(device))
-                # Convert to float32 for MPS compatibility
-                sbert_model = sbert_model.float()
-            elif device.type == "cuda":
-                logger.info(f"Loading SentenceTransformer for CUDA")
-                sbert_model = SentenceTransformer(HF_MODEL_NAME, device=str(device))
-                if USE_MIXED_PRECISION:
-                    logger.info("Converting model to float16 for mixed precision")
-                    sbert_model = sbert_model.half()
-                else:
-                    logger.info("Using float32 for CUDA")
-                    sbert_model = sbert_model.float()
-            else:  # CPU
-                logger.info(f"Loading SentenceTransformer for CPU with float32")
-                sbert_model = SentenceTransformer(HF_MODEL_NAME, device=str(device))
-                sbert_model = sbert_model.float()
-
-            # Create HuggingFaceEmbedding with pre-loaded model
             embedding_model = HuggingFaceEmbedding(
-                model=sbert_model,
                 model_name=HF_MODEL_NAME,
                 device=str(device)
             )
 
-            # Cache the embedding model
             load_vector_db._embed_model = embedding_model
             logger.info(f"✅ Embedding model loaded and cached successfully")
 
@@ -146,13 +120,6 @@ def get_vector_db_info(storing_method: str) -> dict:
         raise ValueError(f"Unknown storing method: {storing_method}")
 
 
-def clear_embedding_cache():
-    """Clear the cached embedding model (useful for testing or memory management)"""
-    if hasattr(load_vector_db, "_embed_model"):
-        delattr(load_vector_db, "_embed_model")
-        logger.info("Embedding model cache cleared")
-
-
 # Utility functions for debugging and testing
 def test_vector_db_creation(source_path: str = "test_data", storing_method: str = "simple"):
     """
@@ -185,24 +152,9 @@ def test_vector_db_creation(source_path: str = "test_data", storing_method: str 
 
 
 def get_embedding_model_info() -> dict:
-    """
-    Get information about the current embedding model.
-
-    Returns:
-        dict: Embedding model information
-    """
-    if hasattr(load_vector_db, "_embed_model"):
-        model = load_vector_db._embed_model
-        return {
-            "model_name": model.model_name,
-            "device": model.device,
-            "is_cached": True,
-            "model_type": type(model).__name__
-        }
-    else:
-        return {
-            "model_name": HF_MODEL_NAME,
-            "device": str(get_optimal_device()),
-            "is_cached": False,
-            "model_type": "Not loaded"
-        }
+    return {
+        "model_name": HF_MODEL_NAME,
+        "device": str(get_optimal_device()),
+        "is_cached": False,
+        "model_type": "HuggingFaceEmbedding"
+    }
