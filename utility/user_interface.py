@@ -1,23 +1,37 @@
 """
 User interface utilities for selecting vector database configurations
 """
-import json
 import os
 import sys
 import termios
-from typing import Optional, Tuple
-
+from enum import Enum
+from typing import Optional, Tuple, Callable
 import torch
 
-from configurations.config import NQ_SAMPLE_SIZE, MAX_NEW_TOKENS, TEMPERATURE, QUALITY_THRESHOLD, MAX_RETRIES
+from configurations.config import NQ_SAMPLE_SIZE, MAX_NEW_TOKENS, TEMPERATURE, QUALITY_THRESHOLD, MAX_RETRIES, \
+    QA_DATASET_NAME
 from matrics.results_logger import ResultsLogger
 from modules.model_loader import load_model
 from modules.query import process_query_with_context
 from scripts.evaluator import enumerate_top_documents
+from scripts.qa_data_set_loader import load_qa_queries
 from utility.device_utils import get_optimal_device
 from utility.logger import logger
 from vector_db.indexer import get_embedding_model_info, load_vector_db
 from vector_db.storing_methods import StoringMethod
+
+PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+class Mode(str, Enum):
+    INTERACTIVE = "1"
+    EVALUATION = "2"
+    DEVELOPMENT = "3"
+    ANALYSIS = "4"
+    INFO = "5"
+    DOWNLOAD = "6"
+    EXIT = "7"
+
 
 # Import performance monitoring with fallbacks
 try:
@@ -62,11 +76,87 @@ except ImportError:
         print("Cache clearing not available")
 
 
-def display_storing_methods():
-    """Display available storing methods with descriptions."""
+def prompt_with_validation(
+        prompt_text: str,
+        validation_fn: Callable[[str], bool],
+        default: Optional[str] = None,
+        transform_fn: Optional[Callable[[str], str]] = None,
+        error_msg: str = "❌ Invalid input."
+) -> str:
+    while True:
+        user_input = input(prompt_text).strip()
+        if not user_input and default is not None:
+            print(f"✅ Using default: {default}")
+            return default
+        try:
+            if validation_fn(user_input):
+                result = transform_fn(user_input) if transform_fn else user_input
+                print(f"✅ Selected: {result}")
+                return result
+        except Exception:
+            pass
+        print(error_msg)
+
+
+def ask_selection(prompt_text: str, options: list, default: Optional[str] = None) -> str:
+    return prompt_with_validation(
+        prompt_text=prompt_text,
+        validation_fn=lambda x: x in options,
+        default=default,
+        error_msg=f"❌ Please choose one of: {', '.join(options)}"
+    )
+
+
+def retry_or_exit(message: str, retry_prompt: str = "Retry? (y/n): ") -> bool:
+    print(f"❌ {message}")
+    logger.error(message)
+    return ask_yes_no(retry_prompt, default="n")
+
+
+def ask_yes_no(prompt_text: str, default: str = "y") -> bool:
+    result = prompt_with_validation(
+        prompt_text=prompt_text,
+        validation_fn=lambda x: x.lower() in ['y', 'yes', 'n', 'no'],
+        transform_fn=lambda x: x.lower(),
+        default=default,
+        error_msg="❌ Please enter 'y' or 'n'."
+    )
+    return result in ['y', 'yes']
+
+
+def print_section_header(title: str):
+    """
+    Print a section header with a consistent visual style.
+
+    Args:
+        title (str): The title to display in the header.
+    """
     print("\n" + "=" * 60)
-    print("📊 AVAILABLE VECTOR DATABASE STORING METHODS")
+    print(f"{title}")
     print("=" * 60)
+
+
+def ask_nonempty_string(prompt_text: str, default: Optional[str] = None) -> str:
+    """
+    Prompt user for non-empty string input.
+
+    Args:
+        prompt_text (str): The prompt message to display.
+        default (Optional[str]): Optional default value if user presses Enter.
+
+    Returns:
+        str: Validated non-empty input from the user.
+    """
+    return prompt_with_validation(
+        prompt_text=prompt_text,
+        validation_fn=lambda x: bool(x.strip()),
+        default=default,
+        error_msg="❌ Please enter a valid value."
+    )
+
+
+def display_storing_methods():
+    print_section_header("📊 AVAILABLE VECTOR DATABASE STORING METHODS")
 
     descriptions = StoringMethod.get_descriptions()
     recommendations = StoringMethod.get_recommendations()
@@ -80,107 +170,37 @@ def display_storing_methods():
 
 
 def get_user_storing_method(default_method: Optional[str] = None) -> str:
-    """
-    Interactive prompt for user to select a storing method.
-
-    Args:
-        default_method (Optional[str]): Default method if user presses Enter
-
-    Returns:
-        str: Selected storing method
-    """
-    if default_method is None:
-        default_method = StoringMethod.get_default()
-
     display_storing_methods()
-
     methods = StoringMethod.get_all_methods()
-
-    while True:
-        print(f"\nSelect a storing method (1-{len(methods)}) or press Enter for default ({default_method}):")
-        choice = input("Your choice: ").strip()
-
-        # Handle default (empty input)
-        if not choice:
-            print(f"✅ Using default method: {default_method}")
-            return default_method
-
-        # Handle numeric choice
-        try:
-            choice_num = int(choice)
-            if 1 <= choice_num <= len(methods):
-                selected_method = methods[choice_num - 1]
-                print(f"✅ Selected method: {selected_method}")
-                return selected_method
-            else:
-                print(f"❌ Please enter a number between 1 and {len(methods)}")
-                continue
-        except ValueError:
-            pass
-
-        # Handle string choice (method name)
-        if StoringMethod.is_valid_method(choice.lower()):
-            print(f"✅ Selected method: {choice.lower()}")
-            return choice.lower()
-
-        print("❌ Invalid choice. Please try again.")
+    return ask_selection(
+        prompt_text=f"\nSelect a storing method (1-{len(methods)}) or press Enter for default ({default_method}): ",
+        options=methods,
+        default=default_method
+    )
 
 
 def get_user_source_path() -> str:
-    """
-    Interactive prompt for user to input source path.
-
-    Returns:
-        str: Source path entered by user
-    """
-    print("\n" + "=" * 60)
-    print("📁 DATA SOURCE CONFIGURATION")
-    print("=" * 60)
+    print_section_header("📁 DATA SOURCE CONFIGURATION")
     print("Enter the path to your data source:")
     print("  • Local directory: /path/to/your/documents")
     print("  • URL: https://example.com/data.txt")
     print("  • HuggingFace dataset: squad:plain_text")
     print("  • HuggingFace dataset (no config): wikitext")
 
-    while True:
-        source_path = input("\nSource path: ").strip()
-        if source_path:
-            print(f"✅ Source path set to: {source_path}")
-            return source_path
-        print("❌ Please enter a valid source path.")
+    return ask_nonempty_string("\nSource path: ")
 
 
 def confirm_configuration(storing_method: str, source_path: str) -> bool:
-    """
-    Show configuration summary and ask for confirmation.
-
-    Args:
-        storing_method (str): Selected storing method
-        source_path (str): Selected source path
-
-    Returns:
-        bool: True if user confirms, False otherwise
-    """
-    print("\n" + "=" * 60)
-    print("⚙️  CONFIGURATION SUMMARY")
-    print("=" * 60)
+    print_section_header("⚙️  CONFIGURATION SUMMARY")
     print(f"Storing Method: {storing_method}")
     print(f"Source Path:    {source_path}")
 
-    # Show method description
     descriptions = StoringMethod.get_descriptions()
     if storing_method in descriptions:
         print(f"Description:    {descriptions[storing_method]}")
-
     print("=" * 60)
 
-    while True:
-        confirm = input("Proceed with this configuration? (y/n): ").strip().lower()
-        if confirm in ['y', 'yes']:
-            return True
-        elif confirm in ['n', 'no']:
-            return False
-        print("❌ Please enter 'y' for yes or 'n' for no.")
+    return ask_yes_no("Proceed with this configuration? (y/n): ", default="y")
 
 
 def interactive_vector_db_setup() -> Tuple[str, str]:
@@ -264,9 +284,7 @@ def setup_from_args(args) -> Tuple[str, str]:
     if method and source:
         # Both provided, validate and use
         if not StoringMethod.is_valid_method(method):
-            print(f"❌ Invalid storing method: {method}")
-            print(f"Available methods: {', '.join(StoringMethod.get_all_methods())}")
-            sys.exit(1)
+            retry_or_exit(f"Invalid storing method: {method}")
 
         print(f"✅ Using command line configuration:")
         print(f"   Method: {method}")
@@ -301,6 +319,7 @@ def display_startup_banner():
     else:
         print("💻 CPU Mode - No GPU Acceleration")
     print("=" * 60)
+    return device
 
 
 def setup_vector_database() -> Tuple[Optional[object], Optional[object]]:
@@ -309,16 +328,13 @@ def setup_vector_database() -> Tuple[Optional[object], Optional[object]]:
     print("\n📚 VECTOR DATABASE SETUP")
     print("-" * 30)
 
-    # Check if user wants to use vector DB
-    use_vector_db = input("Do you want to use vector database for context retrieval? (y/n): ").strip().lower()
+    use_vector_db = ask_yes_no("Do you want to use vector database for context retrieval? (y/n): ", default='n')
 
-    if use_vector_db != 'y':
+    if not use_vector_db:
         print("📝 Running in simple Q&A mode (no context retrieval)")
         return None, None
 
     try:
-        # Get vector DB configuration
-        print("\nConfiguring vector database...")
         storing_method, source_path = interactive_vector_db_setup()
 
         with monitor_performance("vector_db_loading"):
@@ -330,7 +346,6 @@ def setup_vector_database() -> Tuple[Optional[object], Optional[object]]:
 
             print("✅ Vector DB loaded successfully")
 
-            # Show database stats
             stats = vector_db.get_stats()
             print(f"\n📊 Database Statistics:")
             for key, value in stats.items():
@@ -342,8 +357,8 @@ def setup_vector_database() -> Tuple[Optional[object], Optional[object]]:
         logger.error(f"Failed to load vector DB: {e}")
         print(f"❌ Vector DB setup failed: {e}")
 
-        retry = input("Continue without vector DB? (y/n): ").strip().lower()
-        if retry == 'y':
+        retry = ask_yes_no("Continue without vector DB? (y/n): ", default='y')
+        if retry:
             print("⚠️  Continuing without vector database...")
             return None, None
         else:
@@ -358,14 +373,14 @@ def display_main_menu():
     print("2. 📊 Evaluation Mode (Natural Questions)")
     print("3. 🔧 Development Test Mode")
     print("4. 📈 Results Analysis")
-    print("5. ⚙️  System Information")
-    print("6. 🚪 Exit")
+    print("5. ⚙️ System Information")
+    print("6. 📥️ Download QA Dataset")
+    print("7. 🚪 Exit")
 
-    while True:
-        choice = input("\nEnter your choice (1-6): ").strip()
-        if choice in ['1', '2', '3', '4', '5', '6']:
-            return choice
-        print("❌ Invalid choice. Please enter 1-6.")
+    return ask_selection(
+        prompt_text="\nEnter your choice (1-7): ",
+        options=[str(i) for i in range(1, 8)]
+    )
 
 
 def flush_input():
@@ -376,13 +391,13 @@ def flush_input():
         pass  # Normal in some environments
 
 
-def show_system_info(vector_db, model):
+def show_system_info(vector_db, model, device):
     """Display comprehensive system information."""
     print("\n⚙️  SYSTEM INFORMATION")
     print("=" * 25)
 
     # Device information
-    profile_gpu(model)
+    profile_gpu(model, device)
 
     # Model information
     print(f"\n🤖 Model Information:")
@@ -414,9 +429,8 @@ def show_system_info(vector_db, model):
 
 
 @track_performance("gpu_profiling")
-def profile_gpu(model):
+def profile_gpu(model, device):
     """Enhanced GPU profiling with MPS support."""
-    device = get_optimal_device()
 
     print(f"\n🖥️  DEVICE INFORMATION")
     print("-" * 25)
@@ -446,9 +460,19 @@ def profile_gpu(model):
 
 
 @track_performance("interactive_mode")
-def run_interactive_mode(vector_db, embedding_model, tokenizer, model):
-    """Run the interactive Q&A mode."""
-    device = get_optimal_device()
+def run_interactive_mode(vector_db, embedding_model, tokenizer, model, device):
+    """Run the interactive Q&A mode.
+    This mode allows users to ask questions and get answers win a loop with optional context retrieval.
+
+    Args:
+        ""vector_db (Optional[object]): Vector database instance for context retrieval.
+        embedding_model (Optional[object]): Embedding model for vectorization.
+        tokenizer (Optional[object]): Tokenizer for the model.
+        model (Optional[object]): Language model for generating answers.
+        device (torch.device): Device to run the model on (CPU/GPU/MPS).
+        Returns:
+            "None
+    """
 
     print("\n💬 INTERACTIVE Q&A MODE")
     print("=" * 30)
@@ -486,7 +510,7 @@ def run_interactive_mode(vector_db, embedding_model, tokenizer, model):
             continue
 
         if user_prompt.lower() == 'device':
-            profile_gpu(model)
+            profile_gpu(model, device)
             continue
 
         if not user_prompt:
@@ -520,8 +544,17 @@ def run_interactive_mode(vector_db, embedding_model, tokenizer, model):
 
 
 @track_performance("evaluation_mode")
-def run_evaluation_mode(vector_db, embedding_model, tokenizer, model):
-    """Run the evaluation mode with Natural Questions dataset."""
+def run_evaluation_mode(vector_db, embedding_model, tokenizer, model, device):
+    """
+    Run the evaluation mode using a QA dataset and evaluate the model's performance.
+
+    Args:
+        vector_db: Vector DB instance for context retrieval.
+        embedding_model: Embedding model for vectorization.
+        tokenizer: Tokenizer for the LLM.
+        model: The LLM model used for answering.
+        device: Device on which model is running.
+    """
     if vector_db is None:
         print("❌ Evaluation mode requires Vector DB. Please restart and set up vector database.")
         return
@@ -529,65 +562,60 @@ def run_evaluation_mode(vector_db, embedding_model, tokenizer, model):
     print("\n📊 EVALUATION MODE")
     print("=" * 25)
 
-    mode_choice = input("Select mode: (e)numeration / (h)ill climbing: ").strip().lower()
-    if mode_choice not in ['e', 'h']:
-        print("❌ Invalid choice. Returning to main menu.")
-        return
+    mode_choice = ask_selection(
+        prompt_text="Select mode: (e)numeration / (h)ill climbing: ",
+        options=["e", "h"],
+        default="e"
+    )
 
     results_logger = ResultsLogger(top_k=5, mode="hill" if mode_choice == "h" else "enum")
-    nq_file_path = "data/user_query_datasets/natural-questions-master/nq_open/NQ-open.dev.jsonl"
 
-    if not os.path.exists(nq_file_path):
-        logger.error(f"NQ file not found at: {nq_file_path}")
-        print(f"❌ Dataset file not found: {nq_file_path}")
+    try:
+        queries = load_qa_queries(NQ_SAMPLE_SIZE)
+    except Exception as e:
+        print(f"❌ Failed to load QA dataset: {e}")
         return
 
-    print(f"📁 Processing {NQ_SAMPLE_SIZE} queries from Natural Questions dataset...")
+    print(f"📁 Processing {len(queries)} queries from dataset '{QA_DATASET_NAME}'...")
 
-    with monitor_performance("enumeration_mode_execution"):
-        with open(nq_file_path, "r") as f:
-            for i, line in enumerate(f):
-                if i >= NQ_SAMPLE_SIZE:
-                    break
+    with monitor_performance("evaluation_mode_execution"):
+        for i, query in enumerate(queries):
+            print(f"🔍 Processing query {i + 1}/{len(queries)}: {query[:80]}...")
 
-                data = json.loads(line)
-                query = data.get("question")
-                logger.info(f"Running for NQ Query #{i + 1}: {query}")
-                print(f"🔍 Processing query {i + 1}/{NQ_SAMPLE_SIZE}: {query[:50]}...")
+            with monitor_performance(f"query_processing_{i + 1}"):
+                try:
+                    if mode_choice == "h":
+                        from scripts.evaluator import hill_climb_documents
+                        result = hill_climb_documents(
+                            i=i, num=len(queries), query=query, index=vector_db,
+                            llm_model=model, tokenizer=tokenizer,
+                            embedding_model=embedding_model, top_k=5,
+                            max_tokens=MAX_NEW_TOKENS, temperature=TEMPERATURE,
+                            quality_threshold=QUALITY_THRESHOLD, max_retries=MAX_RETRIES
+                        )
+                    else:
+                        result = enumerate_top_documents(
+                            i=i, num=len(queries), query=query, index=vector_db,
+                            embedding_model=embedding_model,
+                            top_k=5, convert_to_vector=False
+                        )
+                    results_logger.log(result)
 
-                with monitor_performance(f"query_processing_{i + 1}"):
-                    try:
-                        if mode_choice == "h":
-                            from scripts.evaluator import hill_climb_documents
-                            result = hill_climb_documents(
-                                i=i, num=NQ_SAMPLE_SIZE, query=query, index=vector_db,
-                                llm_model=model, tokenizer=tokenizer,
-                                embedding_model=embedding_model, top_k=5,
-                                max_tokens=MAX_NEW_TOKENS, temperature=TEMPERATURE,
-                                quality_threshold=QUALITY_THRESHOLD, max_retries=MAX_RETRIES
-                            )
-                        else:  # enumeration mode
-                            result = enumerate_top_documents(
-                                i=i, num=NQ_SAMPLE_SIZE, query=query, index=vector_db,
-                                embedding_model=embedding_model,
-                                top_k=5, convert_to_vector=False
-                            )
-                        results_logger.log(result)
-                    except Exception as e:
-                        print(f"❌ Error processing query {i + 1}: {e}")
-                        logger.error(f"Error in evaluation query {i + 1}: {e}")
+                except Exception as e:
+                    logger.error(f"❌ Error in evaluation query {i + 1}: {e}")
+                    print(f"❌ Error processing query {i + 1}: {e}")
 
-    print("✅ Evaluation completed!")
+    print("✅ Evaluation completed.")
 
 
 @track_performance("development_test")
-def run_development_test(vector_db, embedding_model, tokenizer, model):
+def run_development_test(vector_db, embedding_model, tokenizer, model, device):
     """Enhanced development test with MPS compatibility."""
     print("\n🔧 DEVELOPMENT TEST MODE")
     print("=" * 30)
 
     # System info
-    profile_gpu(model)
+    profile_gpu(model, device)
 
     # Test MPS compatibility
     print("\n🧪 Testing MPS compatibility...")

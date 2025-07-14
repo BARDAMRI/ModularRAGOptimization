@@ -4,7 +4,7 @@
 # ✅ ACTIVE MODEL CONFIGURATION (for QA on CPU / M1 / 16GB RAM)
 # ==========================
 
-MODEL_PATH = "tiiuae/falcon-rw-1b"                     # 🐦 Falcon 1B - very lightweight, extremely fast, basic QA
+MODEL_PATH = "tiiuae/falcon-rw-1b"  # 🐦 Falcon 1B - very lightweight, extremely fast, basic QA
 
 # ==========================
 # Optional lightweight models (uncomment to switch)
@@ -26,6 +26,12 @@ MODEL_PATH = "tiiuae/falcon-rw-1b"                     # 🐦 Falcon 1B - very l
 # Embedding model
 # ==========================
 HF_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+
+# ==========================
+# QA DATASET CONFIGURATION
+# ==========================
+
+QA_DATASET_NAME = "squad"  # Default QA dataset
 
 # === DATA PATHS ===
 DATA_PATH = "data/public_corpus/"

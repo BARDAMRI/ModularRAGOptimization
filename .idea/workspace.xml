@@ -4,30 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="separating the storing method into filed and making the vector db loading generic">
+    <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="splitting the ui into different file from main. making the vector db interface with its own retrieve methods .">
       <change afterPath="$PROJECT_DIR$/storage/chroma/wikipedia_20220301.en/01f79942-679d-4916-ad9f-5c37f6b8bcf2/data_level0.bin" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/storage/chroma/wikipedia_20220301.en/chroma.sqlite3" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utility/logger.log" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/utility/user_interface.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/vector_db/chroma_vector_db.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/vector_db/simple_vector_db.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/vector_db/storing_methods.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/vector_db/vector_db_interface.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/combined_project.py" beforeDir="false" afterPath="$PROJECT_DIR$/combined_project.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/configurations/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/configurations/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/hts-nohup.out" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/qa_data_set_loader.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/indexer.py" beforeDir="false" afterPath="$PROJECT_DIR$/vector_db/indexer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/query.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/query.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/results/performance_metrics.json" beforeDir="false" afterPath="$PROJECT_DIR$/results/performance_metrics.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/comprehensive_mps_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/comprehensive_mps_test.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_indexer.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_indexer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_query.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_query.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utility/cache.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/cache.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utility/logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/logger.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utility/vector_db_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/vector_db_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vector_db/chroma_index.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vector_db/simple_index.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vector_db/vector_db_factory.py" beforeDir="false" afterPath="$PROJECT_DIR$/vector_db/vector_db_factory.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utility/logger.log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/utility/user_interface.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/user_interface.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -138,7 +125,7 @@
       <recent name="$PROJECT_DIR$/modules" />
     </key>
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Python.main">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="ModularRAGOptimization" />
       <option name="ENV_FILES" value="" />
@@ -288,14 +275,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1739731226435</updated>
-    </task>
-    <task id="LOCAL-00009" summary="adding judge model. putting loop in main">
-      <option name="closed" value="true" />
-      <created>1739995393846</created>
-      <option name="number" value="00009" />
-      <option name="presentableId" value="LOCAL-00009" />
-      <option name="project" value="LOCAL" />
-      <updated>1739995393846</updated>
     </task>
     <task id="LOCAL-00010" summary="adding judge model. putting loop in main">
       <option name="closed" value="true" />
@@ -681,7 +660,15 @@
       <option name="project" value="LOCAL" />
       <updated>1752249314386</updated>
     </task>
-    <option name="localTasksCounter" value="58" />
+    <task id="LOCAL-00058" summary="splitting the ui into different file from main. making the vector db interface with its own retrieve methods .">
+      <option name="closed" value="true" />
+      <created>1752316261188</created>
+      <option name="number" value="00058" />
+      <option name="presentableId" value="LOCAL-00058" />
+      <option name="project" value="LOCAL" />
+      <updated>1752316261189</updated>
+    </task>
+    <option name="localTasksCounter" value="59" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -697,7 +684,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
-    <MESSAGE value="starting with the mission to use the vector db embedding space." />
     <MESSAGE value="adding the embedding model as an argument" />
     <MESSAGE value="setting the cosine similarity to be the similarity method" />
     <MESSAGE value="making sure the similarity function and the vector conversion function are same as the VectorStoreIndex" />
@@ -722,7 +708,8 @@
     <MESSAGE value="adding storage to gitignore" />
     <MESSAGE value="adding home dir to paths" />
     <MESSAGE value="separating the storing method into filed and making the vector db loading generic" />
-    <option name="LAST_COMMIT_MESSAGE" value="separating the storing method into filed and making the vector db loading generic" />
+    <MESSAGE value="splitting the ui into different file from main. making the vector db interface with its own retrieve methods ." />
+    <option name="LAST_COMMIT_MESSAGE" value="splitting the ui into different file from main. making the vector db interface with its own retrieve methods ." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -748,11 +735,6 @@
           <option name="timeStamp" value="65" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/vector_db/chroma_vector_db.py</url>
-          <line>32</line>
-          <option name="timeStamp" value="66" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/vector_db/simple_vector_db.py</url>
           <line>30</line>
           <option name="timeStamp" value="67" />
@@ -769,18 +751,13 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/main.py</url>
-          <line>74</line>
+          <line>78</line>
           <option name="timeStamp" value="70" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/utility/user_interface.py</url>
-          <line>420</line>
+          <line>434</line>
           <option name="timeStamp" value="71" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/utility/user_interface.py</url>
-          <line>498</line>
-          <option name="timeStamp" value="74" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>

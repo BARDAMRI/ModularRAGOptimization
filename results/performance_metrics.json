@@ -2,46 +2,19 @@
   "complete_model_loading": [
     {
       "operation": "complete_model_loading",
-      "duration": 8.171093940734863,
-      "memory_delta_mb": -261.03125,
+      "duration": 5.5833740234375,
+      "memory_delta_mb": -199.578125,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752316041.3779268
+      "timestamp": 1752422112.464582
     }
   ],
   "startup_model_loading": [
     {
       "operation": "startup_model_loading",
-      "duration": 21.96127200126648,
-      "memory_delta_mb": -232.9375,
+      "duration": 5.583859920501709,
+      "memory_delta_mb": -199.46875,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752316055.168221
-    }
-  ],
-  "complete_query_processing": [
-    {
-      "operation": "complete_query_processing",
-      "duration": 0.0012841224670410156,
-      "memory_delta_mb": 0.078125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752316070.302498
-    }
-  ],
-  "interactive_query": [
-    {
-      "operation": "interactive_query",
-      "duration": 0.00273895263671875,
-      "memory_delta_mb": 0.5,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752316070.302899
-    }
-  ],
-  "interactive_mode": [
-    {
-      "operation": "interactive_mode",
-      "duration": 182.4776201248169,
-      "memory_delta_mb": -215.875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752316244.504247
+      "timestamp": 1752422112.464722
     }
   ]
 }

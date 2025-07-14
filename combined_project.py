@@ -586,8 +586,6 @@ from utility.logger import logger
 from vector_db.vector_db_interface import VectorDBInterface
 
 # Get the project root directory properly
-PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 
 class ChromaVectorDB(VectorDBInterface):
     """

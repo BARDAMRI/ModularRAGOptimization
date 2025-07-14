@@ -4,9 +4,12 @@ import sys
 import warnings
 import torch
 from matrics.results_logger import ResultsLogger, plot_score_distribution
+from scripts.qa_data_set_loader import download_qa_dataset
 from utility.logger import logger
 from utility.user_interface import display_main_menu, show_system_info, run_interactive_mode, run_evaluation_mode, \
     run_development_test, startup_initialization, setup_vector_database, display_startup_banner
+
+PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Set MPS environment variables before importing PyTorch
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
@@ -70,6 +73,7 @@ tokenizer = None
 model = None
 vector_db = None
 embedding_model = None
+device = None
 
 
 @track_performance("results_analysis")
@@ -89,24 +93,39 @@ def run_analysis():
         logger.error(f"Analysis error: {e}")
 
 
+def download_dataset():
+    """Download the QA dataset."""
+
+    print("\n📥 Downloading QA Dataset...")
+    try:
+        dataset = download_qa_dataset()
+        print("✅ Dataset downloaded successfully.")
+        return dataset
+    except Exception as e:
+        print(f"❌ Failed to download dataset: {e}")
+        logger.error(f"Dataset download error: {e}")
+
+
 def main_loop():
     """Main application loop with clean menu system."""
-    global vector_db, embedding_model
+    global vector_db, embedding_model, tokenizer, model, device
 
     while True:
         choice = display_main_menu()
 
         if choice == '1':
-            run_interactive_mode(vector_db, embedding_model, tokenizer, model)
+            run_interactive_mode(vector_db, embedding_model, tokenizer, model, device)
         elif choice == '2':
-            run_evaluation_mode(vector_db, embedding_model, tokenizer, model)
+            run_evaluation_mode(vector_db, embedding_model, tokenizer, model, device)
         elif choice == '3':
-            run_development_test(vector_db, embedding_model, tokenizer ,model)
+            run_development_test(vector_db, embedding_model, tokenizer, model, device)
         elif choice == '4':
-            run_analysis(vector_db, embedding_model)
+            run_analysis()
         elif choice == '5':
-            show_system_info(vector_db, model)
+            show_system_info(vector_db, model, device)
         elif choice == '6':
+            download_dataset()
+        elif choice == '7':
             print("👋 Goodbye!")
             break
 
@@ -120,7 +139,7 @@ def main():
 
     logger.info("Application started with enhanced MPS support.")
 
-    global vector_db, embedding_model, tokenizer, model
+    global vector_db, embedding_model, tokenizer, model, device
     try:
         # Handle special command line arguments
         if "--help" in sys.argv:
@@ -149,8 +168,8 @@ def main():
             return
 
         # Normal application flow
-        display_startup_banner()
-        startup_initialization()
+        device = display_startup_banner()
+        tokenizer, model = startup_initialization()
 
         # Setup vector database
         vector_db, embedding_model = setup_vector_database()
