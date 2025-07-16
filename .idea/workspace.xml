@@ -5,20 +5,16 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="e4a38b5e-4245-4cc1-982a-77704ff28e92" name="Changes" comment="making the vector db storage bit different + ensuring the flow operation.">
-      <change afterPath="$PROJECT_DIR$/results/results_enum_top5_20250716_084022.jsonl" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/results/results_enum_top5_20250716_084050.jsonl" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/results/results_enum_top5_20250716_084108.jsonl" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/results/results_enum_top5_20250716_090349.jsonl" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/results/results_enum_top5_20250716_090441.jsonl" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/storage/chroma/wikipedia_20220301.en/01f79942-679d-4916-ad9f-5c37f6b8bcf2/data_level0.bin" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/storage/chroma/wikipedia_20220301.en/chroma.sqlite3" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/results/performance_metrics.json" beforeDir="false" afterPath="$PROJECT_DIR$/results/performance_metrics.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/evaluator.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/evaluator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/temp_cache/metadata.json" beforeDir="false" afterPath="$PROJECT_DIR$/temp_cache/metadata.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utility/logger.log" beforeDir="false" afterPath="$PROJECT_DIR$/utility/logger.log" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utility/user_interface.py" beforeDir="false" afterPath="$PROJECT_DIR$/utility/user_interface.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vector_db/chroma_vector_db.py" beforeDir="false" afterPath="$PROJECT_DIR$/vector_db/chroma_vector_db.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vector_db/simple_vector_db.py" beforeDir="false" afterPath="$PROJECT_DIR$/vector_db/simple_vector_db.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vector_db/vector_db_factory.py" beforeDir="false" afterPath="$PROJECT_DIR$/vector_db/vector_db_factory.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vector_db/vector_db_interface.py" beforeDir="false" afterPath="$PROJECT_DIR$/vector_db/vector_db_interface.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -279,14 +275,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1739731226435</updated>
-    </task>
-    <task id="LOCAL-00014" summary="adding public corpus &quot;all-MiniLM-L6-v2&quot;  fixing the judge algorithm, and also optimizing the query function to reduce model indexing and loading time for each query.">
-      <option name="closed" value="true" />
-      <created>1740159321249</created>
-      <option name="number" value="00014" />
-      <option name="presentableId" value="LOCAL-00014" />
-      <option name="project" value="LOCAL" />
-      <updated>1740159321249</updated>
     </task>
     <task id="LOCAL-00015" summary="changing the gitignore to block the data files of the llm. removing them also from the tracking by deleting cache">
       <option name="closed" value="true" />
@@ -672,7 +660,15 @@
       <option name="project" value="LOCAL" />
       <updated>1752497886625</updated>
     </task>
-    <option name="localTasksCounter" value="63" />
+    <task id="LOCAL-00063" summary="making the vector db storage bit different + ensuring the flow operation.">
+      <option name="closed" value="true" />
+      <created>1752645457400</created>
+      <option name="number" value="00063" />
+      <option name="presentableId" value="LOCAL-00063" />
+      <option name="project" value="LOCAL" />
+      <updated>1752645457400</updated>
+    </task>
+    <option name="localTasksCounter" value="64" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -720,7 +716,7 @@
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/utility/user_interface.py</url>
-          <line>533</line>
+          <line>557</line>
           <option name="timeStamp" value="1" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -730,13 +726,13 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/utility/user_interface.py</url>
-          <line>628</line>
-          <option name="timeStamp" value="12" />
+          <line>631</line>
+          <option name="timeStamp" value="15" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/utility/user_interface.py</url>
-          <line>630</line>
-          <option name="timeStamp" value="13" />
+          <url>file://$PROJECT_DIR$/main.py</url>
+          <line>122</line>
+          <option name="timeStamp" value="17" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>

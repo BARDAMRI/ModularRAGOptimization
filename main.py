@@ -7,7 +7,7 @@ from matrics.results_logger import ResultsLogger, plot_score_distribution
 from scripts.qa_data_set_loader import download_qa_dataset
 from utility.logger import logger
 from utility.user_interface import display_main_menu, show_system_info, run_interactive_mode, run_evaluation_mode, \
-    run_development_test, startup_initialization, setup_vector_database, display_startup_banner
+    run_development_test, startup_initialization, setup_vector_database, display_startup_banner, ask_yes_no
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -186,12 +186,8 @@ def main():
         import traceback
         traceback.print_exc()
     finally:
-        # Cleanup and final reports
-        print("\n📊 SESSION SUMMARY")
-        print("-" * 20)
-
+        # Always save performance data
         if PERFORMANCE_AVAILABLE:
-            performance_report()
             try:
                 os.makedirs("results", exist_ok=True)
                 performance_monitor.save_metrics("results/performance_metrics.json")
@@ -201,6 +197,21 @@ def main():
 
         if CACHE_AVAILABLE:
             cache_stats()
+
+        # Ask user if they want to print the summary
+        print("\n🧾 Performance summary saved to: results/performance_metrics.json")
+        print("📊 You can view it later or print it now.")
+
+        try:
+            if ask_yes_no("Would you like to print the performance summary now? (y/n): "):
+                print("\n📊 SESSION SUMMARY")
+                print("-" * 20)
+                if PERFORMANCE_AVAILABLE:
+                    performance_report()
+                if CACHE_AVAILABLE:
+                    cache_stats()
+        except Exception as e:
+            logger.warning(f"Failed to prompt user for printing summary: {e}")
 
         # MPS cleanup
         if torch.backends.mps.is_available():

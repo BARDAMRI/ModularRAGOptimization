@@ -109,17 +109,37 @@ def prompt_with_validation(
 
 
 def ask_selection(prompt_text: str, options: list, default: Optional[str] = None) -> str:
-    # Create mapping from numbers (1-based) to options
-    index_to_option = {str(i + 1): option for i, option in enumerate(options)}
-    valid_inputs = set(options) | set(index_to_option.keys())
+    """
+    Prompt the user to select one of the provided options by name or index (1-based).
+
+    Args:
+        prompt_text (str): The prompt to display.
+        options (list): List of string options or (value, label) pairs.
+        default (Optional[str]): Default value to use if user presses Enter.
+
+    Returns:
+        str: The selected option's value.
+    """
+    if all(isinstance(opt, tuple) for opt in options):
+        value_label_pairs = options
+    else:
+        value_label_pairs = [(opt.lower(), opt) for opt in options]
+
+    valid_values = [str(v) for v, _ in value_label_pairs]
+    index_map = {str(i + 1): v for i, (v, _) in enumerate(value_label_pairs)}
+
+    def validate(user_input: str) -> bool:
+        return user_input.lower() in valid_values or user_input in index_map
+
+    def transform(user_input: str) -> str:
+        return index_map[user_input] if user_input in index_map else user_input.lower()
 
     return prompt_with_validation(
-        prompt_text=prompt_text + ''.join([f"\n  {i + 1}. {option}" for i, option in enumerate(options)]),
-        validation_fn=lambda x: x in valid_inputs,
+        prompt_text=prompt_text,
+        validation_fn=validate,
+        transform_fn=transform,
         default=default,
-        transform_fn=lambda x: index_to_option.get(x, x),  # If number, map to option; else return as-is
-        error_msg=f"❌ Please choose a number (1-{len(options)}) or one of: {', '.join(options)}"
-    )
+        error_msg=f"❌ Please choose a number (1-{len(value_label_pairs)}) or one of: {', '.join(valid_values)}")
 
 
 def retry_or_exit(message: str, retry_prompt: str = "Retry? (y/n): ") -> bool:
@@ -408,20 +428,24 @@ def setup_vector_database() -> Tuple[Optional[object], Optional[object]]:
 
 def display_main_menu():
     """Display the main menu and get user choice."""
-    print("\n🎯 SELECT MODE")
-    print("-" * 30)
+    print_section_header("🎯 SELECT MODE")
+
+    options = [
+        ("1", "💬 Interactive Q&A Mode"),
+        ("2", "📊 Evaluation Mode (Natural Questions)"),
+        ("3", "🔧 Development Test Mode"),
+        ("4", "📈 Results Analysis"),
+        ("5", "⚙️ System Information"),
+        ("6", "📥️ Download QA Dataset"),
+        ("7", "🚪 Exit")
+    ]
+
+    for key, label in options:
+        print(f"{key}. {label}")
 
     return ask_selection(
-        prompt_text="Enter your choice:",
-        options=[
-            ("1", "💬 Interactive Q&A Mode"),
-            ("2", "📊 Evaluation Mode (Natural Questions)"),
-            ("3", "🔧 Development Test Mode"),
-            ("4", "📈 Results Analysis"),
-            ("5", "⚙️ System Information"),
-            ("6", "📥️ Download QA Dataset"),
-            ("7", "🚪 Exit")
-        ]
+        prompt_text="\nEnter your choice: ",
+        options=[(key, key) for key, _ in options]
     )
 
 
