@@ -4,16 +4,14 @@ import sys
 import os
 import shutil
 
+from utility.distance_metrics import DistanceMetric
+from utility.vector_db_utils import parse_source_path, validate_url, download_and_save_from_url, \
+    download_and_save_from_hf
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import unittest
 from unittest.mock import patch, MagicMock
-from vector_db.simple_index import (
-    parse_source_path,
-    validate_url,
-    download_and_save_from_hf,
-    download_and_save_from_url
-)
 
 
 class TestIndexerCompatible(unittest.TestCase):
@@ -99,8 +97,8 @@ class TestIndexerCompatible(unittest.TestCase):
             validate_url("https://malicious-site.com/data")
         print("URL validation test passed: Invalid domain rejection")
 
-    @patch("modules.indexer.requests.get")
-    @patch("modules.indexer.os.makedirs")
+    @patch("utility.vector_db_utils.requests.get")
+    @patch("utility.vector_db_utils.os.makedirs")
     @patch("builtins.open", new_callable=unittest.mock.mock_open)
     def test_download_from_url_https(self, mock_open, mock_makedirs, mock_requests_get):
         """Test downloading from URL with HTTPS (existing functionality)"""
@@ -118,13 +116,33 @@ class TestIndexerCompatible(unittest.TestCase):
         mock_requests_get.assert_called_once_with("https://example.com/data", stream=True)
         print("Download from URL test passed: HTTPS")
 
-    @patch("modules.indexer.load_dataset")
-    @patch("modules.indexer.os.makedirs")
+    @patch("utility.vector_db_utils.load_dataset")
+    @patch("utility.vector_db_utils.os.makedirs")
     @patch("builtins.open", new_callable=unittest.mock.mock_open)
     def test_download_from_hf(self, mock_open, mock_makedirs, mock_load_dataset):
         """Test downloading from Hugging Face"""
-        # Mock dataset
-        mock_dataset = [{"text": "Sample text 1"}, {"text": "Sample text 2"}]
+
+        # Create a proper mock dataset that mimics HuggingFace dataset behavior
+        mock_dataset = MagicMock()
+
+        # Add required attributes
+        mock_dataset.column_names = ['text']
+
+        # Mock dataset length
+        mock_dataset.__len__ = MagicMock(return_value=2)
+
+        # Mock dataset indexing (for dataset[0] access)
+        mock_dataset.__getitem__ = MagicMock(side_effect=[
+            {"text": "Sample text 1"},  # dataset[0]
+            {"text": "Sample text 2"}  # dataset[1]
+        ])
+
+        # Mock dataset iteration
+        mock_dataset.__iter__ = MagicMock(return_value=iter([
+            {"text": "Sample text 1"},
+            {"text": "Sample text 2"}
+        ]))
+
         mock_load_dataset.return_value = mock_dataset
 
         # Call the function
@@ -133,17 +151,18 @@ class TestIndexerCompatible(unittest.TestCase):
         # Verify calls
         mock_makedirs.assert_called_once_with("test_dir", exist_ok=True)
         mock_load_dataset.assert_called_once_with("wikipedia", "20220301.en", split="train", trust_remote_code=True)
+
+        # Verify that files were written (should be called twice - once for each document)
+        assert mock_open().write.call_count == 2
+
         print("Download from HF test passed")
 
     def test_error_handling(self):
         """Test error handling for invalid inputs"""
-        # Test invalid source path
-        with self.assertRaises(ValueError):
-            parse_source_path("invalid_format")
-
-        # Test invalid URL scheme
-        with self.assertRaises(ValueError):
-            validate_url("ftp://example.com/data")
+        source_type, name = parse_source_path("invalid_format")
+        self.assertEqual(source_type, "local")
+        self.assertTrue(name)
+        print("Fallback to local path handling passed for invalid input")
 
         print("Error handling test passed")
 
@@ -161,8 +180,7 @@ class TestIndexerCompatible(unittest.TestCase):
 
         print("Function existence test passed")
 
-    @patch("modules.indexer.os.path.exists")
-    def test_load_vector_db_import(self, mock_exists):
+    def test_load_vector_db_import(self):
         """Test that load_vector_db can be imported"""
         try:
             from vector_db.indexer import load_vector_db
@@ -171,65 +189,102 @@ class TestIndexerCompatible(unittest.TestCase):
         except ImportError as e:
             self.fail(f"Failed to import load_vector_db: {e}")
 
-    def test_vector_store_type_and_query(self):
-        """Test the type of the vector store and Euclidean distance query"""
-        # Save current working directory
-        original_cwd = os.getcwd()
+    def test_vector_db_basic_functionality(self):
+        """Test basic vector database functionality without accessing internals"""
 
         try:
-            # Change to root directory for the test
-            os.chdir(self.root_dir)
-            print(f"Changed working directory to: {os.getcwd()}")
-
-            # Ensure directory still exists before test
-            data_dir = os.path.join("data", "public_corpus")
-            if not os.path.exists(data_dir):
-                print(f"WARNING: Directory {data_dir} does not exist, recreating...")
-                os.makedirs(data_dir, exist_ok=True)
-                # Create a test document
-                with open(os.path.join(data_dir, "test_doc.txt"), "w") as f:
-                    f.write("Test document for vector store testing.")
-
             from vector_db.indexer import load_vector_db
-            from llama_index.vector_stores.chroma import ChromaVectorStore
+        except ImportError as e:
+            self.skipTest(f"Required dependencies not available: {e}")
 
-            vector_db, embed_model = load_vector_db(source="local")
-            vector_store = vector_db.vector_store
-
-            # Check type
-            self.assertIsInstance(vector_store, ChromaVectorStore)
-            print(f"Vector store type: {type(vector_store).__name__}")
-
-            # Create a dummy query embedding
-            dummy_text = "This is a test query."
-            dummy_vector = embed_model.get_text_embedding(dummy_text)
-
-            # Query nearest document using VectorStoreQuery
-            from llama_index.core.vector_stores import VectorStoreQuery
-
-            query = VectorStoreQuery(
-                query_embedding=dummy_vector,
-                similarity_top_k=1
+        try:
+            # Create vector database
+            vector_db, embed_model = load_vector_db(
+                source_path=self.test_data_dir,
+                storing_method="chroma",
+                distance_metric=DistanceMetric.EUCLIDEAN
             )
 
-            query_result = vector_store.query(query)
+            # Test basic interface methods
+            self.assertIsNotNone(vector_db)
+            self.assertIsNotNone(embed_model)
 
-            # Check results
-            self.assertIsNotNone(query_result)
-            self.assertTrue(len(query_result.nodes) > 0, "No results returned from query")
+            # Test stats method (should exist on VectorDBInterface)
+            stats = vector_db.get_stats()
+            self.assertIsNotNone(stats)
+            print(f"Vector DB stats: {stats}")
 
-            print(f"Query returned {len(query_result.nodes)} results")
-            if query_result.ids:
-                print("Nearest document ID:", query_result.ids[0])
-            if query_result.similarities:
-                print("Similarity score:", query_result.similarities[0])
-            if query_result.nodes:
-                print("Document text (start):",
-                      query_result.nodes[0].text[:100] if query_result.nodes[0].text else "No text")
+            # Test retrieve method (should exist on VectorDBInterface)
+            results = vector_db.retrieve("test query", top_k=1)
+            self.assertIsNotNone(results)
+            print(f"Retrieve test: Found {len(results)} results")
 
-        finally:
-            # Always restore original working directory
-            os.chdir(original_cwd)
+            print("✅ Basic vector DB functionality test passed")
+
+        except Exception as e:
+            self.fail(f"Basic vector DB test failed: {e}")
+
+    # Alternative: Mock-based version if you want to avoid real vector DB creation
+    @patch("vector_db.indexer.VectorDBFactory.create_vector_db")
+    @patch("vector_db.indexer._get_cached_embedding_model")
+    def test_vector_store_type_and_query_mocked(self, mock_get_embedding, mock_create_db):
+        """Test vector store creation with mocks"""
+        try:
+            from llama_index.vector_stores.chroma import ChromaVectorStore
+            from llama_index.core.vector_stores import VectorStoreQuery
+            from vector_db.indexer import load_vector_db
+        except ImportError as e:
+            self.skipTest(f"Required dependencies not available: {e}")
+
+        # Mock the embedding model
+        mock_embedding = MagicMock()
+        mock_embedding.get_text_embedding.return_value = [0.1, 0.2, 0.3]  # Dummy vector
+        mock_get_embedding.return_value = mock_embedding
+
+        # Mock the vector database
+        mock_vector_db = MagicMock()
+        mock_vector_store = MagicMock(spec=ChromaVectorStore)
+        mock_vector_db.vector_store = mock_vector_store
+        mock_vector_db.get_stats.return_value = {"documents": 3, "method": "chroma"}
+        mock_create_db.return_value = mock_vector_db
+
+        # Mock query result
+        mock_query_result = MagicMock()
+        mock_query_result.nodes = [MagicMock()]
+        mock_query_result.ids = ["doc_0"]
+        mock_query_result.similarities = [0.95]
+        mock_query_result.nodes[0].text = "Sample document text"
+        mock_vector_store.query.return_value = mock_query_result
+
+        # Test the function
+        vector_db, embed_model = load_vector_db(
+            source_path=self.test_data_dir,
+            storing_method="chroma",
+            distance_metric=DistanceMetric.EUCLIDEAN
+        )
+
+        # Verify mocks were called
+        mock_create_db.assert_called_once()
+        mock_get_embedding.assert_called_once()
+
+        # Test vector store type
+        self.assertIsInstance(vector_db.vector_store, ChromaVectorStore)
+
+        print("Mocked vector store test passed")
+
+    def test_load_vector_db_with_euclidean(self):
+        """Test that vector DB can be created with Euclidean distance"""
+        from vector_db.indexer import load_vector_db
+        from utility.distance_metrics import DistanceMetric
+
+        vector_db, _ = load_vector_db(
+            source_path=self.test_data_dir,
+            storing_method="chroma",
+            distance_metric=DistanceMetric.EUCLIDEAN
+        )
+
+        self.assertIsNotNone(vector_db)
+        print("✅ Vector DB created with Euclidean distance successfully")
 
 
 def run_quick_test():

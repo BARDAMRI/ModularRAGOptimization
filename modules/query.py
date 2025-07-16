@@ -276,8 +276,7 @@ def retrieve_context_with_similarity(
 def _perform_initial_retrieval(query, vector_db, max_results):
     """Perform initial retrieval using LlamaIndex."""
     with monitor_performance("llamaindex_retrieval"):
-        retriever = vector_db.as_retriever(similarity_top_k=max_results)
-        nodes_with_scores = retriever.retrieve(query)
+        nodes_with_scores = vector_db.retrieve(query)
 
         if nodes_with_scores:
             logger.info(f"LlamaIndex retrieved {len(nodes_with_scores)} initial candidates")

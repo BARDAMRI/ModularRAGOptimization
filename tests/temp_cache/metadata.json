@@ -1,0 +1,32 @@
+{
+  "0f9d54d755f72c80fb5ad108da380384": {
+    "original_key": "query:distilgpt2:8101e4d6:What is machine learning?",
+    "created": 1752651814.194863,
+    "size_bytes": 778
+  },
+  "99543132141dc126313dbb3b3987ffd4": {
+    "original_key": "embedding:sentence-transformers/all-MiniLM-L6-v2:This is a sample query for testing.",
+    "created": 1752651999.99353,
+    "size_bytes": 1687
+  },
+  "255b53fa9939bd38ec488d48a61ac299": {
+    "original_key": "embedding:sentence-transformers/all-MiniLM-L6-v2:pipeline test",
+    "created": 1752652012.44516,
+    "size_bytes": 1687
+  },
+  "42916dd1c249b96d8057094652812212": {
+    "original_key": "embedding:sentence-transformers/all-MiniLM-L6-v2:sample test query",
+    "created": 1752652280.870896,
+    "size_bytes": 1687
+  },
+  "93f503783da83926e7a53446efd617ed": {
+    "original_key": "embedding:sentence-transformers/all-MiniLM-L6-v2:another test query",
+    "created": 1752652280.8816261,
+    "size_bytes": 1687
+  },
+  "e4db70e95b0481590e7c854d9bb56e22": {
+    "original_key": "embedding:sentence-transformers/all-MiniLM-L6-v2:different query text",
+    "created": 1752652280.892021,
+    "size_bytes": 1687
+  }
+}

@@ -12,8 +12,22 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from utility.vector_db_utils import parse_source_path, download_and_save_from_hf, download_and_save_from_url
 from utility.logger import logger
 from vector_db.vector_db_interface import VectorDBInterface
+from utility.distance_metrics import DistanceMetric
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _load_documents(data_dir: str):
+    """
+    Load documents from a directory using SimpleDirectoryReader.
+
+    Args:
+        data_dir (str): Directory path to load documents from
+
+    Returns:
+        List of documents
+    """
+    return SimpleDirectoryReader(data_dir).load_data()
 
 
 class ChromaVectorDB(VectorDBInterface):
@@ -21,18 +35,20 @@ class ChromaVectorDB(VectorDBInterface):
     Chroma-based vector database implementation.
     """
 
-    def __init__(self, source_path: str, embedding_model: HuggingFaceEmbedding):
+    def __init__(self, source_path: str, embedding_model: HuggingFaceEmbedding,
+                 distance_metric: DistanceMetric = DistanceMetric.COSINE):
         """
         Initialize Chroma vector database.
 
         Args:
             source_path (str): Path to the data source
             embedding_model: Embedding model to use
+            distance_metric: Distance metric (default: COSINE)
         """
         self.chroma_client = None
         self.collection = None
         self.chroma_store = None
-        super().__init__(source_path, embedding_model)
+        super().__init__(source_path, embedding_model, distance_metric)
 
     def _initialize(self) -> None:
         """Initialize the Chroma vector database."""
@@ -49,7 +65,16 @@ class ChromaVectorDB(VectorDBInterface):
         # Initialize Chroma client and collection
         self.chroma_client = PersistentClient(path=chroma_path)
         collection_name = f"collection_{parsed_name.replace(':', '_')}"
-        self.collection = self.chroma_client.get_or_create_collection(name=collection_name)
+        if self.distance_metric not in {m.value for m in DistanceMetric}:
+            raise ValueError(f"Unsupported distance metric: {self.distance_metric}")
+        self.collection = self.chroma_client.get_or_create_collection(
+            name=collection_name,
+            metadata={"hnsw:space": self.distance_metric}
+        )
+        stored_metric = self.collection.metadata.get("hnsw:space")
+        assert stored_metric == self.distance_metric, (
+            f"❌ Mismatch between stored metric ({stored_metric}) and requested ({self.distance_metric})"
+        )
         self.chroma_store = ChromaVectorStore(chroma_collection=self.collection)
 
         # Create storage context
@@ -65,7 +90,7 @@ class ChromaVectorDB(VectorDBInterface):
             )
         else:
             logger.info(f"Creating new Chroma index from {data_dir}")
-            documents = self._load_documents(data_dir)
+            documents = _load_documents(data_dir)
             self.vector_db = VectorStoreIndex.from_documents(
                 documents,
                 embed_model=self.embedding_model,
@@ -124,6 +149,32 @@ class ChromaVectorDB(VectorDBInterface):
 
         return self.retrieve(query, top_k)
 
+    def _prepare_data_directory(self, source_type: str, parsed_name: str) -> str:
+        local_dir = os.path.join(PROJECT_PATH, "data", parsed_name)
+
+        if os.path.exists(local_dir) and os.listdir(local_dir):
+            logger.info(f"Using existing data directory: {local_dir}")
+            return local_dir
+
+        os.makedirs(local_dir, exist_ok=True)
+
+        if source_type == "url":
+            logger.info(f"Downloading data from URL into {local_dir}")
+            download_and_save_from_url(self.source_path, local_dir)
+
+        elif source_type == "hf":
+            logger.info(f"Downloading data from HF into {local_dir}")
+            if ":" in self.source_path:
+                dataset_name, config = self.source_path.split(":", 1)
+            else:
+                dataset_name, config = self.source_path, None
+            download_and_save_from_hf(dataset_name, config, local_dir)
+
+        else:
+            logger.warning(f"Unknown source type '{source_type}', using as-is: {local_dir}")
+
+        return local_dir
+
     def add_documents(self, documents: List[Any]) -> None:
         """
         Add documents to the Chroma vector database.
@@ -136,65 +187,18 @@ class ChromaVectorDB(VectorDBInterface):
         logger.info("Documents added to Chroma successfully")
 
     def get_stats(self) -> Dict[str, Any]:
-        """
-        Get Chroma database statistics.
-
-        Returns:
-            Dict containing Chroma-specific stats
-        """
         return {
             "db_type": self.db_type,
             "collection_count": self.collection.count() if self.collection else 0,
             "collection_name": self.collection.name if self.collection else None,
-            "storage_path": self.chroma_client._settings.persist_directory if self.chroma_client else None,
-            "embedding_model": self.embedding_model.model_name
+            "storage_path": self.chroma_client.get_settings().persist_directory if self.chroma_client else None,
+            "embedding_model": self.embedding_model.model_name,
+            "distance_metric": self.distance_metric
         }
 
     def persist(self) -> None:
-        """
-        Persist the Chroma database.
-        Note: Chroma automatically persists data, but this can force a save.
-        """
         logger.info("Persisting Chroma database")
-        # Chroma handles persistence automatically with PersistentClient
-        # Additional explicit persistence logic can go here if needed
 
     @property
     def db_type(self) -> str:
-        """Return the database type identifier."""
         return "chroma"
-
-    def _prepare_data_directory(self, source_type: str, parsed_name: str) -> str:
-        """Prepare and return the data directory path."""
-        if source_type == "url":
-            data_dir = os.path.join(PROJECT_PATH, "data", "url_downloads", parsed_name)
-            if not os.path.exists(data_dir) or not os.listdir(data_dir):
-                logger.info(f"Downloading data from URL into {data_dir}")
-                download_and_save_from_url(self.source_path, data_dir)
-        elif source_type == "hf":
-            data_dir = os.path.join(PROJECT_PATH, "data", "hf_downloads", parsed_name.replace(":", "_"))
-            if not os.path.exists(data_dir) or not os.listdir(data_dir):
-                logger.info(f"Downloading data from Hugging Face into {data_dir}")
-                # Parse dataset_name and config from source_path
-                if ":" in self.source_path:
-                    dataset_name, config = self.source_path.split(":", 1)
-                else:
-                    dataset_name, config = self.source_path, None
-                download_and_save_from_hf(dataset_name, config, data_dir, max_docs=1000)
-        else:  # local source
-            data_dir = self.source_path
-
-        return data_dir
-
-    def _load_documents(self, data_dir: str):
-        """Load documents from the data directory."""
-        if not os.path.exists(data_dir) or not os.listdir(data_dir):
-            logger.error(f"No documents found in {data_dir}")
-            raise FileNotFoundError(f"No documents found in {data_dir}")
-
-        documents = SimpleDirectoryReader(data_dir).load_data()
-        if not documents:
-            logger.warning(f"No documents loaded from {data_dir}")
-            return []
-
-        return documents

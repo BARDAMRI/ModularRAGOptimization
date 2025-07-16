@@ -3,11 +3,19 @@ Base interface for vector database implementations
 """
 import os
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from llama_index.core.schema import NodeWithScore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
+from utility.distance_metrics import DistanceMetric
+
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _normalize_distance_metric(metric: Union[str, DistanceMetric]) -> str:
+    if isinstance(metric, DistanceMetric):
+        return metric.value.lower()
+    return metric.lower()
 
 
 class VectorDBInterface(ABC):
@@ -16,7 +24,7 @@ class VectorDBInterface(ABC):
     Provides a unified interface for different vector store types.
     """
 
-    def __init__(self, source_path: str, embedding_model: HuggingFaceEmbedding):
+    def __init__(self, source_path: str, embedding_model: HuggingFaceEmbedding, distance_metric: DistanceMetric):
         """
         Initialize the vector database.
 
@@ -26,6 +34,7 @@ class VectorDBInterface(ABC):
         """
         self.source_path = source_path
         self.embedding_model = embedding_model
+        self.distance_metric = _normalize_distance_metric(distance_metric)
         self.vector_db = None
         self._initialize()
 
@@ -102,22 +111,10 @@ class VectorDBInterface(ABC):
         else:
             raise NotImplementedError(f"Query engine not available for this vector DB type: {type(self.vector_db)}")
 
-    def as_retriever(self, **kwargs):
-        """
-        Get a retriever for this vector database.
-        Default implementation - delegates to underlying VectorStoreIndex.
-        """
-        if self.vector_db is None:
-            raise RuntimeError("Vector database not initialized")
-
-        if hasattr(self.vector_db, 'as_retriever'):
-            return self.vector_db.as_retriever(**kwargs)
-        else:
-            raise NotImplementedError(f"Retriever not available for this vector DB type: {type(self.vector_db)}")
-
     def _get_storage_directory(self, parsed_name: str) -> str:
         """
-        Construct and return the consistent storage directory path based on parsed name.
+        Construct and return the consistent storage directory path
+        based on parsed name and distance metric.
 
         Args:
             parsed_name (str): Cleaned version of source path name
@@ -125,4 +122,10 @@ class VectorDBInterface(ABC):
         Returns:
             str: Full storage directory path
         """
-        return os.path.join(PROJECT_PATH, "storage", self.db_type, parsed_name.replace(":", "_"))
+        return os.path.join(
+            PROJECT_PATH,
+            "storage",
+            self.db_type,
+            parsed_name.replace(":", "_"),
+            self.distance_metric
+        )

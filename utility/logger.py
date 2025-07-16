@@ -1,21 +1,31 @@
 import logging
 import os
+from datetime import datetime
 
-PROJECT_PATH = os.path.abspath(__file__)
+# Get absolute root path of the project
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Create logs directory if it doesn't exist
+logs_dir = os.path.join(PROJECT_ROOT, "logs")
+os.makedirs(logs_dir, exist_ok=True)
+
+# Generate log file name based on current datetime
+timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+log_filename = f"{timestamp}.log"
+log_file_path = os.path.join(logs_dir, log_filename)
+
 # Configure logger
 logger = logging.getLogger("ModularRAGOptimization")
 logger.setLevel(logging.INFO)
 
-# # Stream handler for console output
-# stream_handler = logging.StreamHandler()
-# stream_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-# stream_handler.setFormatter(stream_formatter)
-
 # File handler for logging to a file
-file_handler = logging.FileHandler(os.path.join(PROJECT_PATH, '..', "logger.log"))
+file_handler = logging.FileHandler(log_file_path, mode='a', encoding='utf-8')
 file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(file_formatter)
 
-# Add handlers to the logger
+# (Optional) Stream handler for console output
+# stream_handler = logging.StreamHandler()
+# stream_handler.setFormatter(file_formatter)
 # logger.addHandler(stream_handler)
+
 logger.addHandler(file_handler)

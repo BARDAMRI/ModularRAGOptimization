@@ -251,7 +251,7 @@ def get_user_source_path() -> str:
     )
 
 
-def confirm_configuration(storing_method: str, source_path: str) -> bool:
+def confirm_configuration(storing_method: str, source_path: str, distance_function: Optional[str] = None) -> bool:
     print_section_header("⚙️  CONFIGURATION SUMMARY")
     print(f"Storing Method: {storing_method}")
     print(f"Source Path:    {source_path}")
@@ -259,35 +259,36 @@ def confirm_configuration(storing_method: str, source_path: str) -> bool:
     descriptions = StoringMethod.get_descriptions()
     if storing_method in descriptions:
         print(f"Description:    {descriptions[storing_method]}")
-    print("=" * 60)
 
+    if storing_method.lower() == "chroma" and distance_function:
+        print(f"Distance Metric: {distance_function}")
+
+    print("=" * 60)
     return ask_yes_no("Proceed with this configuration? (y/n): ", default="y")
 
 
-def interactive_vector_db_setup() -> Tuple[str, str]:
+def interactive_vector_db_setup() -> Tuple[str, str, Optional[str]]:
     """
     Complete interactive setup for vector database configuration.
 
     Returns:
-        Tuple[str, str]: (storing_method, source_path)
+        Tuple[str, str, Optional[str]]: (storing_method, source_path, distance_function)
     """
     print("\n🤖 VECTOR DATABASE SETUP WIZARD")
     print("Welcome! Let's configure your vector database.")
 
     try:
-        # Get storing method
         storing_method = get_user_storing_method()
-
-        # Get source path
         source_path = get_user_source_path()
+        distance_function = get_user_distance_function(storing_method)
 
-        # Confirm configuration
-        if confirm_configuration(storing_method, source_path):
-            logger.info(f"User selected configuration: method={storing_method}, source={source_path}")
-            return storing_method, source_path
+        if confirm_configuration(storing_method, source_path, distance_function):
+            logger.info(
+                f"User selected configuration: method={storing_method}, source={source_path}, distance={distance_function}")
+            return storing_method, source_path, distance_function
         else:
             print("\n🔄 Let's try again...")
-            return interactive_vector_db_setup()  # Recursive call to restart
+            return interactive_vector_db_setup()
 
     except KeyboardInterrupt:
         print("\n\n❌ Setup cancelled by user.")
@@ -383,6 +384,29 @@ def display_startup_banner():
     return device
 
 
+def get_user_distance_function(storing_method: str) -> Optional[str]:
+    if storing_method.lower() != "chroma":
+        return None
+
+    print("\n📏 Select distance function for similarity search:")
+    print("1. Cosine")
+    print("2. Euclidean (L2)")
+    print("3. Inner Product")
+
+    choice = input("Enter your choice [1-3]: ").strip()
+
+    mapping = {
+        "1": "cosine",
+        "2": "l2",
+        "3": "ip"
+    }
+
+    return mapping.get(choice, "cosine")  # fallback to cosine
+
+
+from utility.distance_metrics import DistanceMetric
+
+
 def setup_vector_database() -> Tuple[Optional[object], Optional[object]]:
     """Setup vector database with user interaction."""
 
@@ -396,13 +420,26 @@ def setup_vector_database() -> Tuple[Optional[object], Optional[object]]:
         return None, None
 
     try:
-        storing_method, source_path = interactive_vector_db_setup()
+        # Get method, path, and distance function from user
+        storing_method, source_path, distance_function = interactive_vector_db_setup()
+
+        # Convert str to DistanceMetric enum safely
+        if distance_function:
+            try:
+                distance_metric = DistanceMetric(distance_function.lower())
+            except ValueError:
+                print(f"⚠️ Unsupported distance metric '{distance_function}', falling back to COSINE")
+                distance_metric = DistanceMetric.COSINE
+        else:
+            distance_metric = DistanceMetric.COSINE
 
         with monitor_performance("vector_db_loading"):
-            logger.info(f"Loading Vector DB with method: {storing_method}, source: {source_path}")
+            logger.info(
+                f"Loading Vector DB with method: {storing_method}, source: {source_path}, distance: {distance_metric}")
             vector_db, embedding_model = load_vector_db(
                 source_path=source_path,
-                storing_method=storing_method
+                storing_method=storing_method,
+                distance_metric=distance_metric
             )
 
             print("✅ Vector DB loaded successfully")

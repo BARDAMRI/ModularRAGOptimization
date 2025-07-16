@@ -1,4 +1,4 @@
-# modules/indexer.py
+# vector_db/indexer.py
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from configurations.config import HF_MODEL_NAME
 from vector_db.vector_db_factory import VectorDBFactory
@@ -6,10 +6,13 @@ from vector_db.vector_db_interface import VectorDBInterface
 from utility.logger import logger
 from utility.device_utils import get_optimal_device
 from typing import Tuple
+from utility.distance_metrics import DistanceMetric
 
 
 def load_vector_db(source_path: str = "local_data_dir",
-                   storing_method: str = "chroma") -> Tuple[VectorDBInterface, HuggingFaceEmbedding]:
+                   storing_method: str = "chroma",
+                   distance_metric: DistanceMetric = DistanceMetric.COSINE) -> Tuple[
+    VectorDBInterface, HuggingFaceEmbedding]:
     """
     Loads or creates a vector database for document retrieval with optimized embedding model caching.
     Now returns a VectorDBInterface instead of raw VectorStoreIndex.
@@ -20,6 +23,12 @@ def load_vector_db(source_path: str = "local_data_dir",
 
     Returns:
         Tuple[VectorDBInterface, HuggingFaceEmbedding]: Vector database interface and embedding model
+
+    Parameters
+    ----------
+    source_path
+    storing_method
+    distance_metric
     """
     logger.info(f"Loading vector database for source_path: '{source_path}', storing_method: '{storing_method}'")
 
@@ -45,7 +54,8 @@ def load_vector_db(source_path: str = "local_data_dir",
         vector_db = VectorDBFactory.create_vector_db(
             db_type=db_type,
             source_path=source_path,
-            embedding_model=embedding_model
+            embedding_model=embedding_model,
+            distance_metric=distance_metric
         )
 
         logger.info(f"✅ Vector database interface created successfully using {storing_method} method")

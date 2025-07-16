@@ -8,6 +8,8 @@ import logging
 import os
 from typing import Dict, Type
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
+from utility.distance_metrics import DistanceMetric
 from vector_db.simple_vector_db import SimpleVectorDB
 from vector_db.chroma_vector_db import ChromaVectorDB
 from vector_db.vector_db_interface import VectorDBInterface
@@ -31,7 +33,8 @@ class VectorDBFactory:
     def create_vector_db(cls,
                          db_type: str,
                          source_path: str,
-                         embedding_model: HuggingFaceEmbedding) -> VectorDBInterface:
+                         embedding_model: HuggingFaceEmbedding,
+                         distance_metric: DistanceMetric = DistanceMetric.COSINE) -> VectorDBInterface:
         """
         Create a vector database instance based on the specified type.
 
@@ -39,12 +42,20 @@ class VectorDBFactory:
             db_type (str): Type of vector database ('simple', 'chroma')
             source_path (str): Path or identifier for the source
             embedding_model: Embedding model to use
+            distance_metric: Distance metric to use for similarity search (default: COSINE)
 
         Returns:
             VectorDBInterface: The created vector database instance
 
         Raises:
             ValueError: If db_type is not supported
+
+        Parameters
+        ----------
+        embedding_model
+        source_path
+        db_type
+        distance_metric
         """
         if db_type not in cls._implementations:
             available_types = list(cls._implementations.keys())
@@ -56,7 +67,7 @@ class VectorDBFactory:
 
         # Get the implementation class and instantiate it
         implementation_class = cls._implementations[db_type]
-        return implementation_class(source_path, embedding_model)
+        return implementation_class(source_path, embedding_model, distance_metric)
 
     @classmethod
     def register_implementation(cls, db_type: str, implementation_class: Type[VectorDBInterface]):

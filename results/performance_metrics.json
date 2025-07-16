@@ -2,360 +2,100 @@
   "complete_model_loading": [
     {
       "operation": "complete_model_loading",
-      "duration": 5.480022192001343,
-      "memory_delta_mb": -282.703125,
+      "duration": 6.036908149719238,
+      "memory_delta_mb": -239.109375,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645766.6460018
-    },
-    {
-      "operation": "complete_model_loading",
-      "duration": 8.092656135559082,
-      "memory_delta_mb": -804.015625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645972.711572
+      "timestamp": 1752655591.169783
     }
   ],
   "startup_model_loading": [
     {
       "operation": "startup_model_loading",
-      "duration": 5.480885982513428,
-      "memory_delta_mb": -282.46875,
+      "duration": 6.03777003288269,
+      "memory_delta_mb": -238.90625,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645766.646167
+      "timestamp": 1752655591.169991
     }
   ],
   "vector_db_loading": [
     {
       "operation": "vector_db_loading",
-      "duration": 48.35368990898132,
-      "memory_delta_mb": 742.421875,
+      "duration": 82.29827523231506,
+      "memory_delta_mb": 223.46875,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645823.3137321
-    }
-  ],
-  "query_processing_1": [
-    {
-      "operation": "query_processing_1",
-      "duration": 0.33282923698425293,
-      "memory_delta_mb": 44.453125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645829.4562309
-    },
-    {
-      "operation": "query_processing_1",
-      "duration": 0.3233909606933594,
-      "memory_delta_mb": -32.234375,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645960.710013
-    }
-  ],
-  "query_processing_2": [
-    {
-      "operation": "query_processing_2",
-      "duration": 0.1889951229095459,
-      "memory_delta_mb": 6.8125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645829.645458
-    },
-    {
-      "operation": "query_processing_2",
-      "duration": 0.13747501373291016,
-      "memory_delta_mb": 0.640625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645960.847724
-    }
-  ],
-  "query_processing_3": [
-    {
-      "operation": "query_processing_3",
-      "duration": 0.14145874977111816,
-      "memory_delta_mb": 0.234375,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645829.787114
-    },
-    {
-      "operation": "query_processing_3",
-      "duration": 0.13947081565856934,
-      "memory_delta_mb": 0.03125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645960.987406
-    }
-  ],
-  "query_processing_4": [
-    {
-      "operation": "query_processing_4",
-      "duration": 0.18285894393920898,
-      "memory_delta_mb": 8.34375,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645829.9701629
-    },
-    {
-      "operation": "query_processing_4",
-      "duration": 0.1422278881072998,
-      "memory_delta_mb": 0.03125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645961.129836
-    }
-  ],
-  "query_processing_5": [
-    {
-      "operation": "query_processing_5",
-      "duration": 0.18512821197509766,
-      "memory_delta_mb": 8.53125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645830.1555111
-    },
-    {
-      "operation": "query_processing_5",
-      "duration": 0.13854479789733887,
-      "memory_delta_mb": 0.0,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645961.268585
-    }
-  ],
-  "evaluation_mode_execution": [
-    {
-      "operation": "evaluation_mode_execution",
-      "duration": 1.0325250625610352,
-      "memory_delta_mb": 68.375,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645830.155673
-    },
-    {
-      "operation": "evaluation_mode_execution",
-      "duration": 3.368175983428955,
-      "memory_delta_mb": -31.53125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645961.268678
-    }
-  ],
-  "evaluation_mode": [
-    {
-      "operation": "evaluation_mode",
-      "duration": 3.8086190223693848,
-      "memory_delta_mb": 67.375,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645830.155818
-    },
-    {
-      "operation": "evaluation_mode",
-      "duration": 100.40563797950745,
-      "memory_delta_mb": -185.625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645961.268826
-    }
-  ],
-  "gpu_profiling": [
-    {
-      "operation": "gpu_profiling",
-      "duration": 0.004177093505859375,
-      "memory_delta_mb": 0.0,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645964.6180182
-    },
-    {
-      "operation": "gpu_profiling",
-      "duration": 0.007704973220825195,
-      "memory_delta_mb": 1.5625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752646061.926661
-    }
-  ],
-  "capability_analysis": [
-    {
-      "operation": "capability_analysis",
-      "duration": 0.0021860599517822266,
-      "memory_delta_mb": 0.375,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645974.634314
-    }
-  ],
-  "model_capabilities_analysis": [
-    {
-      "operation": "model_capabilities_analysis",
-      "duration": 0.002492189407348633,
-      "memory_delta_mb": 0.40625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645974.6344519
+      "timestamp": 1752655698.443854
     }
   ],
   "llamaindex_retrieval": [
     {
       "operation": "llamaindex_retrieval",
-      "duration": 1.5186707973480225,
-      "memory_delta_mb": 10.953125,
+      "duration": 307.19965410232544,
+      "memory_delta_mb": -253.15625,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645976.83719
-    }
-  ],
-  "embedding_generation": [
-    {
-      "operation": "embedding_generation",
-      "duration": 0.014192819595336914,
-      "memory_delta_mb": 0.015625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645976.8520598
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.10278987884521484,
-      "memory_delta_mb": 12.21875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645976.95663
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.02562713623046875,
-      "memory_delta_mb": -4.96875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645976.982518
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.018115758895874023,
-      "memory_delta_mb": 0.28125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645977.000988
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.016355037689208984,
-      "memory_delta_mb": 0.328125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645977.0176241
-    },
-    {
-      "operation": "embedding_generation",
-      "duration": 0.016012907028198242,
-      "memory_delta_mb": -19.078125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645977.033935
-    }
-  ],
-  "query_embedding": [
-    {
-      "operation": "query_embedding",
-      "duration": 0.01601886749267578,
-      "memory_delta_mb": 0.28125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645976.853537
-    }
-  ],
-  "batch_embedding_generation": [
-    {
-      "operation": "batch_embedding_generation",
-      "duration": 0.18036890029907227,
-      "memory_delta_mb": -11.21875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645977.034106
-    }
-  ],
-  "document_embedding_extraction": [
-    {
-      "operation": "document_embedding_extraction",
-      "duration": 0.18054485321044922,
-      "memory_delta_mb": -11.21875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645977.034194
-    }
-  ],
-  "similarity_calculation": [
-    {
-      "operation": "similarity_calculation",
-      "duration": 0.0015730857849121094,
-      "memory_delta_mb": 0.125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645977.0358698
-    }
-  ],
-  "result_filtering_and_ranking": [
-    {
-      "operation": "result_filtering_and_ranking",
-      "duration": 0.0008611679077148438,
-      "memory_delta_mb": 0.0625,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645977.0368829
+      "timestamp": 1752656016.950698
     }
   ],
   "context_retrieval": [
     {
       "operation": "context_retrieval",
-      "duration": 1.7187249660491943,
-      "memory_delta_mb": 0.203125,
+      "duration": 307.2014710903168,
+      "memory_delta_mb": -251.015625,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645977.037035
+      "timestamp": 1752656016.951642
     }
   ],
   "context_retrieval_and_prompt_construction": [
     {
       "operation": "context_retrieval_and_prompt_construction",
-      "duration": 1.7188329696655273,
-      "memory_delta_mb": 0.203125,
+      "duration": 307.2015960216522,
+      "memory_delta_mb": -251.0,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645977.037109
+      "timestamp": 1752656016.9517272
     }
   ],
   "preparing_query_context": [
     {
       "operation": "preparing_query_context",
-      "duration": 1.718932867050171,
-      "memory_delta_mb": 0.203125,
+      "duration": 307.20171213150024,
+      "memory_delta_mb": -250.984375,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752645977.037179
-    }
-  ],
-  "answer_quality_evaluation": [
-    {
-      "operation": "answer_quality_evaluation",
-      "duration": 0.00994110107421875,
-      "memory_delta_mb": 1.71875,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752646035.768825
-    }
-  ],
-  "answer_processing": [
-    {
-      "operation": "answer_processing",
-      "duration": 0.1010441780090332,
-      "memory_delta_mb": 8.453125,
-      "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752646035.769595
+      "timestamp": 1752656016.951802
     }
   ],
   "single_answer_generating": [
     {
       "operation": "single_answer_generating",
-      "duration": 60.45238900184631,
-      "memory_delta_mb": -643.953125,
+      "duration": 307.2019600868225,
+      "memory_delta_mb": -250.875,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752646035.770607
+      "timestamp": 1752656016.9519072
     }
   ],
   "complete_query_processing": [
     {
       "operation": "complete_query_processing",
-      "duration": 60.456920862197876,
-      "memory_delta_mb": -643.8125,
+      "duration": 307.2065010070801,
+      "memory_delta_mb": -250.3125,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752646035.7715871
+      "timestamp": 1752656016.952002
     }
   ],
-  "dev_query_test": [
+  "interactive_query": [
     {
-      "operation": "dev_query_test",
-      "duration": 60.47350001335144,
-      "memory_delta_mb": -641.09375,
+      "operation": "interactive_query",
+      "duration": 307.2119529247284,
+      "memory_delta_mb": -247.46875,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752646035.7865841
+      "timestamp": 1752656016.95209
     }
   ],
-  "development_test": [
+  "interactive_mode": [
     {
-      "operation": "development_test",
-      "duration": 71.17855310440063,
-      "memory_delta_mb": -705.84375,
+      "operation": "interactive_mode",
+      "duration": 316.673791885376,
+      "memory_delta_mb": -247.203125,
       "gpu_memory_delta_mb": 0.0,
-      "timestamp": 1752646035.792057
+      "timestamp": 1752656016.9521668
     }
   ]
 }

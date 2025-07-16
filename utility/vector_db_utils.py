@@ -12,27 +12,29 @@ def parse_source_path(source_path: str) -> Tuple[str, str]:
     """
     Parses the source path to determine its type and extract relevant information.
 
-    Args:
-        source_path (str): The source path to parse.
-
     Returns:
-        Tuple[str, str]: A tuple containing the source type ('url' or 'hf') and the parsed corpus or dataset configuration.
-
-    Raises:
-        ValueError: If the source path format is unsupported.
+        Tuple[str, str]: (source_type, parsed_name_or_path)
+                         where source_type is one of: 'url', 'hf', 'local'
     """
     logger.info(f"Parsing source path: {source_path}")
+
     if source_path.startswith("http://") or source_path.startswith("https://"):
-        corpus_name = source_path.split("/")[-1]
+        corpus_name = source_path.rstrip("/").split("/")[-1]
         logger.info(f"Source type identified as URL with corpus name: {corpus_name}")
         return "url", corpus_name
-    elif ":" in source_path:
+
+    elif ":" in source_path and not os.path.exists(source_path):
+        # Hugging Face dataset format
         dataset_config = source_path.replace(":", "_")
-        logger.info(f"Source type identified as Hugging Face dataset with config: {dataset_config}")
+        logger.info(f"Source type identified as HF with config: {dataset_config}")
         return "hf", dataset_config
+
     else:
-        logger.error(f"Unsupported source path format: {source_path}")
-        raise ValueError(f"Unsupported source path format: {source_path}")
+        # Local file system path - always return absolute path and folder name
+        abs_path = os.path.abspath(source_path)
+        folder_name = os.path.basename(os.path.normpath(abs_path))
+        logger.info(f"Source type identified as local path: {abs_path}")
+        return "local", folder_name
 
 
 def validate_url(url: str) -> bool:

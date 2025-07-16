@@ -295,6 +295,26 @@ class MPSTestSuite:
             print(f"  ✗ Error handling test failed: {e}")
             return False
 
+    def test_vector_db_with_euclidean_mps(self):
+        """Test that vector DB loads with Euclidean distance on MPS"""
+        try:
+            from vector_db.indexer import load_vector_db
+            from utility.distance_metrics import DistanceMetric
+            from configurations.config import INDEX_SOURCE_URL
+
+            vector_db, _ = load_vector_db(
+                source="url",
+                source_path=INDEX_SOURCE_URL,
+                distance_metric=DistanceMetric.EUCLIDEAN
+            )
+
+            print("  ✓ Vector DB loaded with Euclidean distance")
+            return True
+
+        except Exception as e:
+            print(f"  ✗ Failed to load DB with Euclidean distance: {e}")
+            return False
+
     def run_all_tests(self):
         """Run the complete test suite."""
         print("🚀 Starting Comprehensive MPS Test Suite")
