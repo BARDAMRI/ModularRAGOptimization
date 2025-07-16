@@ -109,11 +109,16 @@ def prompt_with_validation(
 
 
 def ask_selection(prompt_text: str, options: list, default: Optional[str] = None) -> str:
+    # Create mapping from numbers (1-based) to options
+    index_to_option = {str(i + 1): option for i, option in enumerate(options)}
+    valid_inputs = set(options) | set(index_to_option.keys())
+
     return prompt_with_validation(
-        prompt_text=prompt_text,
-        validation_fn=lambda x: x in options,
+        prompt_text=prompt_text + ''.join([f"\n  {i + 1}. {option}" for i, option in enumerate(options)]),
+        validation_fn=lambda x: x in valid_inputs,
         default=default,
-        error_msg=f"❌ Please choose one of: {', '.join(options)}"
+        transform_fn=lambda x: index_to_option.get(x, x),  # If number, map to option; else return as-is
+        error_msg=f"❌ Please choose a number (1-{len(options)}) or one of: {', '.join(options)}"
     )
 
 
@@ -215,7 +220,7 @@ def get_user_source_path() -> str:
     print("  • URL: https://example.com/data.txt")
     print("  • HuggingFace dataset: squad:plain_text")
     print("  • HuggingFace dataset (no config): wikitext")
-    print(f"\n🔁 Press Enter to use default: {INDEX_SOURCE_URL}")
+    print(f"\n🔁 Press Enter to use default as configured in config.INDEX_SOURCE_URL: {INDEX_SOURCE_URL}")
 
     return prompt_with_validation(
         prompt_text="🔤 Source path: ",
@@ -404,18 +409,19 @@ def setup_vector_database() -> Tuple[Optional[object], Optional[object]]:
 def display_main_menu():
     """Display the main menu and get user choice."""
     print("\n🎯 SELECT MODE")
-    print("-" * 20)
-    print("1. 💬 Interactive Q&A Mode")
-    print("2. 📊 Evaluation Mode (Natural Questions)")
-    print("3. 🔧 Development Test Mode")
-    print("4. 📈 Results Analysis")
-    print("5. ⚙️ System Information")
-    print("6. 📥️ Download QA Dataset")
-    print("7. 🚪 Exit")
+    print("-" * 30)
 
     return ask_selection(
-        prompt_text="\nEnter your choice (1-7): ",
-        options=[str(i) for i in range(1, 8)]
+        prompt_text="Enter your choice:",
+        options=[
+            ("1", "💬 Interactive Q&A Mode"),
+            ("2", "📊 Evaluation Mode (Natural Questions)"),
+            ("3", "🔧 Development Test Mode"),
+            ("4", "📈 Results Analysis"),
+            ("5", "⚙️ System Information"),
+            ("6", "📥️ Download QA Dataset"),
+            ("7", "🚪 Exit")
+        ]
     )
 
 
@@ -508,6 +514,14 @@ def run_interactive_mode(vector_db, embedding_model, tokenizer, model, device):
         device (torch.device): Device to run the model on (CPU/GPU/MPS).
         Returns:
             "None
+
+    Parameters
+    ----------
+    device
+    model
+    tokenizer
+    embedding_model
+    vector_db
     """
 
     print("\n💬 INTERACTIVE Q&A MODE")
@@ -626,8 +640,7 @@ def run_evaluation_mode(vector_db, embedding_model, tokenizer, model, device):
                             i=i, num=len(queries), query=query, index=vector_db,
                             llm_model=model, tokenizer=tokenizer,
                             embedding_model=embedding_model, top_k=5,
-                            max_tokens=MAX_NEW_TOKENS, temperature=TEMPERATURE,
-                            quality_threshold=QUALITY_THRESHOLD, max_retries=MAX_RETRIES
+                            max_tokens=MAX_NEW_TOKENS, temperature=TEMPERATURE
                         )
                     else:
                         result = enumerate_top_documents(

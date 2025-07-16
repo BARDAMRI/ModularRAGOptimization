@@ -205,3 +205,304 @@
 2025-07-14 15:56:49,882 - INFO - Model loading completed successfully
 2025-07-14 15:56:49,884 - INFO - Performance complete_model_loading: 7.21s, Memory: -387.2MB, GPU: +0.0MB
 2025-07-14 15:56:49,884 - INFO - Performance startup_model_loading: 7.21s, Memory: -387.0MB, GPU: +0.0MB
+2025-07-14 15:58:18,614 - INFO - Application interrupted by user
+2025-07-14 15:58:18,616 - INFO - Performance metrics saved to results/performance_metrics.json
+2025-07-14 15:58:18,616 - INFO - Performance metrics saved
+2025-07-14 15:58:18,616 - INFO - MPS cache cleared
+2025-07-16 08:20:49,466 - WARNING - Failed to create cache directory cache/embeddings: 'str' object has no attribute 'mkdir'
+2025-07-16 08:20:49,467 - WARNING - Failed to create cache directory cache/queries: 'str' object has no attribute 'mkdir'
+2025-07-16 08:20:49,467 - WARNING - Failed to create cache directory cache: 'str' object has no attribute 'mkdir'
+2025-07-16 08:20:49,987 - INFO - MPS environment configured for compatibility
+2025-07-16 08:20:49,988 - INFO - Application started with enhanced MPS support.
+2025-07-16 08:20:49,988 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:20:49,988 - INFO - Loading Model tiiuae/falcon-rw-1b with MPS compatibility...
+2025-07-16 08:20:49,988 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:20:51,083 - INFO - Added padding token to tokenizer.
+2025-07-16 08:20:51,083 - INFO - Tokenizer loaded successfully.
+2025-07-16 08:20:51,084 - INFO - Loading model with MPS-specific optimizations...
+2025-07-16 08:20:57,343 - INFO - Model successfully loaded and converted for MPS
+2025-07-16 08:20:57,344 - INFO - Model loading completed successfully
+2025-07-16 08:20:57,344 - INFO - Performance complete_model_loading: 7.36s, Memory: -395.0MB, GPU: +0.0MB
+2025-07-16 08:20:57,345 - INFO - Performance startup_model_loading: 7.36s, Memory: -394.7MB, GPU: +0.0MB
+2025-07-16 08:24:03,750 - INFO - Performance metrics saved to results/performance_metrics.json
+2025-07-16 08:24:03,751 - INFO - Performance metrics saved
+2025-07-16 08:24:03,751 - INFO - MPS cache cleared
+2025-07-16 08:24:13,309 - WARNING - Failed to create cache directory cache/embeddings: 'str' object has no attribute 'mkdir'
+2025-07-16 08:24:13,310 - WARNING - Failed to create cache directory cache/queries: 'str' object has no attribute 'mkdir'
+2025-07-16 08:24:13,310 - WARNING - Failed to create cache directory cache: 'str' object has no attribute 'mkdir'
+2025-07-16 08:24:13,839 - INFO - MPS environment configured for compatibility
+2025-07-16 08:24:13,839 - INFO - Application started with enhanced MPS support.
+2025-07-16 08:24:13,839 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:24:13,839 - INFO - Loading Model tiiuae/falcon-rw-1b with MPS compatibility...
+2025-07-16 08:24:13,839 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:24:14,586 - INFO - Added padding token to tokenizer.
+2025-07-16 08:24:14,587 - INFO - Tokenizer loaded successfully.
+2025-07-16 08:24:14,587 - INFO - Loading model with MPS-specific optimizations...
+2025-07-16 08:24:19,832 - INFO - Model successfully loaded and converted for MPS
+2025-07-16 08:24:19,832 - INFO - Model loading completed successfully
+2025-07-16 08:24:19,833 - INFO - Performance complete_model_loading: 5.99s, Memory: -279.3MB, GPU: +0.0MB
+2025-07-16 08:24:19,833 - INFO - Performance startup_model_loading: 5.99s, Memory: -279.1MB, GPU: +0.0MB
+2025-07-16 08:25:19,211 - INFO - User selected configuration: method=simple, source=wikipedia:20220301.en
+2025-07-16 08:25:19,212 - INFO - Loading Vector DB with method: simple, source: wikipedia:20220301.en
+2025-07-16 08:25:19,212 - INFO - Loading vector database for source_path: 'wikipedia:20220301.en', storing_method: 'simple'
+2025-07-16 08:25:19,212 - INFO - Loading HuggingFaceEmbedding with model_name: sentence-transformers/all-MiniLM-L6-v2
+2025-07-16 08:25:19,212 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:25:22,858 - INFO - ✅ Embedding model loaded and cached successfully
+2025-07-16 08:25:22,859 - INFO - Initializing Simple vector database for source: wikipedia:20220301.en
+2025-07-16 08:25:22,859 - INFO - Parsing source path: wikipedia:20220301.en
+2025-07-16 08:25:22,859 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-07-16 08:25:22,860 - ERROR - Failed to create vector database: 'str' object has no attribute 'db_type'
+2025-07-16 08:25:22,860 - INFO - Performance vector_db_loading: 3.65s, Memory: +52.0MB, GPU: +0.0MB
+2025-07-16 08:25:22,860 - ERROR - Failed to load vector DB: 'str' object has no attribute 'db_type'
+2025-07-16 08:25:31,356 - INFO - Performance metrics saved to results/performance_metrics.json
+2025-07-16 08:25:31,356 - INFO - Performance metrics saved
+2025-07-16 08:25:31,357 - INFO - MPS cache cleared
+2025-07-16 08:25:52,898 - WARNING - Failed to create cache directory cache/embeddings: 'str' object has no attribute 'mkdir'
+2025-07-16 08:25:52,899 - WARNING - Failed to create cache directory cache/queries: 'str' object has no attribute 'mkdir'
+2025-07-16 08:25:52,899 - WARNING - Failed to create cache directory cache: 'str' object has no attribute 'mkdir'
+2025-07-16 08:25:53,386 - INFO - MPS environment configured for compatibility
+2025-07-16 08:25:53,386 - INFO - Application started with enhanced MPS support.
+2025-07-16 08:25:53,386 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:25:53,387 - INFO - Loading Model tiiuae/falcon-rw-1b with MPS compatibility...
+2025-07-16 08:25:53,387 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:25:53,926 - INFO - Added padding token to tokenizer.
+2025-07-16 08:25:53,926 - INFO - Tokenizer loaded successfully.
+2025-07-16 08:25:53,926 - INFO - Loading model with MPS-specific optimizations...
+2025-07-16 08:25:59,213 - INFO - Model successfully loaded and converted for MPS
+2025-07-16 08:25:59,215 - INFO - Model loading completed successfully
+2025-07-16 08:25:59,216 - INFO - Performance complete_model_loading: 5.83s, Memory: -370.6MB, GPU: +0.0MB
+2025-07-16 08:25:59,216 - INFO - Performance startup_model_loading: 5.83s, Memory: -370.3MB, GPU: +0.0MB
+2025-07-16 08:26:11,005 - INFO - User selected configuration: method=simple, source=wikipedia:20220301.en
+2025-07-16 08:26:11,005 - INFO - Loading Vector DB with method: simple, source: wikipedia:20220301.en
+2025-07-16 08:26:11,005 - INFO - Loading vector database for source_path: 'wikipedia:20220301.en', storing_method: 'simple'
+2025-07-16 08:26:11,005 - INFO - Loading HuggingFaceEmbedding with model_name: sentence-transformers/all-MiniLM-L6-v2
+2025-07-16 08:26:11,005 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:26:14,010 - INFO - ✅ Embedding model loaded and cached successfully
+2025-07-16 08:26:14,010 - INFO - Initializing Simple vector database for source: wikipedia:20220301.en
+2025-07-16 08:26:14,010 - INFO - Parsing source path: wikipedia:20220301.en
+2025-07-16 08:26:14,010 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-07-16 08:26:14,011 - ERROR - Failed to create vector database: 'str' object has no attribute 'db_type'
+2025-07-16 08:26:14,011 - INFO - Performance vector_db_loading: 3.01s, Memory: +59.4MB, GPU: +0.0MB
+2025-07-16 08:26:14,011 - ERROR - Failed to load vector DB: 'str' object has no attribute 'db_type'
+2025-07-16 08:26:35,998 - INFO - Application interrupted by user
+2025-07-16 08:26:35,999 - INFO - Performance metrics saved to results/performance_metrics.json
+2025-07-16 08:26:35,999 - INFO - Performance metrics saved
+2025-07-16 08:26:35,999 - INFO - MPS cache cleared
+2025-07-16 08:26:45,237 - WARNING - Failed to create cache directory cache/embeddings: 'str' object has no attribute 'mkdir'
+2025-07-16 08:26:45,238 - WARNING - Failed to create cache directory cache/queries: 'str' object has no attribute 'mkdir'
+2025-07-16 08:26:45,238 - WARNING - Failed to create cache directory cache: 'str' object has no attribute 'mkdir'
+2025-07-16 08:26:45,729 - INFO - MPS environment configured for compatibility
+2025-07-16 08:26:45,729 - INFO - Application started with enhanced MPS support.
+2025-07-16 08:26:45,730 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:26:45,730 - INFO - Loading Model tiiuae/falcon-rw-1b with MPS compatibility...
+2025-07-16 08:26:45,730 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:26:46,534 - INFO - Added padding token to tokenizer.
+2025-07-16 08:26:46,534 - INFO - Tokenizer loaded successfully.
+2025-07-16 08:26:46,534 - INFO - Loading model with MPS-specific optimizations...
+2025-07-16 08:26:50,964 - INFO - Model successfully loaded and converted for MPS
+2025-07-16 08:26:50,964 - INFO - Model loading completed successfully
+2025-07-16 08:26:50,965 - INFO - Performance complete_model_loading: 5.23s, Memory: -366.9MB, GPU: +0.0MB
+2025-07-16 08:26:50,965 - INFO - Performance startup_model_loading: 5.24s, Memory: -366.5MB, GPU: +0.0MB
+2025-07-16 08:27:22,739 - INFO - User selected configuration: method=simple, source=wikipedia:20220301.en
+2025-07-16 08:27:22,739 - INFO - Loading Vector DB with method: simple, source: wikipedia:20220301.en
+2025-07-16 08:27:22,740 - INFO - Loading vector database for source_path: 'wikipedia:20220301.en', storing_method: 'simple'
+2025-07-16 08:27:22,740 - INFO - Loading HuggingFaceEmbedding with model_name: sentence-transformers/all-MiniLM-L6-v2
+2025-07-16 08:27:22,740 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:27:25,226 - INFO - ✅ Embedding model loaded and cached successfully
+2025-07-16 08:27:25,227 - INFO - Initializing Simple vector database for source: wikipedia:20220301.en
+2025-07-16 08:27:25,227 - INFO - Parsing source path: wikipedia:20220301.en
+2025-07-16 08:27:25,227 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-07-16 08:27:25,228 - ERROR - Failed to create vector database: 'str' object has no attribute 'db_type'
+2025-07-16 08:27:25,228 - INFO - Performance vector_db_loading: 2.49s, Memory: +64.0MB, GPU: +0.0MB
+2025-07-16 08:27:25,228 - ERROR - Failed to load vector DB: 'str' object has no attribute 'db_type'
+2025-07-16 08:27:41,561 - INFO - Application interrupted by user
+2025-07-16 08:27:41,563 - INFO - Performance metrics saved to results/performance_metrics.json
+2025-07-16 08:27:41,563 - INFO - Performance metrics saved
+2025-07-16 08:27:41,563 - INFO - MPS cache cleared
+2025-07-16 08:27:50,733 - WARNING - Failed to create cache directory cache/embeddings: 'str' object has no attribute 'mkdir'
+2025-07-16 08:27:50,734 - WARNING - Failed to create cache directory cache/queries: 'str' object has no attribute 'mkdir'
+2025-07-16 08:27:50,734 - WARNING - Failed to create cache directory cache: 'str' object has no attribute 'mkdir'
+2025-07-16 08:27:51,199 - INFO - MPS environment configured for compatibility
+2025-07-16 08:27:51,199 - INFO - Application started with enhanced MPS support.
+2025-07-16 08:27:51,199 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:27:51,199 - INFO - Loading Model tiiuae/falcon-rw-1b with MPS compatibility...
+2025-07-16 08:27:51,199 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:27:52,033 - INFO - Added padding token to tokenizer.
+2025-07-16 08:27:52,033 - INFO - Tokenizer loaded successfully.
+2025-07-16 08:27:52,033 - INFO - Loading model with MPS-specific optimizations...
+2025-07-16 08:27:56,463 - INFO - Model successfully loaded and converted for MPS
+2025-07-16 08:27:56,464 - INFO - Model loading completed successfully
+2025-07-16 08:27:56,464 - INFO - Performance complete_model_loading: 5.26s, Memory: -272.7MB, GPU: +0.0MB
+2025-07-16 08:27:56,465 - INFO - Performance startup_model_loading: 5.27s, Memory: -272.4MB, GPU: +0.0MB
+2025-07-16 08:28:37,757 - INFO - User selected configuration: method=simple, source=wikipedia:20220301.en
+2025-07-16 08:28:37,758 - INFO - Loading Vector DB with method: simple, source: wikipedia:20220301.en
+2025-07-16 08:28:48,240 - INFO - Loading vector database for source_path: 'wikipedia:20220301.en', storing_method: 'simple'
+2025-07-16 08:28:48,861 - INFO - Loading HuggingFaceEmbedding with model_name: sentence-transformers/all-MiniLM-L6-v2
+2025-07-16 08:28:48,861 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:28:51,391 - INFO - ✅ Embedding model loaded and cached successfully
+2025-07-16 08:31:38,486 - INFO - Initializing Simple vector database for source: wikipedia:20220301.en
+2025-07-16 08:31:38,488 - INFO - Parsing source path: wikipedia:20220301.en
+2025-07-16 08:31:38,488 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-07-16 08:36:15,752 - INFO - Performance vector_db_loading: 457.99s, Memory: -80.8MB, GPU: +0.0MB
+2025-07-16 08:36:15,753 - INFO - Application interrupted by user
+2025-07-16 08:36:15,754 - INFO - Performance metrics saved to results/performance_metrics.json
+2025-07-16 08:36:15,754 - INFO - Performance metrics saved
+2025-07-16 08:36:15,754 - INFO - MPS cache cleared
+2025-07-16 08:36:24,990 - WARNING - Failed to create cache directory cache/embeddings: 'str' object has no attribute 'mkdir'
+2025-07-16 08:36:24,991 - WARNING - Failed to create cache directory cache/queries: 'str' object has no attribute 'mkdir'
+2025-07-16 08:36:24,991 - WARNING - Failed to create cache directory cache: 'str' object has no attribute 'mkdir'
+2025-07-16 08:36:25,496 - INFO - MPS environment configured for compatibility
+2025-07-16 08:36:25,496 - INFO - Application started with enhanced MPS support.
+2025-07-16 08:36:25,496 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:36:25,496 - INFO - Loading Model tiiuae/falcon-rw-1b with MPS compatibility...
+2025-07-16 08:36:25,496 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:36:26,147 - INFO - Added padding token to tokenizer.
+2025-07-16 08:36:26,147 - INFO - Tokenizer loaded successfully.
+2025-07-16 08:36:26,147 - INFO - Loading model with MPS-specific optimizations...
+2025-07-16 08:36:31,329 - INFO - Model successfully loaded and converted for MPS
+2025-07-16 08:36:31,329 - INFO - Model loading completed successfully
+2025-07-16 08:36:31,330 - INFO - Performance complete_model_loading: 5.83s, Memory: -427.1MB, GPU: +0.0MB
+2025-07-16 08:36:31,330 - INFO - Performance startup_model_loading: 5.83s, Memory: -426.8MB, GPU: +0.0MB
+2025-07-16 08:36:37,726 - INFO - User selected configuration: method=simple, source=wikipedia:20220301.en
+2025-07-16 08:36:37,726 - INFO - Loading Vector DB with method: simple, source: wikipedia:20220301.en
+2025-07-16 08:36:41,321 - INFO - Loading vector database for source_path: 'wikipedia:20220301.en', storing_method: 'simple'
+2025-07-16 08:36:41,321 - INFO - Loading HuggingFaceEmbedding with model_name: sentence-transformers/all-MiniLM-L6-v2
+2025-07-16 08:36:41,321 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:36:43,811 - INFO - ✅ Embedding model loaded and cached successfully
+2025-07-16 08:36:48,468 - INFO - Initializing Simple vector database for source: wikipedia:20220301.en
+2025-07-16 08:36:48,468 - INFO - Parsing source path: wikipedia:20220301.en
+2025-07-16 08:36:48,468 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-07-16 08:36:53,345 - INFO - Loading existing Simple vector database from /Users/bardamri/PycharmProjects/ModularRAGOptimization/storage/simple/wikipedia_20220301.en
+2025-07-16 08:37:39,221 - INFO - Simple VectorDB initialized successfully with VectorStoreIndex
+2025-07-16 08:37:39,221 - INFO - ✅ Vector database interface created successfully using simple method
+2025-07-16 08:37:39,601 - INFO - Database stats: {'db_type': 'simple', 'storage_dir': '/Users/bardamri/PycharmProjects/ModularRAGOptimization/storage/simple/wikipedia_20220301.en', 'embedding_model': 'sentence-transformers/all-MiniLM-L6-v2', 'index_exists': True, 'document_count': 6855}
+2025-07-16 08:37:39,978 - INFO - Performance vector_db_loading: 62.25s, Memory: +809.9MB, GPU: +0.0MB
+2025-07-16 08:40:22,140 - INFO - Enumerating top documents for query #1 of 5: To whom did the Virgin Mary allegedly appear in 18... using SimilarityMethod.COSINE
+2025-07-16 08:40:22,898 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:40:22,899 - INFO - Performance query_processing_1: 0.76s, Memory: -140.6MB, GPU: +0.0MB
+2025-07-16 08:40:22,899 - INFO - Enumerating top documents for query #2 of 5: What is in front of the Notre Dame Main Building?... using SimilarityMethod.COSINE
+2025-07-16 08:40:23,238 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:40:23,238 - INFO - Performance query_processing_2: 0.34s, Memory: -9.4MB, GPU: +0.0MB
+2025-07-16 08:40:23,238 - INFO - Enumerating top documents for query #3 of 5: The Basilica of the Sacred heart at Notre Dame is ... using SimilarityMethod.COSINE
+2025-07-16 08:40:23,377 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:40:23,378 - INFO - Performance query_processing_3: 0.14s, Memory: +0.1MB, GPU: +0.0MB
+2025-07-16 08:40:23,378 - INFO - Enumerating top documents for query #4 of 5: What is the Grotto at Notre Dame?... using SimilarityMethod.COSINE
+2025-07-16 08:40:23,555 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:40:23,556 - INFO - Performance query_processing_4: 0.18s, Memory: +9.6MB, GPU: +0.0MB
+2025-07-16 08:40:23,556 - INFO - Enumerating top documents for query #5 of 5: What sits on top of the Main Building at Notre Dam... using SimilarityMethod.COSINE
+2025-07-16 08:40:23,888 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:40:23,889 - INFO - Performance query_processing_5: 0.33s, Memory: +10.2MB, GPU: +0.0MB
+2025-07-16 08:40:23,889 - INFO - Performance evaluation_mode_execution: 1.75s, Memory: -130.1MB, GPU: +0.0MB
+2025-07-16 08:40:23,889 - INFO - Performance evaluation_mode: 5.86s, Memory: -130.1MB, GPU: +0.0MB
+2025-07-16 08:40:50,850 - INFO - Enumerating top documents for query #1 of 5: To whom did the Virgin Mary allegedly appear in 18... using SimilarityMethod.COSINE
+2025-07-16 08:40:51,056 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:40:51,058 - INFO - Performance query_processing_1: 0.21s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-16 08:40:51,058 - INFO - Enumerating top documents for query #2 of 5: What is in front of the Notre Dame Main Building?... using SimilarityMethod.COSINE
+2025-07-16 08:40:51,200 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:40:51,200 - INFO - Performance query_processing_2: 0.14s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-16 08:40:51,201 - INFO - Enumerating top documents for query #3 of 5: The Basilica of the Sacred heart at Notre Dame is ... using SimilarityMethod.COSINE
+2025-07-16 08:40:51,341 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:40:51,342 - INFO - Performance query_processing_3: 0.14s, Memory: +0.7MB, GPU: +0.0MB
+2025-07-16 08:40:51,342 - INFO - Enumerating top documents for query #4 of 5: What is the Grotto at Notre Dame?... using SimilarityMethod.COSINE
+2025-07-16 08:40:51,481 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:40:51,481 - INFO - Performance query_processing_4: 0.14s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-16 08:40:51,481 - INFO - Enumerating top documents for query #5 of 5: What sits on top of the Main Building at Notre Dam... using SimilarityMethod.COSINE
+2025-07-16 08:40:51,619 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:40:51,620 - INFO - Performance query_processing_5: 0.14s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-16 08:40:51,621 - INFO - Performance evaluation_mode_execution: 0.77s, Memory: +0.8MB, GPU: +0.0MB
+2025-07-16 08:40:51,621 - INFO - Performance evaluation_mode: 6.79s, Memory: +0.8MB, GPU: +0.0MB
+2025-07-16 08:41:08,151 - INFO - Enumerating top documents for query #1 of 5: To whom did the Virgin Mary allegedly appear in 18... using SimilarityMethod.COSINE
+2025-07-16 08:41:08,343 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:41:08,344 - INFO - Performance query_processing_1: 0.19s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-16 08:41:08,344 - INFO - Enumerating top documents for query #2 of 5: What is in front of the Notre Dame Main Building?... using SimilarityMethod.COSINE
+2025-07-16 08:41:08,484 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:41:08,485 - INFO - Performance query_processing_2: 0.14s, Memory: +0.1MB, GPU: +0.0MB
+2025-07-16 08:41:08,485 - INFO - Enumerating top documents for query #3 of 5: The Basilica of the Sacred heart at Notre Dame is ... using SimilarityMethod.COSINE
+2025-07-16 08:41:08,627 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:41:08,628 - INFO - Performance query_processing_3: 0.14s, Memory: +0.1MB, GPU: +0.0MB
+2025-07-16 08:41:08,628 - INFO - Enumerating top documents for query #4 of 5: What is the Grotto at Notre Dame?... using SimilarityMethod.COSINE
+2025-07-16 08:41:08,767 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:41:08,768 - INFO - Performance query_processing_4: 0.14s, Memory: +0.6MB, GPU: +0.0MB
+2025-07-16 08:41:08,768 - INFO - Enumerating top documents for query #5 of 5: What sits on top of the Main Building at Notre Dam... using SimilarityMethod.COSINE
+2025-07-16 08:41:08,907 - INFO - Top documents enumerated using SimilarityMethod.COSINE: 5 documents
+2025-07-16 08:41:08,907 - INFO - Performance query_processing_5: 0.14s, Memory: +0.0MB, GPU: +0.0MB
+2025-07-16 08:41:08,908 - INFO - Performance evaluation_mode_execution: 0.76s, Memory: +0.8MB, GPU: +0.0MB
+2025-07-16 08:41:08,908 - INFO - Performance evaluation_mode: 2.76s, Memory: +0.8MB, GPU: +0.0MB
+2025-07-16 08:41:14,454 - INFO - Application interrupted by user
+2025-07-16 08:41:14,458 - INFO - Performance metrics saved to results/performance_metrics.json
+2025-07-16 08:41:14,458 - INFO - Performance metrics saved
+2025-07-16 08:41:14,459 - INFO - MPS cache cleared
+2025-07-16 08:41:24,317 - WARNING - Failed to create cache directory cache/embeddings: 'str' object has no attribute 'mkdir'
+2025-07-16 08:41:24,318 - WARNING - Failed to create cache directory cache/queries: 'str' object has no attribute 'mkdir'
+2025-07-16 08:41:24,318 - WARNING - Failed to create cache directory cache: 'str' object has no attribute 'mkdir'
+2025-07-16 08:41:24,833 - INFO - MPS environment configured for compatibility
+2025-07-16 08:41:24,833 - INFO - Application started with enhanced MPS support.
+2025-07-16 08:41:24,833 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:41:24,834 - INFO - Loading Model tiiuae/falcon-rw-1b with MPS compatibility...
+2025-07-16 08:41:24,834 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:41:26,024 - INFO - Added padding token to tokenizer.
+2025-07-16 08:41:26,025 - INFO - Tokenizer loaded successfully.
+2025-07-16 08:41:26,025 - INFO - Loading model with MPS-specific optimizations...
+2025-07-16 08:41:32,896 - INFO - Model successfully loaded and converted for MPS
+2025-07-16 08:41:32,897 - INFO - Model loading completed successfully
+2025-07-16 08:41:32,898 - INFO - Performance complete_model_loading: 8.06s, Memory: -393.0MB, GPU: +0.0MB
+2025-07-16 08:41:32,898 - INFO - Performance startup_model_loading: 8.06s, Memory: -392.6MB, GPU: +0.0MB
+2025-07-16 08:42:11,237 - INFO - Application interrupted by user
+2025-07-16 08:42:11,239 - INFO - Performance metrics saved to results/performance_metrics.json
+2025-07-16 08:42:11,239 - INFO - Performance metrics saved
+2025-07-16 08:42:11,239 - INFO - MPS cache cleared
+2025-07-16 08:55:14,979 - WARNING - Failed to create cache directory cache/embeddings: 'str' object has no attribute 'mkdir'
+2025-07-16 08:55:14,979 - WARNING - Failed to create cache directory cache/queries: 'str' object has no attribute 'mkdir'
+2025-07-16 08:55:14,980 - WARNING - Failed to create cache directory cache: 'str' object has no attribute 'mkdir'
+2025-07-16 08:55:15,501 - INFO - MPS environment configured for compatibility
+2025-07-16 08:55:15,501 - INFO - Application started with enhanced MPS support.
+2025-07-16 08:55:15,501 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:55:15,501 - INFO - Loading Model tiiuae/falcon-rw-1b with MPS compatibility...
+2025-07-16 08:55:15,501 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:55:16,046 - INFO - Added padding token to tokenizer.
+2025-07-16 08:55:16,046 - INFO - Tokenizer loaded successfully.
+2025-07-16 08:55:16,046 - INFO - Loading model with MPS-specific optimizations...
+2025-07-16 08:55:21,495 - INFO - Model successfully loaded and converted for MPS
+2025-07-16 08:55:21,495 - INFO - Model loading completed successfully
+2025-07-16 08:55:21,496 - INFO - Performance complete_model_loading: 5.99s, Memory: -222.9MB, GPU: +0.0MB
+2025-07-16 08:55:21,496 - INFO - Performance startup_model_loading: 5.99s, Memory: -222.8MB, GPU: +0.0MB
+2025-07-16 08:56:11,458 - INFO - User selected configuration: method=simple, source=wikipedia:20220301.en
+2025-07-16 08:56:11,459 - INFO - Loading Vector DB with method: simple, source: wikipedia:20220301.en
+2025-07-16 08:56:11,460 - INFO - Loading vector database for source_path: 'wikipedia:20220301.en', storing_method: 'simple'
+2025-07-16 08:56:11,460 - INFO - Loading HuggingFaceEmbedding with model_name: sentence-transformers/all-MiniLM-L6-v2
+2025-07-16 08:56:11,460 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:56:14,601 - INFO - ✅ Embedding model loaded and cached successfully
+2025-07-16 08:56:14,602 - INFO - Initializing Simple vector database for source: wikipedia:20220301.en
+2025-07-16 08:56:14,602 - INFO - Parsing source path: wikipedia:20220301.en
+2025-07-16 08:56:14,602 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-07-16 08:56:14,604 - INFO - Loading existing Simple vector database from /Users/bardamri/PycharmProjects/ModularRAGOptimization/storage/simple/wikipedia_20220301.en
+2025-07-16 08:56:25,616 - INFO - Performance vector_db_loading: 14.16s, Memory: +755.2MB, GPU: +0.0MB
+2025-07-16 08:56:25,617 - INFO - Application interrupted by user
+2025-07-16 08:56:25,646 - INFO - Performance metrics saved to results/performance_metrics.json
+2025-07-16 08:56:25,646 - INFO - Performance metrics saved
+2025-07-16 08:56:25,646 - INFO - MPS cache cleared
+2025-07-16 08:56:34,544 - WARNING - Failed to create cache directory cache/embeddings: 'str' object has no attribute 'mkdir'
+2025-07-16 08:56:34,544 - WARNING - Failed to create cache directory cache/queries: 'str' object has no attribute 'mkdir'
+2025-07-16 08:56:34,544 - WARNING - Failed to create cache directory cache: 'str' object has no attribute 'mkdir'
+2025-07-16 08:56:35,004 - INFO - MPS environment configured for compatibility
+2025-07-16 08:56:35,004 - INFO - Application started with enhanced MPS support.
+2025-07-16 08:56:35,005 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:56:35,005 - INFO - Loading Model tiiuae/falcon-rw-1b with MPS compatibility...
+2025-07-16 08:56:35,005 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:56:35,772 - INFO - Added padding token to tokenizer.
+2025-07-16 08:56:35,772 - INFO - Tokenizer loaded successfully.
+2025-07-16 08:56:35,772 - INFO - Loading model with MPS-specific optimizations...
+2025-07-16 08:56:40,312 - INFO - Model successfully loaded and converted for MPS
+2025-07-16 08:56:40,312 - INFO - Model loading completed successfully
+2025-07-16 08:56:40,313 - INFO - Performance complete_model_loading: 5.31s, Memory: -322.5MB, GPU: +0.0MB
+2025-07-16 08:56:40,313 - INFO - Performance startup_model_loading: 5.31s, Memory: -322.3MB, GPU: +0.0MB
+2025-07-16 08:56:50,829 - INFO - User selected configuration: method=simple, source=wikipedia:20220301.en
+2025-07-16 08:56:50,830 - INFO - Loading Vector DB with method: simple, source: wikipedia:20220301.en
+2025-07-16 08:56:50,830 - INFO - Loading vector database for source_path: 'wikipedia:20220301.en', storing_method: 'simple'
+2025-07-16 08:56:50,830 - INFO - Loading HuggingFaceEmbedding with model_name: sentence-transformers/all-MiniLM-L6-v2
+2025-07-16 08:56:50,830 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-16 08:56:53,936 - INFO - ✅ Embedding model loaded and cached successfully
+2025-07-16 08:56:53,936 - INFO - Initializing Simple vector database for source: wikipedia:20220301.en
+2025-07-16 08:56:53,936 - INFO - Parsing source path: wikipedia:20220301.en
+2025-07-16 08:56:53,936 - INFO - Source type identified as Hugging Face dataset with config: wikipedia_20220301.en
+2025-07-16 08:56:53,937 - INFO - Loading existing Simple vector database from /Users/bardamri/PycharmProjects/ModularRAGOptimization/storage/simple/wikipedia_20220301.en

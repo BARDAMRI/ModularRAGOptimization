@@ -1,11 +1,13 @@
 """
 Base interface for vector database implementations
 """
-
+import os
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 from llama_index.core.schema import NodeWithScore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
+PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class VectorDBInterface(ABC):
@@ -112,3 +114,15 @@ class VectorDBInterface(ABC):
             return self.vector_db.as_retriever(**kwargs)
         else:
             raise NotImplementedError(f"Retriever not available for this vector DB type: {type(self.vector_db)}")
+
+    def _get_storage_directory(self, parsed_name: str) -> str:
+        """
+        Construct and return the consistent storage directory path based on parsed name.
+
+        Args:
+            parsed_name (str): Cleaned version of source path name
+
+        Returns:
+            str: Full storage directory path
+        """
+        return os.path.join(PROJECT_PATH, "storage", self.db_type, parsed_name.replace(":", "_"))

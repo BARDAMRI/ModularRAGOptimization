@@ -188,6 +188,21 @@ def hill_climb_documents(
 
     Returns:
         Dict containing query results and best answer
+
+    Parameters
+    ----------
+    similarity_method
+    convert_to_vector
+    max_tokens
+    top_k
+    embedding_model
+    tokenizer
+    llm_model
+    index
+    i
+    query
+    num
+    temperature
     """
     logger.info(f"Hill climbing for query #{i + 1} of {num}: {query[:50]}... using {similarity_method}")
 

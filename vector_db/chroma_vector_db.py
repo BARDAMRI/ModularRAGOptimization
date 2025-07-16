@@ -12,7 +12,6 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from utility.vector_db_utils import parse_source_path, download_and_save_from_hf, download_and_save_from_url
 from utility.logger import logger
 from vector_db.vector_db_interface import VectorDBInterface
-from vector_db.simple_vector_db import _get_storage_directory
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -44,7 +43,7 @@ class ChromaVectorDB(VectorDBInterface):
         data_dir = self._prepare_data_directory(source_type, parsed_name)
 
         # Setup Chroma storage
-        chroma_path = _get_storage_directory(self.db_type, parsed_name)
+        chroma_path = self._get_storage_directory(parsed_name)
         os.makedirs(chroma_path, exist_ok=True)
 
         # Initialize Chroma client and collection
