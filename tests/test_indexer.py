@@ -286,6 +286,53 @@ class TestIndexerCompatible(unittest.TestCase):
         self.assertIsNotNone(vector_db)
         print("✅ Vector DB created with Euclidean distance successfully")
 
+    def test_euclidean_distance_is_correct(self):
+        """Test that retrieved similarity matches Euclidean distance manually calculated"""
+        from vector_db.indexer import load_vector_db
+        from utility.distance_metrics import DistanceMetric
+        import numpy as np
+
+        # Load vector DB with Euclidean metric
+        vector_db, embed_model = load_vector_db(
+            source_path=self.test_data_dir,
+            storing_method="chroma",
+            distance_metric=DistanceMetric.EUCLIDEAN
+        )
+
+        # Use a fixed query
+        query_text = "artificial intelligence"
+        results = vector_db.retrieve(query_text, top_k=1)
+
+        self.assertTrue(results, "No results retrieved")
+
+        top_node = results[0]
+        retrieved_score = top_node.score
+        node_text = top_node.node.text
+
+        # Calculate embeddings
+        query_vec = np.array(embed_model.get_text_embedding(query_text))
+        doc_vec = np.array(embed_model.get_text_embedding(node_text))
+
+        # Normalize vectors (if Chroma does that internally)
+        query_vec_norm = query_vec / np.linalg.norm(query_vec)
+        doc_vec_norm = doc_vec / np.linalg.norm(doc_vec)
+
+        # Compute Euclidean distance between normalized vectors
+        expected_distance = np.linalg.norm(query_vec_norm - doc_vec_norm)
+        expected_squared = expected_distance ** 2
+
+        print(f"\nRetrieved score: {retrieved_score:.5f}")
+        print(f"Expected distance (normalized): {expected_distance:.5f}")
+        print(f"Expected squared distance: {expected_squared:.5f}")
+
+        # Try both comparisons: direct and squared, to see which matches
+        try:
+            self.assertAlmostEqual(expected_distance, retrieved_score, places=5)
+            print("✅ Match with normalized Euclidean distance")
+        except AssertionError:
+            self.assertAlmostEqual(expected_squared, retrieved_score, places=5)
+            print("✅ Match with squared normalized Euclidean distance")
+
 
 def run_quick_test():
     """Run a quick functional test"""

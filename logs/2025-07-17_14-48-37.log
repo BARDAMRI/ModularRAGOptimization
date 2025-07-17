@@ -1,0 +1,15 @@
+2025-07-17 14:48:50,493 - INFO - Loading vector database for source_path: '/Users/bardamri/PycharmProjects/ModularRAGOptimization/data/public_corpus', storing_method: 'chroma'
+2025-07-17 14:48:50,494 - INFO - Loading HuggingFaceEmbedding with model_name: sentence-transformers/all-MiniLM-L6-v2
+2025-07-17 14:48:50,520 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-17 14:48:53,680 - INFO - ✅ Embedding model loaded and cached successfully
+2025-07-17 14:48:53,681 - INFO - Initializing Chroma vector database for source: /Users/bardamri/PycharmProjects/ModularRAGOptimization/data/public_corpus
+2025-07-17 14:48:53,681 - INFO - Parsing source path: /Users/bardamri/PycharmProjects/ModularRAGOptimization/data/public_corpus
+2025-07-17 14:48:53,682 - INFO - Source type identified as local path: /Users/bardamri/PycharmProjects/ModularRAGOptimization/data/public_corpus
+2025-07-17 14:48:53,682 - INFO - Using existing data directory: /Users/bardamri/PycharmProjects/ModularRAGOptimization/data/public_corpus
+2025-07-17 14:48:53,837 - INFO - Creating new Chroma index from /Users/bardamri/PycharmProjects/ModularRAGOptimization/data/public_corpus
+2025-07-17 14:48:55,397 - INFO - Indexed 3 documents into Chroma
+2025-07-17 14:48:55,397 - INFO - Chroma VectorDB initialized successfully with VectorStoreIndex
+2025-07-17 14:48:55,397 - INFO - ✅ Vector database interface created successfully using chroma method
+2025-07-17 14:48:55,398 - INFO - Database stats: {'db_type': 'chroma', 'collection_count': 3, 'collection_name': 'collection_public_corpus', 'storage_path': '/Users/bardamri/PycharmProjects/ModularRAGOptimization/storage/chroma/public_corpus/l2', 'embedding_model': 'sentence-transformers/all-MiniLM-L6-v2', 'distance_metric': 'l2'}
+2025-07-17 14:48:59,987 - INFO - Chroma retrieval for query: 'artificial intelligence' (top_k=1)
+2025-07-17 14:49:00,104 - INFO - Chroma retrieved 1 documents

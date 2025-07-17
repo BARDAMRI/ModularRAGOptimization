@@ -4,6 +4,8 @@ Base interface for vector database implementations
 import os
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Union
+
+import numpy as np
 from llama_index.core.schema import NodeWithScore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
@@ -110,6 +112,11 @@ class VectorDBInterface(ABC):
             return self.vector_db.as_query_engine(**kwargs)
         else:
             raise NotImplementedError(f"Query engine not available for this vector DB type: {type(self.vector_db)}")
+
+    def euclidean_distance(self, x, y):
+        x = np.array(x)
+        y = np.array(y)
+        return np.linalg.norm(x - y)
 
     def _get_storage_directory(self, parsed_name: str) -> str:
         """
