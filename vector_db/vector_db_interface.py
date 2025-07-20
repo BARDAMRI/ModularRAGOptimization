@@ -3,7 +3,7 @@ Base interface for vector database implementations
 """
 import os
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Union
 
 import numpy as np
 from llama_index.core.schema import NodeWithScore

@@ -7,7 +7,8 @@ from matrics.results_logger import ResultsLogger, plot_score_distribution
 from scripts.qa_data_set_loader import download_qa_dataset
 from utility.logger import logger
 from utility.user_interface import display_main_menu, show_system_info, run_interactive_mode, run_evaluation_mode, \
-    run_development_test, startup_initialization, setup_vector_database, display_startup_banner, ask_yes_no
+    run_development_test, startup_initialization, setup_vector_database, display_startup_banner, ask_yes_no, \
+    run_noise_robustness_experiment
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -74,6 +75,9 @@ model = None
 vector_db = None
 embedding_model = None
 device = None
+storing_method = None
+source_path = None
+distance_metric = None
 
 
 @track_performance("results_analysis")
@@ -108,7 +112,7 @@ def download_dataset():
 
 def main_loop():
     """Main application loop with clean menu system."""
-    global vector_db, embedding_model, tokenizer, model, device
+    global vector_db, embedding_model, tokenizer, model, device, storing_method, source_path, distance_metric
 
     while True:
         choice = display_main_menu()
@@ -125,9 +129,15 @@ def main_loop():
             show_system_info(vector_db, model, device)
         elif choice == '6':
             download_dataset()
-        elif choice == '7':
+        elif choice == "7":
+            run_noise_robustness_experiment(vector_db, embedding_model)
+        elif choice == "8":
             print("👋 Goodbye!")
             break
+        elif choice == "9":
+            print("\n🔄 Resetting vector database and embedding model...\n")
+            vector_db, embedding_model, storing_method, source_path, distance_metric = setup_vector_database()
+            print("✅ Vector DB and embedding model reloaded.")
 
 
 def main():
@@ -139,7 +149,7 @@ def main():
 
     logger.info("Application started with enhanced MPS support.")
 
-    global vector_db, embedding_model, tokenizer, model, device
+    global vector_db, embedding_model, tokenizer, model, device, storing_method, source_path, distance_metric
     try:
         # Handle special command line arguments
         if "--help" in sys.argv:
@@ -172,7 +182,7 @@ def main():
         tokenizer, model = startup_initialization()
 
         # Setup vector database
-        vector_db, embedding_model = setup_vector_database()
+        vector_db, embedding_model, storing_method, source_path, distance_metric = setup_vector_database()
 
         # Run main application loop
         main_loop()

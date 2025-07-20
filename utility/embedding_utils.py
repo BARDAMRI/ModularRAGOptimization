@@ -2,35 +2,16 @@
 import numpy as np
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
-# Import performance monitoring and caching
-try:
-    from utility.cache import cache_embedding
-    from utility.performance import monitor_performance
 
-    CACHE_AVAILABLE = True
-    PERFORMANCE_AVAILABLE = True
-except ImportError as e:
-    CACHE_AVAILABLE = False
-    PERFORMANCE_AVAILABLE = False
+def monitor_performance(name):
+    from contextlib import contextmanager
+    @contextmanager
+    def dummy_context():
+        yield
+
+    return dummy_context()
 
 
-    def cache_embedding(model_name):
-        def decorator(func):
-            return func
-
-        return decorator
-
-
-    def monitor_performance(name):
-        from contextlib import contextmanager
-        @contextmanager
-        def dummy_context():
-            yield
-
-        return dummy_context()
-
-
-@cache_embedding("sentence-transformers/all-MiniLM-L6-v2")
 def get_query_vector(text: str, embed_model: HuggingFaceEmbedding) -> np.ndarray:
     """
     Converts a query's text into a vector embedding using the specified embedding model.

@@ -7,9 +7,11 @@ import termios
 from enum import Enum
 from typing import Optional, Tuple, Callable
 import torch
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 from configurations.config import NQ_SAMPLE_SIZE, MAX_NEW_TOKENS, TEMPERATURE, QUALITY_THRESHOLD, MAX_RETRIES, \
-    QA_DATASET_NAME, INDEX_SOURCE_URL
+    QA_DATASET_NAME, INDEX_SOURCE_URL, RETRIEVER_TOP_K
+from experiments.noise_experiment import run_noise_experiment
 from matrics.results_logger import ResultsLogger
 from modules.model_loader import load_model
 from modules.query import process_query_with_context
@@ -19,6 +21,7 @@ from utility.device_utils import get_optimal_device
 from utility.logger import logger
 from vector_db.indexer import get_embedding_model_info, load_vector_db
 from vector_db.storing_methods import StoringMethod
+from vector_db.vector_db_interface import VectorDBInterface
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -407,7 +410,8 @@ def get_user_distance_function(storing_method: str) -> Optional[str]:
 from utility.distance_metrics import DistanceMetric
 
 
-def setup_vector_database() -> Tuple[Optional[object], Optional[object]]:
+def setup_vector_database() -> tuple[None, None, None, None, None] | tuple[
+    VectorDBInterface, HuggingFaceEmbedding, str, str, DistanceMetric] | tuple[None, None]:
     """Setup vector database with user interaction."""
 
     print("\n📚 VECTOR DATABASE SETUP")
@@ -417,7 +421,7 @@ def setup_vector_database() -> Tuple[Optional[object], Optional[object]]:
 
     if not use_vector_db:
         print("📝 Running in simple Q&A mode (no context retrieval)")
-        return None, None
+        return None, None, None, None, None
 
     try:
         # Get method, path, and distance function from user
@@ -449,7 +453,7 @@ def setup_vector_database() -> Tuple[Optional[object], Optional[object]]:
             for key, value in stats.items():
                 print(f"  • {key}: {value}")
 
-            return vector_db, embedding_model
+            return vector_db, embedding_model, storing_method, source_path, distance_metric
 
     except Exception as e:
         logger.error(f"Failed to load vector DB: {e}")
@@ -474,7 +478,9 @@ def display_main_menu():
         ("4", "📈 Results Analysis"),
         ("5", "⚙️ System Information"),
         ("6", "📥️ Download QA Dataset"),
-        ("7", "🚪 Exit")
+        ("7", "🔬 Noise Robustness Experiment"),
+        ("8", "🚪 Exit"),
+        ("9", "🔄 Reset Vector DB & Embedding Model")
     ]
 
     for key, label in options:
@@ -679,7 +685,7 @@ def run_evaluation_mode(vector_db, embedding_model, tokenizer, model, device):
         default="e"
     )
 
-    results_logger = ResultsLogger(top_k=5, mode="hill" if mode_choice == "h" else "enum")
+    results_logger = ResultsLogger(top_k=RETRIEVER_TOP_K, mode="hill" if mode_choice == "h" else "enum")
 
     try:
         queries = load_qa_queries(NQ_SAMPLE_SIZE)
@@ -700,14 +706,14 @@ def run_evaluation_mode(vector_db, embedding_model, tokenizer, model, device):
                         result = hill_climb_documents(
                             i=i, num=len(queries), query=query, index=vector_db,
                             llm_model=model, tokenizer=tokenizer,
-                            embedding_model=embedding_model, top_k=5,
+                            embedding_model=embedding_model, top_k=RETRIEVER_TOP_K,
                             max_tokens=MAX_NEW_TOKENS, temperature=TEMPERATURE
                         )
                     else:
                         result = enumerate_top_documents(
                             i=i, num=len(queries), query=query, index=vector_db,
                             embedding_model=embedding_model,
-                            top_k=5, convert_to_vector=False
+                            top_k=RETRIEVER_TOP_K, convert_to_vector=False
                         )
                     results_logger.log(result)
 
@@ -777,3 +783,23 @@ def run_development_test(vector_db, embedding_model, tokenizer, model, device):
         print(f"❌ Query test failed: {e}")
 
     print("\n🎉 Development test completed")
+
+
+def run_noise_robustness_experiment(
+        vector_db: VectorDBInterface,
+        embedding_model: HuggingFaceEmbedding):
+    filename = prompt_with_validation("Enter output CSV filename:\n", lambda s: s.endswith('.csv'),
+                                      default="noise_experiment_results.csv")
+    if not filename.endswith('.csv'):
+        filename += '.csv'
+    # Construct full path automatically
+    output_dir = os.path.join(PROJECT_PATH, "results", "noise_robustness")
+    os.makedirs(output_dir, exist_ok=True)
+    output_csv_path = os.path.join(output_dir, filename)
+
+    run_noise_experiment(
+        vector_db=vector_db,
+        embed_model=embedding_model,
+        top_k=RETRIEVER_TOP_K,
+        output_csv_path=output_csv_path
+    )

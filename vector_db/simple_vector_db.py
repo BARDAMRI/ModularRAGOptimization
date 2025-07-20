@@ -1,9 +1,6 @@
-"""
-Simple Vector Database Implementation
-"""
-
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
+import numpy as np
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext, load_index_from_storage
 from llama_index.core.schema import NodeWithScore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -20,29 +17,18 @@ class SimpleVectorDB(VectorDBInterface):
     """
 
     def __init__(self, source_path: str, embedding_model: HuggingFaceEmbedding):
-        """
-        Initialize Simple vector database.
-
-        Args:
-            source_path (str): Path to the data source
-            embedding_model: Embedding model to use
-        """
         self.storage_dir = None
         super().__init__(source_path, embedding_model)
 
     def _initialize(self) -> None:
-        """Initialize the Simple vector database."""
         logger.info(f"Initializing Simple vector database for source: {self.source_path}")
 
-        # Parse source and prepare data
         source_type, parsed_name = parse_source_path(self.source_path)
         data_dir = self._prepare_data_directory(source_type, parsed_name)
 
-        # Setup storage directory
         self.storage_dir = self._get_storage_directory(parsed_name)
         os.makedirs(self.storage_dir, exist_ok=True)
 
-        # Load existing index or create new one
         if self._index_exists():
             logger.info(f"Loading existing Simple vector database from {self.storage_dir}")
             storage_context = StorageContext.from_defaults(persist_dir=self.storage_dir)
@@ -50,87 +36,69 @@ class SimpleVectorDB(VectorDBInterface):
         else:
             logger.info(f"Creating new Simple vector database from {data_dir}")
             documents = self._load_documents(data_dir)
-            self.vector_db = VectorStoreIndex.from_documents(
-                documents,
-                embed_model=self.embedding_model
-            )
+            self.vector_db = VectorStoreIndex.from_documents(documents, embed_model=self.embedding_model)
             self.persist()
             logger.info(f"Indexed {len(documents)} documents into Simple vector DB")
 
-        # Verify the vector_db is properly set
         if not isinstance(self.vector_db, VectorStoreIndex):
             raise RuntimeError(f"Expected VectorStoreIndex, got {type(self.vector_db)}")
 
         logger.info(f"Simple VectorDB initialized successfully with {type(self.vector_db).__name__}")
 
-    def retrieve(self, query: str, top_k: int = 5) -> List[NodeWithScore]:
+    def retrieve(self, query_or_vector: Union[str, np.ndarray], top_k: int = 5) -> List[NodeWithScore]:
         """
-        Retrieve documents using Simple vector store.
+        Retrieve documents using either a text query or an embedding vector.
 
         Args:
-            query (str): Query string
-            top_k (int): Number of top results to return
+            query_or_vector (Union[str, np.ndarray]): The query string or embedding vector.
+            top_k (int): Number of top results to return.
 
         Returns:
             List[NodeWithScore]: Retrieved documents with scores
         """
-        logger.info(f"Simple retrieval for query: '{query}' (top_k={top_k})")
+        if isinstance(query_or_vector, str):
+            logger.info(f"Simple retrieval with text query: '{query_or_vector}' (top_k={top_k})")
+            retriever = self.vector_db.as_retriever(similarity_top_k=top_k)
+            return retriever.retrieve(query_or_vector)
 
-        retriever = self.vector_db.as_retriever(similarity_top_k=top_k)
-        nodes_with_scores = retriever.retrieve(query)
+        elif isinstance(query_or_vector, np.ndarray):
+            logger.info("Simple retrieval with embedding vector")
 
-        # Simple store specific post-processing could go here
-        # For example: custom scoring, filtering, etc.
+            index_struct = self.vector_db.index_struct
+            docstore = self.vector_db.docstore
+            all_nodes = list(docstore.docs.values())
 
-        logger.info(f"Simple vector DB retrieved {len(nodes_with_scores)} documents")
-        return nodes_with_scores
+            if not all_nodes:
+                logger.warning("No nodes available in Simple vector DB")
+                return []
 
-    def semantic_search(self, query: str, top_k: int = 5,
-                        similarity_threshold: float = 0.0) -> List[NodeWithScore]:
-        """
-        Simple store specific semantic search with threshold filtering.
+            embedded_nodes = self.vector_db._embedding_store._id_to_embedding
+            all_embeddings = np.array([embedded_nodes[node.node_id] for node in all_nodes])
 
-        Args:
-            query (str): Query string
-            top_k (int): Number of results
-            similarity_threshold (float): Minimum similarity score
+            if all_embeddings.shape[0] == 0:
+                logger.error("No embeddings found in embedding store")
+                return []
 
-        Returns:
-            List[NodeWithScore]: Retrieved documents above threshold
-        """
-        nodes_with_scores = self.retrieve(query, top_k)
+            norms = np.linalg.norm(all_embeddings, axis=1) * np.linalg.norm(query_or_vector)
+            similarities = np.dot(all_embeddings, query_or_vector) / (norms + 1e-10)
+            top_indices = similarities.argsort()[::-1][:top_k]
 
-        # Filter by similarity threshold
-        if similarity_threshold > 0.0:
-            filtered_nodes = [
-                node for node in nodes_with_scores
-                if node.score >= similarity_threshold
+            results = [
+                NodeWithScore(node=all_nodes[i], score=similarities[i])
+                for i in top_indices
             ]
-            logger.info(
-                f"Filtered {len(nodes_with_scores)} -> {len(filtered_nodes)} nodes by threshold {similarity_threshold}")
-            return filtered_nodes
+            return results
 
-        return nodes_with_scores
+        else:
+            raise TypeError(f"Expected str or np.ndarray as query input, got {type(query_or_vector)}")
 
     def add_documents(self, documents: List[Any]) -> None:
-        """
-        Add documents to the Simple vector database.
-
-        Args:
-            documents: List of documents to add
-        """
         logger.info(f"Adding {len(documents)} documents to Simple vector DB")
         self.vector_db.insert_nodes(documents)
         self.persist()
         logger.info("Documents added to Simple vector DB successfully")
 
     def get_stats(self) -> Dict[str, Any]:
-        """
-        Get Simple database statistics.
-
-        Returns:
-            Dict containing Simple vector DB stats
-        """
         stats = {
             "db_type": self.db_type,
             "storage_dir": self.storage_dir,
@@ -138,7 +106,6 @@ class SimpleVectorDB(VectorDBInterface):
             "index_exists": self._index_exists()
         }
 
-        # Try to get document count if possible
         try:
             if hasattr(self.vector_db, 'docstore') and hasattr(self.vector_db.docstore, 'docs'):
                 stats["document_count"] = len(self.vector_db.docstore.docs)
@@ -149,24 +116,18 @@ class SimpleVectorDB(VectorDBInterface):
         return stats
 
     def persist(self) -> None:
-        """
-        Persist the Simple vector database to storage.
-        """
         logger.info(f"Persisting Simple vector database to {self.storage_dir}")
         self.vector_db.storage_context.persist(persist_dir=self.storage_dir)
 
     @property
     def db_type(self) -> str:
-        """Return the database type identifier."""
         return "simple"
 
     def _index_exists(self) -> bool:
-        """Check if an index already exists in the storage directory."""
         return (os.path.exists(self.storage_dir) and
                 os.path.exists(os.path.join(self.storage_dir, "docstore.json")))
 
     def _prepare_data_directory(self, source_type: str, parsed_name: str) -> str:
-        """Prepare and return the data directory path."""
         if source_type == "url":
             data_dir = os.path.join(PROJECT_PATH, "data", "url_downloads", parsed_name)
             if not os.path.exists(data_dir) or not os.listdir(data_dir):
@@ -176,19 +137,17 @@ class SimpleVectorDB(VectorDBInterface):
             data_dir = os.path.join(PROJECT_PATH, "data", "hf_downloads", parsed_name.replace(":", "_"))
             if not os.path.exists(data_dir) or not os.listdir(data_dir):
                 logger.info(f"Downloading data from Hugging Face into {data_dir}")
-                # Parse dataset_name and config from source_path
                 if ":" in self.source_path:
                     dataset_name, config = self.source_path.split(":", 1)
                 else:
                     dataset_name, config = self.source_path, None
                 download_and_save_from_hf(dataset_name, config, data_dir, max_docs=1000)
-        else:  # local source
+        else:
             data_dir = self.source_path
 
         return data_dir
 
     def _load_documents(self, data_dir: str):
-        """Load documents from the data directory."""
         if not os.path.exists(data_dir) or not os.listdir(data_dir):
             logger.error(f"No documents found in {data_dir}")
             raise FileNotFoundError(f"No documents found in {data_dir}")
