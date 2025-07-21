@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Optional, Tuple, Callable
 import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-
+from datetime import datetime
 from configurations.config import NQ_SAMPLE_SIZE, MAX_NEW_TOKENS, TEMPERATURE, QUALITY_THRESHOLD, MAX_RETRIES, \
     QA_DATASET_NAME, INDEX_SOURCE_URL, RETRIEVER_TOP_K
 from experiments.noise_experiment import run_noise_experiment
@@ -417,7 +417,7 @@ def setup_vector_database() -> tuple[None, None, None, None, None] | tuple[
     print("\n📚 VECTOR DATABASE SETUP")
     print("-" * 30)
 
-    use_vector_db = ask_yes_no("Do you want to use vector database for context retrieval? (y/n): ", default='n')
+    use_vector_db = ask_yes_no("Do you want to use vector database for context retrieval? (y/n): ", default='y')
 
     if not use_vector_db:
         print("📝 Running in simple Q&A mode (no context retrieval)")
@@ -788,18 +788,28 @@ def run_development_test(vector_db, embedding_model, tokenizer, model, device):
 def run_noise_robustness_experiment(
         vector_db: VectorDBInterface,
         embedding_model: HuggingFaceEmbedding):
-    filename = prompt_with_validation("Enter output CSV filename:\n", lambda s: s.endswith('.csv'),
-                                      default="noise_experiment_results.csv")
-    if not filename.endswith('.csv'):
-        filename += '.csv'
-    # Construct full path automatically
+    db_type = vector_db.db_type
+    distance_metric = vector_db.distance_metric
+    timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+    default_filename = f"{db_type}_{distance_metric}_{timestamp}.xlsx"
+
+    filename = prompt_with_validation(
+        f"Enter output Excel filename (press Enter to use default: {default_filename}):\n",
+        lambda s: s == "" or s.endswith('.xlsx'),
+        default=default_filename
+    )
+
+    if not filename or not filename.endswith('.xlsx'):
+        logger.warning("Invalid or empty filename provided. Using default name.")
+        filename = default_filename
+
     output_dir = os.path.join(PROJECT_PATH, "results", "noise_robustness")
     os.makedirs(output_dir, exist_ok=True)
-    output_csv_path = os.path.join(output_dir, filename)
+    output_path = os.path.join(output_dir, filename)
 
     run_noise_experiment(
         vector_db=vector_db,
         embed_model=embedding_model,
         top_k=RETRIEVER_TOP_K,
-        output_csv_path=output_csv_path
+        output_path=output_path
     )

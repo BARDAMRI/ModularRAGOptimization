@@ -4,6 +4,8 @@ import numpy as np
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext, load_index_from_storage
 from llama_index.core.schema import NodeWithScore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
+from utility.distance_metrics import DistanceMetric
 from utility.vector_db_utils import parse_source_path, download_and_save_from_hf, download_and_save_from_url
 from utility.logger import logger
 from vector_db.vector_db_interface import VectorDBInterface
@@ -16,15 +18,16 @@ class SimpleVectorDB(VectorDBInterface):
     Simple vector database implementation using LlamaIndex's default storage.
     """
 
-    def __init__(self, source_path: str, embedding_model: HuggingFaceEmbedding):
+    def __init__(self, source_path: str, embedding_model: HuggingFaceEmbedding, distance_metric: DistanceMetric):
         self.storage_dir = None
-        super().__init__(source_path, embedding_model)
+        super().__init__(source_path, embedding_model, distance_metric)
+        if distance_metric != DistanceMetric.COSINE:
+            logger.warning(f"[SimpleVectorDB] Only cosine similarity is supported. Ignoring '{distance_metric.value}'.")
 
     def _initialize(self) -> None:
         logger.info(f"Initializing Simple vector database for source: {self.source_path}")
 
         source_type, parsed_name = parse_source_path(self.source_path)
-        data_dir = self._prepare_data_directory(source_type, parsed_name)
 
         self.storage_dir = self._get_storage_directory(parsed_name)
         os.makedirs(self.storage_dir, exist_ok=True)
@@ -34,27 +37,17 @@ class SimpleVectorDB(VectorDBInterface):
             storage_context = StorageContext.from_defaults(persist_dir=self.storage_dir)
             self.vector_db = load_index_from_storage(storage_context, embed_model=self.embedding_model)
         else:
+            data_dir = self._prepare_data_directory(source_type, parsed_name)
             logger.info(f"Creating new Simple vector database from {data_dir}")
             documents = self._load_documents(data_dir)
             self.vector_db = VectorStoreIndex.from_documents(documents, embed_model=self.embedding_model)
             self.persist()
             logger.info(f"Indexed {len(documents)} documents into Simple vector DB")
 
-        if not isinstance(self.vector_db, VectorStoreIndex):
-            raise RuntimeError(f"Expected VectorStoreIndex, got {type(self.vector_db)}")
-
-        logger.info(f"Simple VectorDB initialized successfully with {type(self.vector_db).__name__}")
-
     def retrieve(self, query_or_vector: Union[str, np.ndarray], top_k: int = 5) -> List[NodeWithScore]:
         """
         Retrieve documents using either a text query or an embedding vector.
-
-        Args:
-            query_or_vector (Union[str, np.ndarray]): The query string or embedding vector.
-            top_k (int): Number of top results to return.
-
-        Returns:
-            List[NodeWithScore]: Retrieved documents with scores
+        Note: Only cosine similarity is supported in this implementation.
         """
         if isinstance(query_or_vector, str):
             logger.info(f"Simple retrieval with text query: '{query_or_vector}' (top_k={top_k})")
@@ -124,8 +117,11 @@ class SimpleVectorDB(VectorDBInterface):
         return "simple"
 
     def _index_exists(self) -> bool:
-        return (os.path.exists(self.storage_dir) and
-                os.path.exists(os.path.join(self.storage_dir, "docstore.json")))
+        required_files = ["docstore.json", "index_store.json"]
+        return (
+                os.path.exists(self.storage_dir) and
+                all(os.path.exists(os.path.join(self.storage_dir, f)) for f in required_files)
+        )
 
     def _prepare_data_directory(self, source_type: str, parsed_name: str) -> str:
         if source_type == "url":

@@ -35,7 +35,7 @@ def test_chroma_allows_euclidean_distance(temp_chroma_dir, embedding_model):
     vector_db = ChromaVectorDB(
         source_path=fake_data_dir,
         embedding_model=embedding_model,
-        distance_metric="l2"  # Euclidean distance in Chroma
+        distance_metric="l2"
     )
     vector_db._initialize()  # Explicitly call to force index creation
 

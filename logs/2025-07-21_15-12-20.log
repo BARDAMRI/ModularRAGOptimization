@@ -1,0 +1,23 @@
+2025-07-21 15:12:25,016 - WARNING - Performance monitoring or caching not available
+2025-07-21 15:12:25,017 - WARNING - Performance monitoring or caching not available
+2025-07-21 15:12:25,034 - WARNING - Performance monitoring or caching not available
+2025-07-21 15:12:25,034 - INFO - MPS environment configured for compatibility
+2025-07-21 15:12:25,034 - INFO - Application started with enhanced MPS support.
+2025-07-21 15:12:25,034 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-21 15:12:25,035 - INFO - Loading Model tiiuae/falcon-rw-1b with MPS compatibility...
+2025-07-21 15:12:25,035 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-21 15:12:25,835 - INFO - Added padding token to tokenizer.
+2025-07-21 15:12:25,835 - INFO - Tokenizer loaded successfully.
+2025-07-21 15:12:25,835 - INFO - Loading model with MPS-specific optimizations...
+2025-07-21 15:12:30,699 - INFO - Model successfully loaded and converted for MPS
+2025-07-21 15:12:30,699 - INFO - Model loading completed successfully
+2025-07-21 15:12:30,700 - INFO - Performance complete_model_loading: 5.66s, Memory: -391.2MB, GPU: +0.0MB
+2025-07-21 15:17:21,220 - INFO - User selected configuration: method=simple, source=wikipedia:20220301.en, distance=None
+2025-07-21 15:17:21,223 - INFO - Loading Vector DB with method: simple, source: wikipedia:20220301.en, distance: cosine
+2025-07-21 15:17:21,223 - INFO - Loading vector database for source_path: 'wikipedia:20220301.en', storing_method: 'simple'
+2025-07-21 15:17:21,223 - INFO - Loading HuggingFaceEmbedding with model_name: sentence-transformers/all-mpnet-base-v2
+2025-07-21 15:17:21,224 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-21 15:17:24,625 - INFO - ✅ Embedding model loaded and cached successfully
+2025-07-21 15:17:24,626 - ERROR - Failed to create vector database: SimpleVectorDB.__init__() takes 3 positional arguments but 4 were given
+2025-07-21 15:17:24,626 - ERROR - Failed to load vector DB: SimpleVectorDB.__init__() takes 3 positional arguments but 4 were given
+2025-07-21 15:20:19,567 - INFO - Application interrupted by user

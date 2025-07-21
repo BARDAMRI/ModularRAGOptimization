@@ -1,0 +1,30 @@
+2025-07-21 15:32:08,424 - WARNING - Performance monitoring or caching not available
+2025-07-21 15:32:08,430 - WARNING - Performance monitoring or caching not available
+2025-07-21 15:32:08,446 - WARNING - Performance monitoring or caching not available
+2025-07-21 15:32:08,446 - INFO - MPS environment configured for compatibility
+2025-07-21 15:32:08,446 - INFO - Application started with enhanced MPS support.
+2025-07-21 15:32:08,446 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-21 15:32:08,446 - INFO - Loading Model tiiuae/falcon-rw-1b with MPS compatibility...
+2025-07-21 15:32:08,447 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-21 15:32:09,224 - INFO - Added padding token to tokenizer.
+2025-07-21 15:32:09,224 - INFO - Tokenizer loaded successfully.
+2025-07-21 15:32:09,224 - INFO - Loading model with MPS-specific optimizations...
+2025-07-21 15:32:16,143 - INFO - Model successfully loaded and converted for MPS
+2025-07-21 15:32:16,144 - INFO - Model loading completed successfully
+2025-07-21 15:32:16,145 - INFO - Performance complete_model_loading: 7.70s, Memory: -407.4MB, GPU: +0.0MB
+2025-07-21 15:34:05,925 - INFO - User selected configuration: method=simple, source=wikipedia:20220301.en, distance=None
+2025-07-21 15:34:05,926 - INFO - Loading Vector DB with method: simple, source: wikipedia:20220301.en, distance: cosine
+2025-07-21 15:34:05,926 - INFO - Loading vector database for source_path: 'wikipedia:20220301.en', storing_method: 'simple'
+2025-07-21 15:34:05,927 - INFO - Loading HuggingFaceEmbedding with model_name: sentence-transformers/all-mpnet-base-v2
+2025-07-21 15:34:05,927 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-21 15:34:13,494 - INFO - ✅ Embedding model loaded and cached successfully
+2025-07-21 15:34:13,494 - INFO - Initializing Simple vector database for source: wikipedia:20220301.en
+2025-07-21 15:34:13,494 - INFO - Parsing source path: wikipedia:20220301.en
+2025-07-21 15:34:13,495 - INFO - Source type identified as HF with config: wikipedia_20220301.en
+2025-07-21 15:34:13,497 - INFO - Loading existing Simple vector database from /Users/bardamri/PycharmProjects/ModularRAGOptimization/storage/simple/wikipedia_20220301.en/cosine
+2025-07-21 15:36:09,572 - INFO - Simple VectorDB initialized successfully with VectorStoreIndex
+2025-07-21 15:36:09,572 - INFO - ✅ Vector database interface created successfully using simple method
+2025-07-21 15:36:10,040 - INFO - Database stats: {'db_type': 'simple', 'storage_dir': '/Users/bardamri/PycharmProjects/ModularRAGOptimization/storage/simple/wikipedia_20220301.en/cosine', 'embedding_model': 'sentence-transformers/all-mpnet-base-v2', 'index_exists': True, 'document_count': 6855}
+2025-07-21 15:36:27,818 - INFO - Simple retrieval with embedding vector
+2025-07-21 15:39:19,493 - WARNING - ❌ Failed to retrieve base results for query 1: 'VectorStoreIndex' object has no attribute '_embedding_store'
+2025-07-21 15:40:37,579 - INFO - Application interrupted by user

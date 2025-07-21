@@ -1,0 +1,45 @@
+2025-07-21 15:40:49,120 - WARNING - Performance monitoring or caching not available
+2025-07-21 15:40:49,121 - WARNING - Performance monitoring or caching not available
+2025-07-21 15:40:49,140 - WARNING - Performance monitoring or caching not available
+2025-07-21 15:40:49,140 - INFO - MPS environment configured for compatibility
+2025-07-21 15:40:49,140 - INFO - Application started with enhanced MPS support.
+2025-07-21 15:40:49,141 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-21 15:40:49,141 - INFO - Loading Model tiiuae/falcon-rw-1b with MPS compatibility...
+2025-07-21 15:40:49,141 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-21 15:40:49,730 - INFO - Added padding token to tokenizer.
+2025-07-21 15:40:49,730 - INFO - Tokenizer loaded successfully.
+2025-07-21 15:40:49,730 - INFO - Loading model with MPS-specific optimizations...
+2025-07-21 15:40:54,686 - INFO - Model successfully loaded and converted for MPS
+2025-07-21 15:40:54,686 - INFO - Model loading completed successfully
+2025-07-21 15:40:54,687 - INFO - Performance complete_model_loading: 5.55s, Memory: -374.3MB, GPU: +0.0MB
+2025-07-21 15:41:25,669 - INFO - User selected configuration: method=simple, source=wikipedia:20220301.en, distance=None
+2025-07-21 15:41:25,670 - INFO - Loading Vector DB with method: simple, source: wikipedia:20220301.en, distance: cosine
+2025-07-21 15:41:25,670 - INFO - Loading vector database for source_path: 'wikipedia:20220301.en', storing_method: 'simple'
+2025-07-21 15:41:25,670 - INFO - Loading HuggingFaceEmbedding with model_name: sentence-transformers/all-mpnet-base-v2
+2025-07-21 15:41:25,670 - INFO - MPS (Apple Silicon GPU) detected and enabled
+2025-07-21 15:41:28,329 - INFO - ✅ Embedding model loaded and cached successfully
+2025-07-21 15:41:28,330 - INFO - Initializing Simple vector database for source: wikipedia:20220301.en
+2025-07-21 15:41:28,330 - INFO - Parsing source path: wikipedia:20220301.en
+2025-07-21 15:41:28,330 - INFO - Source type identified as HF with config: wikipedia_20220301.en
+2025-07-21 15:41:28,331 - INFO - Loading existing Simple vector database from /Users/bardamri/PycharmProjects/ModularRAGOptimization/storage/simple/wikipedia_20220301.en/cosine
+2025-07-21 15:42:00,290 - INFO - Simple VectorDB initialized successfully with VectorStoreIndex
+2025-07-21 15:42:00,291 - INFO - ✅ Vector database interface created successfully using simple method
+2025-07-21 15:42:00,649 - INFO - Database stats: {'db_type': 'simple', 'storage_dir': '/Users/bardamri/PycharmProjects/ModularRAGOptimization/storage/simple/wikipedia_20220301.en/cosine', 'embedding_model': 'sentence-transformers/all-mpnet-base-v2', 'index_exists': True, 'document_count': 6855}
+2025-07-21 15:42:36,481 - INFO - Processing query with SimilarityMethod.COSINE similarity
+2025-07-21 15:42:36,481 - INFO - Moving model from mps:0 to mps
+2025-07-21 15:42:36,484 - INFO - Retrieving context using SimilarityMethod.COSINE similarity
+2025-07-21 15:42:36,484 - INFO - Simple retrieval with text query: 'what is the capital of france ?' (top_k=5)
+2025-07-21 15:42:37,447 - INFO - LlamaIndex retrieved 5 initial candidates
+2025-07-21 15:42:37,899 - INFO - Similarity score comparison:
+2025-07-21 15:42:37,899 - INFO - Doc 0: Manual=0.445978, Reference=0.445978, Diff=0.000000
+2025-07-21 15:42:37,899 - INFO - Doc 1: Manual=0.431224, Reference=0.431224, Diff=0.000000
+2025-07-21 15:42:37,899 - INFO - Doc 2: Manual=0.405691, Reference=0.405691, Diff=0.000000
+2025-07-21 15:42:37,899 - INFO - Doc 3: Manual=0.394114, Reference=0.394114, Diff=0.000000
+2025-07-21 15:42:37,899 - INFO - Doc 4: Manual=0.390074, Reference=0.390074, Diff=0.000000
+2025-07-21 15:42:37,899 - WARNING - No results above similarity threshold 0.5
+2025-07-21 15:42:37,899 - INFO - Retrieved 0 relevant documents
+2025-07-21 15:42:51,527 - INFO - Evaluating answer quality
+2025-07-21 15:42:51,527 - INFO - Quality score: 1.0
+2025-07-21 15:42:51,527 - INFO - Query processing completed successfully
+2025-07-21 15:42:51,527 - INFO - Question: what is the capital of france ?, Answer: Paris. The French word for “capital”, parisien (from Latin pauper), means poor or beggarly person and refers to a place where people live in poverty; it was originally used as an insult by Roman soldiers
+2025-07-21 15:43:46,665 - INFO - Application interrupted by user

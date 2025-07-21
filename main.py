@@ -12,7 +12,6 @@ from utility.user_interface import display_main_menu, show_system_info, run_inte
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Set MPS environment variables before importing PyTorch
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 if torch.backends.mps.is_available():
