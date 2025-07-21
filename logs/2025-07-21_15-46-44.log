@@ -26,3 +26,5 @@
 2025-07-21 15:47:35,807 - INFO - ✅ Vector database interface created successfully using simple method
 2025-07-21 15:47:36,168 - INFO - Database stats: {'db_type': 'simple', 'storage_dir': '/Users/bardamri/PycharmProjects/ModularRAGOptimization/storage/simple/wikipedia_20220301.en/cosine', 'embedding_model': 'sentence-transformers/all-mpnet-base-v2', 'index_exists': True, 'document_count': 6855}
 2025-07-21 15:52:52,385 - INFO - Application interrupted by user
+2025-07-21 16:09:04,131 - WARNING - Failed to prompt user for printing summary: EOF when reading a line
+2025-07-21 16:09:04,134 - INFO - MPS cache cleared
