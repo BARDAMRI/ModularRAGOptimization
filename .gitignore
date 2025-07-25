@@ -7,3 +7,12 @@
 /**/storage/**
 /*.sqlite3
 /*.bin
+
+*.json
+*.jsonl
+*.log
+*.sqlite3
+*.bin
+.idea/
+storage/
+logs/
