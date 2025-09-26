@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15" version="28.2.5">
   <diagram name="Page-1" id="ITgCniB9UMU5Rn8mjQ72">
-    <mxGraphModel dx="2487" dy="1402" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="2447" dy="2475" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -129,6 +129,9 @@
         </mxCell>
         <mxCell id="_XlbBcoi8CTmFbGkkOP7-58" value="&lt;font style=&quot;font-size: 23px;&quot; face=&quot;Helvetica&quot;&gt;&lt;b style=&quot;color: rgb(224, 122, 95);&quot;&gt;RAG Based System&lt;/b&gt;&lt;/font&gt;" style="shape=module;align=left;spacingLeft=20;align=center;verticalAlign=top;whiteSpace=wrap;html=1;strokeColor=#E07A5F;fontColor=#393C56;fillColor=none;strokeWidth=3;" vertex="1" parent="1">
           <mxGeometry x="-505" y="630" width="1125" height="790" as="geometry" />
+        </mxCell>
+        <mxCell id="_XlbBcoi8CTmFbGkkOP7-60" value="Entity" style="whiteSpace=wrap;html=1;align=center;strokeColor=light-dark(#ffffff, #b9624b);fontColor=#393C56;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="-820" y="-180" width="1640" height="2510" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
