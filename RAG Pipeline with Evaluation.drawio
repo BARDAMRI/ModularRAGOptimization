@@ -4,9 +4,6 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="_XlbBcoi8CTmFbGkkOP7-45" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeWidth=3;labelBackgroundColor=none;strokeColor=#E07A5F;fontColor=#393C56;" vertex="1" parent="1">
-          <mxGeometry x="-290" y="240" width="1070" height="720" as="geometry" />
-        </mxCell>
         <mxCell id="_XlbBcoi8CTmFbGkkOP7-6" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;labelBackgroundColor=none;fontColor=default;" edge="1" parent="1" target="_XlbBcoi8CTmFbGkkOP7-22">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="-470" y="355" as="sourcePoint" />
@@ -106,9 +103,6 @@
         <mxCell id="_XlbBcoi8CTmFbGkkOP7-44" value="&lt;p style=&quot;text-align: start; white-space: normal;&quot; class=&quot;p1&quot;&gt;&lt;span class=&quot;s1&quot;&gt;&lt;/span&gt;&lt;/p&gt;&lt;span style=&quot;text-align: start; white-space: normal;&quot;&gt;Validated Answer&lt;/span&gt;&lt;br&gt;&lt;p style=&quot;text-align: start; white-space: normal;&quot;&gt;&lt;/p&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;rotation=0;labelBackgroundColor=none;fontColor=#393C56;" vertex="1" parent="1">
           <mxGeometry x="-204.99892844944674" y="539.996284290195" width="120" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="_XlbBcoi8CTmFbGkkOP7-47" value="&lt;h1 style=&quot;margin-top: 0px;&quot;&gt;RAG Based System&lt;/h1&gt;" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;labelBackgroundColor=none;fontColor=#393C56;" vertex="1" parent="1">
-          <mxGeometry x="-210" y="210" width="260" height="50" as="geometry" />
-        </mxCell>
         <mxCell id="_XlbBcoi8CTmFbGkkOP7-48" value="&lt;p style=&quot;text-align: start; white-space: normal;&quot; class=&quot;p1&quot;&gt;&lt;span class=&quot;s1&quot;&gt;&lt;/span&gt;&lt;/p&gt;&lt;div style=&quot;text-align: start;&quot;&gt;&lt;span style=&quot;text-wrap-mode: wrap; color: rgb(150, 115, 166);&quot;&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;&lt;b&gt;YES&lt;/b&gt;&lt;/font&gt;&lt;/span&gt;&lt;/div&gt;&lt;p style=&quot;text-align: start; white-space: normal;&quot;&gt;&lt;/p&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;rotation=0;labelBackgroundColor=none;fontColor=#393C56;" vertex="1" parent="1">
           <mxGeometry x="-19.998928449446737" y="759.996284290195" width="40" height="50" as="geometry" />
         </mxCell>
@@ -132,6 +126,9 @@
         </mxCell>
         <mxCell id="_XlbBcoi8CTmFbGkkOP7-56" value="Generation" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;strokeColor=#9673a6;fillColor=#e1d5e7;width=90;height=20;" vertex="1" parent="1">
           <mxGeometry x="-280" y="450" width="230" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="_XlbBcoi8CTmFbGkkOP7-58" value="&lt;font style=&quot;font-size: 23px;&quot; face=&quot;Helvetica&quot;&gt;&lt;b style=&quot;color: rgb(224, 122, 95);&quot;&gt;RAG Based System&lt;/b&gt;&lt;/font&gt;" style="shape=module;align=left;spacingLeft=20;align=center;verticalAlign=top;whiteSpace=wrap;html=1;strokeColor=#E07A5F;fontColor=#393C56;fillColor=none;strokeWidth=3;" vertex="1" parent="1">
+          <mxGeometry x="-305" y="180" width="1125" height="790" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
