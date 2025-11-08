@@ -1,3 +1,131 @@
+def select_dataset_and_corpus():
+    from configurations.config import QA_DATASETS
+    print_section_header("🎓 DATASET SELECTION")
+
+    # Add manual mode at the top
+    print("0. ❌ No Dataset (manual queries only)")
+    dataset_keys = list(QA_DATASETS.keys())
+    for i, key in enumerate(dataset_keys, 1):
+        entry = QA_DATASETS[key]
+        desc = entry.get("description", "")
+        corpus = entry.get("corpus_source", "❌ None defined")
+        print(f"{i}. {key} - {desc}\n   ↳ Corpus: {corpus}")
+
+    options = [(str(i + 1), k) for i, k in enumerate(dataset_keys)]
+    from configurations.config import ACTIVE_QA_DATASET
+    default_label = f"(default: {ACTIVE_QA_DATASET})" if ACTIVE_QA_DATASET else "(default: No Dataset)"
+    selected = ask_selection(
+        prompt_text=f"\nSelect dataset (0-{len(dataset_keys)}) {default_label}: ",
+        options=options,
+        default=None
+    )
+    if not selected or selected.strip() == "":
+        if ACTIVE_QA_DATASET:
+            print(f"\n✅ Using default dataset from configuration: {ACTIVE_QA_DATASET}")
+            dataset_key = ACTIVE_QA_DATASET
+            dataset_cfg = QA_DATASETS.get(dataset_key, {})
+            corpus_source = dataset_cfg.get("corpus_source")
+            if corpus_source:
+                print(f"📚 Using predefined corpus: {corpus_source}")
+            else:
+                print("⚠️ No corpus defined for this dataset. You will need to configure a Vector DB manually.")
+            return dataset_key, corpus_source
+        else:
+            print("\n⚠️ No default dataset configured. Falling back to manual mode.")
+            return None, None
+
+    if selected == "manual" or selected == "0":
+        print("\n⚠️ Manual mode selected — no predefined dataset or corpus.")
+        print("You can still use a custom vector database or run without one.")
+        return None, None
+
+    # Otherwise, selected is a dataset key
+    # If selected is a number, map to dataset_keys index
+    try:
+        idx = int(selected) - 1
+        dataset_key = dataset_keys[idx]
+    except (ValueError, IndexError):
+        dataset_key = selected
+    dataset_cfg = QA_DATASETS[dataset_key]
+    corpus_source = dataset_cfg.get("corpus_source")
+
+    print(f"\n✅ Selected dataset: {dataset_key}")
+    if corpus_source:
+        print(f"📚 Using predefined corpus: {corpus_source}")
+    else:
+        print("⚠️ No corpus defined for this dataset. You will need to configure a Vector DB manually.")
+
+    return dataset_key, corpus_source
+
+
+############################################################
+# Special Command Handling (command-line and interactive)   #
+############################################################
+
+def print_help():
+    print("\n📖 Available Special Commands:")
+    print("  🆘 --help           - Show this help message")
+    print("  🧹 --clear-cache    - Clear all caches")
+    print("  📈 --performance    - Show performance report")
+    print("  💾 --cache-stats    - Show cache statistics")
+    print("  🧑‍🔬 --analyze       - Run analysis mode")
+    print("  🚪 exit/quit/q      - Exit or return to main menu (where applicable)")
+    print()
+
+
+def handle_command(command: str) -> bool:
+    """
+    Handle special commands interactively or from arguments.
+    Returns True if a special command was handled.
+    """
+    cmd = command.strip().lower()
+    if cmd in ("--help", "help"):
+        print_help()
+        return True
+    if cmd == "--clear-cache":
+        if CACHE_AVAILABLE:
+            clear_all_caches()
+            print("🧹 All caches cleared.")
+        else:
+            print("⚠️  Cache clearing not available.")
+        return True
+    if cmd == "--performance":
+        if PERFORMANCE_AVAILABLE:
+            performance_report()
+        else:
+            print("⚠️  Performance monitoring not available.")
+        return True
+    if cmd == "--cache-stats":
+        if CACHE_AVAILABLE:
+            cache_stats()
+        else:
+            print("⚠️  Cache statistics not available.")
+        return True
+    if cmd == "--analyze":
+        print("🧑‍🔬 Entering analysis mode...")
+        # Defer to analysis mode in main program, just signal handled.
+        # Actual mode switch logic should be in the main loop.
+        return True
+    return False
+
+
+def _wrap_special_commands(fn):
+    """
+    Decorator to wrap input prompts to handle special commands.
+    If a special command is entered, handle it, then re-prompt.
+    """
+
+    def wrapper(*args, **kwargs):
+        while True:
+            result = fn(*args, **kwargs)
+            # Only handle str results
+            if isinstance(result, str) and handle_command(result):
+                continue
+            return result
+
+    return wrapper
+
+
 """
 User interface utilities for selecting vector database configurations
 """
@@ -10,7 +138,8 @@ import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from datetime import datetime
 from configurations.config import NQ_SAMPLE_SIZE, MAX_NEW_TOKENS, TEMPERATURE, QUALITY_THRESHOLD, MAX_RETRIES, \
-    QA_DATASET_NAME, INDEX_SOURCE_URL, RETRIEVER_TOP_K
+    INDEX_SOURCE_URL, RETRIEVER_TOP_K, ACTIVE_QA_DATASET
+from configurations.config import TRILATERATION_ITERATIVE, TRILATERATION_MAX_REFINES, TRILATERATION_CONVERGENCE_TOL
 from experiments.noise_experiment import run_noise_experiment
 from matrics.results_logger import ResultsLogger
 from modules.model_loader import load_model
@@ -89,15 +218,20 @@ def prompt_with_validation(
     while True:
         user_input = input(prompt_text).strip()
 
+        # Allow empty input to propagate upward only if no default is provided
+        if not user_input:
+            if default is None:
+                # Let higher-level logic handle empty input
+                return ""
+            else:
+                print(f"✅ Using default: {default}")
+                return default
+
         # Remove surrounding quotes if present
         if user_input.startswith('"') and user_input.endswith('"'):
             user_input = user_input[1:-1].strip()
         elif user_input.startswith("'") and user_input.endswith("'"):
             user_input = user_input[1:-1].strip()
-
-        if not user_input and default is not None:
-            print(f"✅ Using default: {default}")
-            return default
 
         try:
             normalized_input = user_input.lower()
@@ -111,6 +245,7 @@ def prompt_with_validation(
         print(error_msg)
 
 
+@_wrap_special_commands
 def ask_selection(prompt_text: str, options: list, default: Optional[str] = None) -> str:
     """
     Prompt the user to select one of the provided options by name or index (1-based).
@@ -151,6 +286,7 @@ def retry_or_exit(message: str, retry_prompt: str = "Retry? (y/n): ") -> bool:
     return ask_yes_no(retry_prompt, default="n")
 
 
+@_wrap_special_commands
 def ask_yes_no(prompt_text: str, default: str = "y") -> bool:
     result = prompt_with_validation(
         prompt_text=prompt_text,
@@ -174,6 +310,7 @@ def print_section_header(title: str):
     print("=" * 60)
 
 
+@_wrap_special_commands
 def ask_nonempty_string(prompt_text: str, default: Optional[str] = None) -> str:
     """
     Prompt user for non-empty string input.
@@ -191,6 +328,21 @@ def ask_nonempty_string(prompt_text: str, default: Optional[str] = None) -> str:
         default=default,
         error_msg="❌ Please enter a valid value."
     )
+
+
+# Command-line argument handler for special commands
+def handle_command_line_args(args=None):
+    """
+    Scan sys.argv or given args for special commands and execute them.
+    Returns True if execution should stop before main program.
+    """
+    import sys
+    argv = args if args is not None else sys.argv[1:]
+    handled_any = False
+    for arg in argv:
+        if arg.startswith("--") and handle_command(arg):
+            handled_any = True
+    return handled_any
 
 
 def display_storing_methods():
@@ -410,75 +562,221 @@ def get_user_distance_function(storing_method: str) -> Optional[str]:
 from utility.distance_metrics import DistanceMetric
 
 
-def setup_vector_database() -> tuple[None, None, None, None, None] | tuple[
-    VectorDBInterface, HuggingFaceEmbedding, str, str, DistanceMetric] | tuple[None, None]:
-    """Setup vector database with user interaction."""
+def setup_vector_database():
+    """Setup vector database with user interaction and dataset/corpus selection."""
 
     print("\n📚 VECTOR DATABASE SETUP")
     print("-" * 30)
 
-    use_vector_db = ask_yes_no("Do you want to use vector database for context retrieval? (y/n): ", default='y')
+    # Step 1: Dataset selection and corpus association
+    dataset_key, corpus_source = select_dataset_and_corpus()
 
-    if not use_vector_db:
-        print("📝 Running in simple Q&A mode (no context retrieval)")
-        return None, None, None, None, None
+    # If user chose manual mode (no dataset), skip corpus and go to vector DB selection
+    if dataset_key is None:
+        print("\n⚠️ No dataset selected. Skipping dataset/corpus loading.")
+        # Fallback to interactive or no-DB mode
+        print("(Default: y - use Vector DB)")
+        use_vector_db = ask_yes_no("Do you want to use vector database for context retrieval? (y/n): ", default='y')
+        if not use_vector_db:
+            print("📝 Running in simple Q&A mode (no context retrieval)")
+            return None, None, None, None, None
+        try:
+            storing_method, source_path, distance_function = interactive_vector_db_setup()
+            if distance_function:
+                try:
+                    distance_metric = DistanceMetric(distance_function.lower())
+                except ValueError:
+                    print(f"⚠️ Unsupported distance metric '{distance_function}', falling back to COSINE")
+                    distance_metric = DistanceMetric.COSINE
+            else:
+                distance_metric = DistanceMetric.COSINE
+            with monitor_performance("vector_db_loading"):
+                logger.info(
+                    f"Loading Vector DB with method: {storing_method}, source: {source_path}, distance: {distance_metric}")
+                vector_db, embedding_model = load_vector_db(
+                    source_path=source_path,
+                    storing_method=storing_method,
+                    distance_metric=distance_metric
+                )
+                print("✅ Vector DB loaded successfully")
+                stats = vector_db.get_stats()
+                print(f"\n📊 Database Statistics:")
+                for key, value in stats.items():
+                    print(f"  • {key}: {value}")
+                from configurations.config import HF_MODEL_NAME
+                print("HF_MODEL_NAME:", HF_MODEL_NAME)
+                emb = embedding_model.get_text_embedding("test")
+                print("Embedding dimension:", len(emb))
+                print("Vector DB stats:", vector_db.get_stats())
+                return vector_db, embedding_model, storing_method, source_path, distance_metric
+        except Exception as e:
+            logger.error(f"Failed to load vector DB: {e}")
+            print(f"❌ Vector DB setup failed: {e}")
+            print("(Default: y - retry with Vector DB)")
+            retry = ask_yes_no("Retry with Vector DB? (y/n): ", default='y')
+            if not retry:
+                print("⚠️  Continuing without vector database...")
+                return None, None, None, None, None
+            else:
+                # Retry the same setup function to re-download/rebuild
+                return setup_vector_database()
 
-    try:
-        # Get method, path, and distance function from user
-        storing_method, source_path, distance_function = interactive_vector_db_setup()
+    # If the dataset defines a corpus, skip vector DB prompts and use it
+    if corpus_source:
+        # Use default storing method and distance metric if desired, or prompt if needed
+        from configurations.config import DEFAULT_STORING_METHOD, DEFAULT_DISTANCE_METRIC
+        if DEFAULT_STORING_METHOD:
+            storing_method = DEFAULT_STORING_METHOD
+            print(f"✅ Using storing method from config: {storing_method}")
+        else:
+            print("⚙️ No storing method defined in config. Using default: chroma")
+            storing_method = "chroma"
 
-        # Convert str to DistanceMetric enum safely
-        if distance_function:
+        if DEFAULT_DISTANCE_METRIC:
             try:
-                distance_metric = DistanceMetric(distance_function.lower())
+                distance_metric = DistanceMetric(DEFAULT_DISTANCE_METRIC.lower())
+                print(f"✅ Using distance metric from config: {DEFAULT_DISTANCE_METRIC}")
             except ValueError:
-                print(f"⚠️ Unsupported distance metric '{distance_function}', falling back to COSINE")
+                print(f"⚠️ Invalid distance metric '{DEFAULT_DISTANCE_METRIC}' in config. Falling back to COSINE.")
                 distance_metric = DistanceMetric.COSINE
         else:
+            print("⚙️ No distance metric defined in config. Using default: COSINE")
             distance_metric = DistanceMetric.COSINE
+        source_path = corpus_source
+        print(f"\n🔄 Automatically loading vector DB for dataset '{dataset_key}' using corpus '{corpus_source}'...")
+        try:
+            with monitor_performance("vector_db_loading"):
+                logger.info(
+                    f"Loading Vector DB with method: {storing_method}, source: {source_path}, distance: {distance_metric}")
+                vector_db, embedding_model = load_vector_db(
+                    source_path=source_path,
+                    storing_method=storing_method,
+                    distance_metric=distance_metric
+                )
+                print("✅ Vector DB loaded successfully")
+                stats = vector_db.get_stats()
+                print(f"\n📊 Database Statistics:")
+                for key, value in stats.items():
+                    print(f"  • {key}: {value}")
+                from configurations.config import HF_MODEL_NAME
+                print("HF_MODEL_NAME:", HF_MODEL_NAME)
+                emb = embedding_model.get_text_embedding("test")
+                print("Embedding dimension:", len(emb))
+                print("Vector DB stats:", vector_db.get_stats())
+                return vector_db, embedding_model, storing_method, source_path, distance_metric
+        except Exception as e:
+            logger.error(f"Failed to load vector DB: {e}")
+            print(f"❌ Vector DB setup failed: {e}")
+            if "No files found" in str(e) and corpus_source:
+                print(f"🌐 Corpus '{corpus_source}' not found locally. Attempting to rebuild via load_vector_db...")
+                try:
+                    vector_db, embedding_model = load_vector_db(
+                        source_path=corpus_source,
+                        storing_method=storing_method,
+                        distance_metric=distance_metric
+                    )
+                    print("✅ Vector DB successfully built or downloaded by load_vector_db().")
+                    stats = vector_db.get_stats()
+                    print(f"📊 Database Statistics:")
+                    for key, value in stats.items():
+                        print(f"  • {key}: {value}")
+                    return vector_db, embedding_model, storing_method, source_path, distance_metric
+                except Exception as rebuild_e:
+                    print(f"❌ Rebuild via load_vector_db() failed for corpus '{corpus_source}': {rebuild_e}")
+                    print("⚠️  Continuing without vector database...")
+                    return None, None, None, None, None
+            else:
+                print("(Default: y - retry with Vector DB)")
+                retry = ask_yes_no("Retry with Vector DB? (y/n): ", default='y')
+                if not retry:
+                    print("⚠️  Continuing without vector database...")
+                    return None, None, None, None, None
+                else:
+                    # Retry the same setup function to re-download/rebuild
+                    return setup_vector_database()
+    else:
+        # No corpus defined: fall back to legacy interactive vector DB setup
+        print("(Default: y - use Vector DB)")
+        use_vector_db = ask_yes_no("Do you want to use vector database for context retrieval? (y/n): ", default='y')
+        if not use_vector_db:
+            print("📝 Running in simple Q&A mode (no context retrieval)")
+            return None, None, None, None, None
+        try:
+            storing_method, source_path, distance_function = interactive_vector_db_setup()
+            if distance_function:
+                try:
+                    distance_metric = DistanceMetric(distance_function.lower())
+                except ValueError:
+                    print(f"⚠️ Unsupported distance metric '{distance_function}', falling back to COSINE")
+                    distance_metric = DistanceMetric.COSINE
+            else:
+                distance_metric = DistanceMetric.COSINE
+            with monitor_performance("vector_db_loading"):
+                logger.info(
+                    f"Loading Vector DB with method: {storing_method}, source: {source_path}, distance: {distance_metric}")
+                vector_db, embedding_model = load_vector_db(
+                    source_path=source_path,
+                    storing_method=storing_method,
+                    distance_metric=distance_metric
+                )
+                print("✅ Vector DB loaded successfully")
+                stats = vector_db.get_stats()
+                print(f"\n📊 Database Statistics:")
+                for key, value in stats.items():
+                    print(f"  • {key}: {value}")
+                from configurations.config import HF_MODEL_NAME
+                print("HF_MODEL_NAME:", HF_MODEL_NAME)
+                emb = embedding_model.get_text_embedding("test")
+                print("Embedding dimension:", len(emb))
+                print("Vector DB stats:", vector_db.get_stats())
+                return vector_db, embedding_model, storing_method, source_path, distance_metric
+        except Exception as e:
+            logger.error(f"Failed to load vector DB: {e}")
+            print(f"❌ Vector DB setup failed: {e}")
+            print("(Default: y - retry with Vector DB)")
+            retry = ask_yes_no("Retry with Vector DB? (y/n): ", default='y')
+            if not retry:
+                print("⚠️  Continuing without vector database...")
+                return None, None, None, None, None
+            else:
+                # Retry the same setup function to re-download/rebuild
+                return setup_vector_database()
 
-        with monitor_performance("vector_db_loading"):
-            logger.info(
-                f"Loading Vector DB with method: {storing_method}, source: {source_path}, distance: {distance_metric}")
-            vector_db, embedding_model = load_vector_db(
-                source_path=source_path,
-                storing_method=storing_method,
-                distance_metric=distance_metric
-            )
 
-            print("✅ Vector DB loaded successfully")
+def validate_prerequisites(mode: str, dataset_key, vector_db) -> bool:
+    """
+    Validate that the required components are available before running a mode.
+    """
+    if mode == "evaluation" and (dataset_key is None or vector_db is None):
+        print("❌ Evaluation mode requires both a dataset and a vector database.")
+        return False
 
-            stats = vector_db.get_stats()
-            print(f"\n📊 Database Statistics:")
-            for key, value in stats.items():
-                print(f"  • {key}: {value}")
+    if mode == "noise" and vector_db is None:
+        print("❌ Noise robustness test requires a vector database.")
+        return False
 
-            return vector_db, embedding_model, storing_method, source_path, distance_metric
+    if mode == "development" and vector_db is None:
+        print("⚠️ Development mode may have limited functionality without a vector DB.")
 
-    except Exception as e:
-        logger.error(f"Failed to load vector DB: {e}")
-        print(f"❌ Vector DB setup failed: {e}")
-
-        retry = ask_yes_no("Continue without vector DB? (y/n): ", default='y')
-        if retry:
-            print("⚠️  Continuing without vector database...")
-            return None, None
-        else:
-            sys.exit(1)
+    return True
 
 
-def display_main_menu():
+def display_main_menu(vector_db=None, dataset_key=None):
     """Display the main menu and get user choice."""
     print_section_header("🎯 SELECT MODE")
 
+    eval_label = "📊 Evaluation Mode" if dataset_key and vector_db else "📊 Evaluation Mode (disabled – no dataset/DB)"
+    noise_label = "🔬 Noise Robustness Experiment" if vector_db else "🔬 Noise Robustness Experiment (disabled – no DB)"
+    dev_label = "🔧 Development Test Mode" if vector_db else "🔧 Development Test Mode (limited – no DB)"
+
     options = [
         ("1", "💬 Interactive Q&A Mode"),
-        ("2", "📊 Evaluation Mode (Natural Questions)"),
-        ("3", "🔧 Development Test Mode"),
+        ("2", eval_label),
+        ("3", dev_label),
         ("4", "📈 Results Analysis"),
         ("5", "⚙️ System Information"),
         ("6", "📥️ Download QA Dataset"),
-        ("7", "🔬 Noise Robustness Experiment"),
+        ("7", noise_label),
         ("8", "🚪 Exit"),
         ("9", "🔄 Reset Vector DB & Embedding Model")
     ]
@@ -672,16 +970,15 @@ def run_evaluation_mode(vector_db, embedding_model, tokenizer, model, device):
         model: The LLM model used for answering.
         device: Device on which model is running.
     """
-    if vector_db is None:
-        print("❌ Evaluation mode requires Vector DB. Please restart and set up vector database.")
+    if not validate_prerequisites("evaluation", ACTIVE_QA_DATASET, vector_db):
         return
 
     print("\n📊 EVALUATION MODE")
     print("=" * 25)
 
     mode_choice = ask_selection(
-        prompt_text="Select mode: (e)numeration / (h)ill climbing: ",
-        options=["e", "h"],
+        prompt_text="Select mode: \n- (e)numeration \n- (t)rilateration retriever  \n- (h)ill climbing: ",
+        options=["e", "t", "h"],
         default="e"
     )
 
@@ -693,8 +990,7 @@ def run_evaluation_mode(vector_db, embedding_model, tokenizer, model, device):
         print(f"❌ Failed to load QA dataset: {e}")
         return
 
-    print(f"📁 Processing {len(queries)} queries from dataset '{QA_DATASET_NAME}'...")
-
+    print(f"📁 Processing {len(queries)} queries from dataset '{ACTIVE_QA_DATASET}'...")
     with monitor_performance("evaluation_mode_execution"):
         for i, query in enumerate(queries):
             print(f"🔍 Processing query {i + 1}/{len(queries)}: {query[:80]}...")
@@ -709,13 +1005,25 @@ def run_evaluation_mode(vector_db, embedding_model, tokenizer, model, device):
                             embedding_model=embedding_model, top_k=RETRIEVER_TOP_K,
                             max_tokens=MAX_NEW_TOKENS, temperature=TEMPERATURE
                         )
+                    elif mode_choice == "t":
+                        from vector_db.trilateration_retriever import TrilaterationRetriever
+                        retriever = TrilaterationRetriever(
+                            embedding_model,
+                            vector_db,
+                            iterative=TRILATERATION_ITERATIVE,
+                            max_refine_steps=TRILATERATION_MAX_REFINES,
+                            convergence_tol=TRILATERATION_CONVERGENCE_TOL
+                        )
+                        result = retriever.retrieve(query)
                     else:
                         result = enumerate_top_documents(
                             i=i, num=len(queries), query=query, index=vector_db,
                             embedding_model=embedding_model,
                             top_k=RETRIEVER_TOP_K, convert_to_vector=False
                         )
-                    results_logger.log(result)
+                    log_message = (f"✅ Query {i + 1} processed. Answer: {result.get('query', 'N/A')[:100]}, "
+                                   f"with distance of : {result.get('distance', 'N/A')}...")
+                    results_logger.log(log_message)
 
                 except Exception as e:
                     logger.error(f"❌ Error in evaluation query {i + 1}: {e}")
@@ -727,6 +1035,7 @@ def run_evaluation_mode(vector_db, embedding_model, tokenizer, model, device):
 @track_performance("development_test")
 def run_development_test(vector_db, embedding_model, tokenizer, model, device):
     """Enhanced development test with MPS compatibility."""
+    validate_prerequisites("development", ACTIVE_QA_DATASET, vector_db)
     print("\n🔧 DEVELOPMENT TEST MODE")
     print("=" * 30)
 
@@ -788,6 +1097,8 @@ def run_development_test(vector_db, embedding_model, tokenizer, model, device):
 def run_noise_robustness_experiment(
         vector_db: VectorDBInterface,
         embedding_model: HuggingFaceEmbedding):
+    if not validate_prerequisites("noise", ACTIVE_QA_DATASET, vector_db):
+        return
     db_type = vector_db.db_type
     distance_metric = vector_db.distance_metric
     timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
@@ -813,3 +1124,58 @@ def run_noise_robustness_experiment(
         top_k=RETRIEVER_TOP_K,
         output_path=output_path
     )
+
+
+############################################################
+# User-facing message and prompt helpers (centralized I/O) #
+############################################################
+
+def show_exit_message():
+    """Display a goodbye message."""
+    print("\n👋 Goodbye! Have a great day!")
+
+
+def confirm_use_vector_db() -> bool:
+    """Ask user if they want to use a vector database."""
+    return ask_yes_no("Do you want to use vector database for context retrieval? (y/n): ", default='y')
+
+
+def show_vector_db_success():
+    """Display a success message after loading the vector database."""
+    print("✅ Vector DB loaded successfully")
+
+
+def show_error_message(message: str):
+    """Display a formatted error message."""
+    print(f"❌ {message}")
+
+
+def show_goodbye_message():
+    """Alias for exit message."""
+    show_exit_message()
+
+
+def confirm_reset_vector_db() -> bool:
+    """Ask user to confirm vector DB reset."""
+    return ask_yes_no("Are you sure you want to reset the Vector DB and Embedding Model? (y/n): ", default='n')
+
+
+def show_mode_choice_banner():
+    """Display a banner for selecting execution mode."""
+    print("\n📊 SELECT EXECUTION MODE")
+    print("-" * 40)
+    print("1. Enumeration")
+    print("2. Hill Climbing")
+    print("3. Trilateration")
+    print("-" * 40)
+
+
+def show_evaluation_completed():
+    """Display completion message for evaluation."""
+    print("✅ Evaluation completed successfully.")
+
+
+def show_performance_summary_notice():
+    """Display performance summary location notice."""
+    print("\n🧾 Performance summary saved to: results/performance_metrics.json")
+    print("📊 You can view it later or print it now.")

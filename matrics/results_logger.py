@@ -1,5 +1,7 @@
 import os
 import json
+from typing import Union
+
 import matplotlib.pyplot as plt
 from datetime import datetime
 
@@ -30,11 +32,36 @@ class ResultsLogger:
             return value[:self.max_length] + "...[truncated]"
         return value
 
-    def log(self, record: dict):
-        safe_record = {
-            k: self._truncate(v) if k in self.truncate_fields else v
-            for k, v in record.items()
-        }
+    def log(self, record: Union[dict, str]):
+        if isinstance(record, str):
+            safe_record = {"message": record}
+        else:
+            safe_record = {}
+            for k, v in record.items():
+                # Handle truncation fields first
+                if k in self.truncate_fields and isinstance(v, str):
+                    safe_record[k] = self._truncate(v)
+                    continue
+                # Handle numpy arrays
+                try:
+                    import numpy as np
+                    if isinstance(v, np.ndarray):
+                        safe_record[k] = v.tolist()
+                        continue
+                except ImportError:
+                    pass
+                # Handle common complex types
+                if hasattr(v, "to_dict") and callable(getattr(v, "to_dict")):
+                    safe_record[k] = v.to_dict()
+                elif hasattr(v, "text"):
+                    safe_record[k] = v.text
+                elif isinstance(v, (list, tuple)):
+                    # Try to convert each item to string (for lists of complex objects)
+                    safe_record[k] = [str(item) for item in v]
+                elif isinstance(v, (int, float, bool)) or v is None:
+                    safe_record[k] = v
+                else:
+                    safe_record[k] = str(v)
         with open(self.filepath, "a", encoding="utf-8") as f:
             f.write(json.dumps(safe_record, ensure_ascii=False) + "\n")
 

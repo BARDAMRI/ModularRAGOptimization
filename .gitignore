@@ -16,3 +16,10 @@
 .idea/
 storage/
 logs/
+
+*.arrow
+/cache/
+/temp/
+/tmp/
+.DS_Store
+/data/**/*

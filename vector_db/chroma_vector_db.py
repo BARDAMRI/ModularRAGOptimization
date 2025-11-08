@@ -6,15 +6,17 @@ import os
 from typing import List, Dict, Any, Union
 
 import numpy as np
+from chromadb import PersistentClient
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext
 from llama_index.core.schema import NodeWithScore, TextNode
-from llama_index.vector_stores.chroma import ChromaVectorStore
-from chromadb import PersistentClient
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from utility.vector_db_utils import parse_source_path, download_and_save_from_hf, download_and_save_from_url
-from utility.logger import logger
-from vector_db.vector_db_interface import VectorDBInterface
+from llama_index.vector_stores.chroma import ChromaVectorStore
+
 from utility.distance_metrics import DistanceMetric
+from utility.logger import logger
+from utility.vector_db_utils import parse_source_path, download_and_save_from_hf, download_and_save_from_url, \
+    load_local_dataset
+from vector_db.vector_db_interface import VectorDBInterface
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -87,17 +89,52 @@ class ChromaVectorDB(VectorDBInterface):
         storage_context = StorageContext.from_defaults(vector_store=self.chroma_store)
 
         # Load or create index
-        if self.collection.count() > 0:
-            logger.info(f"Loading existing Chroma index (collection count: {self.collection.count()})")
+        collection_count = self.collection.count()
+        if collection_count > 0:
+            logger.info(f"Existing documents in collection: {collection_count}")
+            documents = load_local_dataset(parsed_name)
+            logger.info(f"Loaded {len(documents)} documents from local dataset")
+            # Determine how many documents to add (assuming documents are unique by id)
+            # Since we don't have direct access to document ids in the current code,
+            # we will assume adding all documents (could be optimized if ids known)
+            # However, to follow instructions, we add only missing documents.
+            # Here, we check if vector_db is already loaded; if not, load it.
             self.vector_db = VectorStoreIndex.from_vector_store(
                 vector_store=self.chroma_store,
                 embed_model=self.embedding_model,
                 storage_context=storage_context
             )
+            existing_ids = set()
+            # Try to get existing node ids to avoid duplicates
+            try:
+                # This assumes the vector_store has a method to get all ids
+                # If not available, we skip this optimization
+                existing_ids = set(self.collection.get(include=["ids"])["ids"])
+            except Exception:
+                existing_ids = set()
+            # Filter documents to add only those not in existing_ids
+            documents_to_add = []
+            for doc in documents:
+                # doc should have an id attribute or metadata with id
+                # If not, we add all documents
+                doc_id = getattr(doc, "doc_id", None)
+                if doc_id is None and hasattr(doc, "get_doc_id"):
+                    doc_id = doc.get_doc_id()
+                if doc_id is None:
+                    # Can't determine id, add anyway
+                    documents_to_add.append(doc)
+                else:
+                    if doc_id not in existing_ids:
+                        documents_to_add.append(doc)
+            logger.info(f"Documents to add (missing in collection): {len(documents_to_add)}")
+            if documents_to_add:
+                self.vector_db.insert_nodes(documents_to_add)
+                logger.info(f"Added {len(documents_to_add)} new documents to Chroma")
+            else:
+                logger.info("No new documents to add; collection is up to date")
         else:
-            data_dir = self._prepare_data_directory(source_type, parsed_name)
-            logger.info(f"Creating new Chroma index from {data_dir}")
-            documents = _load_documents(data_dir)
+            documents = load_local_dataset(parsed_name)
+            logger.info(f"Starting indexing the documents into Chroma")
             self.vector_db = VectorStoreIndex.from_documents(
                 documents,
                 embed_model=self.embedding_model,

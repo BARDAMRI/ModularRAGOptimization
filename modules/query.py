@@ -2,7 +2,7 @@
 import numpy as np
 from typing import Union, Optional, Dict, Callable, List, Tuple, Any
 from llama_index.core import VectorStoreIndex
-from llama_index.core.schema import MetadataMode
+from llama_index.core.schema import MetadataMode, TextNode
 import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from transformers import AutoModelForCausalLM, GPT2TokenizerFast, PreTrainedModel, PreTrainedTokenizer
@@ -58,18 +58,26 @@ except ImportError:
 # EMBEDDING AND TEXT PROCESSING UTILITIES
 # =====================================================
 
-def extract_node_text_for_embedding(node) -> str:
+def extract_node_text_for_embedding(node: Union[TextNode, List[str]]) -> Union[str, List[str]]:
     """
     Extract text from a LlamaIndex node exactly as LlamaIndex does for embedding.
 
     Args:
-        node: LlamaIndex node object
+        node: LlamaIndex node object or  LlamaIndex node list
 
     Returns:
         str: Text formatted for embedding, matching LlamaIndex's internal process
     """
     try:
-        return node.get_content(metadata_mode=MetadataMode.EMBED)
+        if isinstance(node, list):
+            if hasattr(node[0], 'text'):
+                return [str(n.text) for n in node]
+            else:
+                return [n.get_content(metadata_mode=MetadataMode.EMBED) for n in node]
+        else:
+            if hasattr(node, 'text'):
+                return str(node.text)
+            return node.get_content(metadata_mode=MetadataMode.EMBED)
     except Exception as e:
         logger.warning(f"Failed to extract embedding text: {e}. Using fallback.")
         return getattr(node, 'text', str(node))

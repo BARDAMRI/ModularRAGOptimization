@@ -2,13 +2,16 @@
 import os
 import sys
 import warnings
+
 import torch
+
 from matrics.results_logger import ResultsLogger, plot_score_distribution
 from scripts.qa_data_set_loader import download_qa_dataset
 from utility.logger import logger
 from utility.user_interface import display_main_menu, show_system_info, run_interactive_mode, run_evaluation_mode, \
     run_development_test, startup_initialization, setup_vector_database, display_startup_banner, ask_yes_no, \
-    run_noise_robustness_experiment
+    run_noise_robustness_experiment, handle_command_line_args, show_exit_message, show_error_message, \
+    confirm_reset_vector_db, show_vector_db_success, show_performance_summary_notice
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -131,12 +134,12 @@ def main_loop():
         elif choice == "7":
             run_noise_robustness_experiment(vector_db, embedding_model)
         elif choice == "8":
-            print("👋 Goodbye!")
+            show_exit_message()
             break
         elif choice == "9":
-            print("\n🔄 Resetting vector database and embedding model...\n")
-            vector_db, embedding_model, storing_method, source_path, distance_metric = setup_vector_database()
-            print("✅ Vector DB and embedding model reloaded.")
+            if confirm_reset_vector_db():
+                vector_db, embedding_model, storing_method, source_path, distance_metric = setup_vector_database()
+                show_vector_db_success()
 
 
 def main():
@@ -150,30 +153,8 @@ def main():
 
     global vector_db, embedding_model, tokenizer, model, device, storing_method, source_path, distance_metric
     try:
-        # Handle special command line arguments
-        if "--help" in sys.argv:
-            print_help()
-            return
-
-        if "--clear-cache" in sys.argv:
-            if CACHE_AVAILABLE:
-                clear_all_caches()
-                print("✅ Cache cleared")
-            return
-
-        if "--analyze" in sys.argv:
-            tokenizer, model = startup_initialization()
-            run_analysis()
-            return
-
-        if "--performance" in sys.argv:
-            if PERFORMANCE_AVAILABLE:
-                performance_report()
-            return
-
-        if "--cache-stats" in sys.argv:
-            if CACHE_AVAILABLE:
-                cache_stats()
+        # Unified command line argument handling
+        if handle_command_line_args(sys.argv):
             return
 
         # Normal application flow
@@ -188,10 +169,10 @@ def main():
 
     except KeyboardInterrupt:
         logger.info("Application interrupted by user")
-        print("\n👋 Application stopped by user")
+        show_exit_message()
     except Exception as e:
         logger.error(f"Application error: {e}")
-        print(f"❌ Application error: {e}")
+        show_error_message(f"❌ Application error: {e}")
         import traceback
         traceback.print_exc()
     finally:
@@ -208,8 +189,7 @@ def main():
             cache_stats()
 
         # Ask user if they want to print the summary
-        print("\n🧾 Performance summary saved to: results/performance_metrics.json")
-        print("📊 You can view it later or print it now.")
+        show_performance_summary_notice()
 
         try:
             if ask_yes_no("Would you like to print the performance summary now? (y/n): "):

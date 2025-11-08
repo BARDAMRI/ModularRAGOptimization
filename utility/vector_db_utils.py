@@ -89,7 +89,8 @@ def download_and_save_from_url(url: str, target_dir: str) -> None:
     logger.info(f"Downloaded and saved corpus to {file_path}")
 
 
-def download_and_save_from_hf(dataset_name: str, config: Optional[str], target_dir: str, max_docs: int = 1000) -> None:
+def download_and_save_from_hf(dataset_name: str, config: Optional[str], target_dir: str,
+                              max_docs: Optional[int] = None) -> None:
     """
     Downloads a dataset from Hugging Face and saves it locally as text files in batches.
 
@@ -140,7 +141,7 @@ def download_and_save_from_hf(dataset_name: str, config: Optional[str], target_d
                                  f"Available columns: {dataset.column_names}. Please specify manually if possible.")
 
         for i, item in enumerate(dataset):
-            if doc_count >= max_docs:
+            if max_docs is not None and doc_count >= max_docs:
                 break
 
             text_content = item.get(text_column, "").strip()
@@ -149,7 +150,7 @@ def download_and_save_from_hf(dataset_name: str, config: Optional[str], target_d
                 batch.append((doc_count, text_content))
                 doc_count += 1
 
-            if len(batch) >= batch_size or doc_count >= max_docs:
+            if len(batch) >= batch_size or (max_docs is not None and doc_count >= max_docs):
                 for doc_id, doc_text in batch:
                     with open(os.path.join(target_dir, f"doc_{doc_id}.txt"), "w", encoding="utf-8") as f:
                         f.write(doc_text)
@@ -166,4 +167,75 @@ def download_and_save_from_hf(dataset_name: str, config: Optional[str], target_d
 
     except Exception as e:
         logger.error(f"Failed to download or process HF dataset '{dataset_identifier}': {e}")
+        raise
+
+
+import concurrent.futures
+from tqdm import tqdm
+import time
+
+
+def load_local_dataset(local_dir: str):
+    """
+    Load a local dataset directory either as a Hugging Face dataset or fallback to SimpleDirectoryReader.
+    Now supports parallel processing and real-time progress display without caching.
+    """
+    import json
+    import datasets
+    from llama_index.core import Document
+    from llama_index.core import SimpleDirectoryReader
+
+    PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    logger.info(f"Attempting to load local dataset from directory: {local_dir}")
+    dataset_dict_path = os.path.join(PROJECT_PATH, "data", local_dir, "dataset_dict.json")
+    documents = []
+
+    def _process_example(example):
+        for col in ['text', 'abstract', 'context', 'content']:
+            if col in example and example[col]:
+                return Document(text=example[col])
+        return None
+
+    try:
+        if os.path.exists(dataset_dict_path):
+            print(f"Found dataset_dict.json in {local_dir}, loading as Hugging Face dataset.")
+            logger.info(f"Found dataset_dict.json in {local_dir}, loading as Hugging Face dataset.")
+            with open(dataset_dict_path, "r", encoding="utf-8") as f:
+                dataset_info = json.load(f)
+
+            splits = dataset_info.get("splits", ["train"])
+            logger.info(f"Loading splits: {splits}")
+
+            for split in splits:
+                split_dir = os.path.join(PROJECT_PATH, "data", local_dir, split)
+                if not os.path.exists(split_dir):
+                    logger.warning(f"Split directory '{split_dir}' does not exist, skipping.")
+                    continue
+
+                ds = datasets.load_from_disk(split_dir)
+                total_examples = len(ds)
+                logger.info(f"Loaded split '{split}' with {total_examples} examples.")
+
+                split_docs = []
+                with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
+                    for doc in tqdm(executor.map(_process_example, ds),
+                                    total=total_examples,
+                                    desc=f"Processing split '{split}'"):
+                        if doc:
+                            split_docs.append(doc)
+                documents.extend(split_docs)
+
+            logger.info(f"✅ Loaded total {len(documents)} documents from local Hugging Face dataset.")
+            print(f"✅ Finished loading {len(documents)} documents from {local_dir}")
+            return documents
+
+        else:
+            print(f"No dataset_dict.json found in {local_dir}, falling back to SimpleDirectoryReader.")
+            reader = SimpleDirectoryReader(local_dir)
+            documents = reader.load_data()
+            logger.info(f"Loaded {len(documents)} documents using SimpleDirectoryReader.")
+            return documents
+
+    except Exception as e:
+        logger.error(f"Error loading local dataset: {e}")
         raise

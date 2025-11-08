@@ -1,13 +1,15 @@
 import os
 from typing import List, Dict, Any, Union
+
 import numpy as np
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext, load_index_from_storage
+from llama_index.core import VectorStoreIndex, StorageContext, load_index_from_storage
 from llama_index.core.schema import NodeWithScore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 from utility.distance_metrics import DistanceMetric
-from utility.vector_db_utils import parse_source_path, download_and_save_from_hf, download_and_save_from_url
 from utility.logger import logger
+from utility.vector_db_utils import parse_source_path, download_and_save_from_hf, download_and_save_from_url, \
+    load_local_dataset
 from vector_db.vector_db_interface import VectorDBInterface
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,7 +41,7 @@ class SimpleVectorDB(VectorDBInterface):
         else:
             data_dir = self._prepare_data_directory(source_type, parsed_name)
             logger.info(f"Creating new Simple vector database from {data_dir}")
-            documents = self._load_documents(data_dir)
+            documents = load_local_dataset(parsed_name)
             self.vector_db = VectorStoreIndex.from_documents(documents, embed_model=self.embedding_model)
             self.persist()
             logger.info(f"Indexed {len(documents)} documents into Simple vector DB")
@@ -137,20 +139,20 @@ class SimpleVectorDB(VectorDBInterface):
                     dataset_name, config = self.source_path.split(":", 1)
                 else:
                     dataset_name, config = self.source_path, None
-                download_and_save_from_hf(dataset_name, config, data_dir, max_docs=1000)
+                download_and_save_from_hf(dataset_name, config, data_dir)
         else:
             data_dir = self.source_path
 
         return data_dir
 
-    def _load_documents(self, data_dir: str):
-        if not os.path.exists(data_dir) or not os.listdir(data_dir):
-            logger.error(f"No documents found in {data_dir}")
-            raise FileNotFoundError(f"No documents found in {data_dir}")
-
-        documents = SimpleDirectoryReader(data_dir).load_data()
-        if not documents:
-            logger.warning(f"No documents loaded from {data_dir}")
-            return []
-
-        return documents
+#     def _load_documents(self, data_dir: str):
+#         if not os.path.exists(data_dir) or not os.listdir(data_dir):
+#             logger.error(f"No documents found in {data_dir}")
+#             raise FileNotFoundError(f"No documents found in {data_dir}")
+#
+#         documents = SimpleDirectoryReader(data_dir).load_data()
+#         if not documents:
+#             logger.warning(f"No documents loaded from {data_dir}")
+#             return []
+#
+#         return documents

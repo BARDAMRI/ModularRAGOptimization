@@ -1,4 +1,5 @@
 # config.py - Light QA-Ready Configuration for Low-RAM/No-GPU systems
+from utility.distance_metrics import DistanceMetric, StoringMethod
 
 # ==========================
 # ✅ ACTIVE MODEL CONFIGURATION (for QA on CPU / M1 / 16GB RAM)
@@ -36,7 +37,53 @@ HF_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
 # QA DATASET CONFIGURATION
 # ==========================
 
-QA_DATASET_NAME = "squad"  # Default QA dataset
+QA_DATASETS = {
+    "squad": {
+        "config": "plain_text",
+        "description": "📘 SQuAD - open QA dataset",
+        "corpus_source": "wikimedia/wikipedia",
+        "corpus_config": "20220301.en"
+    },
+    "cais/mmlu": {
+        "config": "all",
+        "description": "🌐 MMLU - multitask multiple-choice (57 domains)",
+        "corpus_source": "wikimedia/wikipedia",
+        "corpus_config": "20220301.en"
+    },
+    "openbookqa": {
+        "config": "main",
+        "description": "📖 OpenBookQA - Science + commonsense multiple choice",
+        "corpus_source": "allenai/openbookqa"
+    },
+    "commonsense_qa": {
+        "config": None,
+        "description": "💡 CommonsenseQA - Commonsense reasoning",
+        "corpus_source": "conceptnet/conceptnet5"
+    },
+    "bigbio/med_qa": {
+        "config": "med_qa_en",
+        "description": "🏥 MedQA-US - USMLE medical exam questions",
+        "corpus_source": "uiyunkim-hub/pubmed-abstract"
+    },
+    "medmcqa": {
+        "config": "train",
+        "description": "🩺 MedMCQA - Indian medical exam questions",
+        "corpus_source": "uiyunkim-hub/pubmed-abstract"
+    },
+    "qiaojin/PubMedQA": {
+        "config": "pqa_labeled",
+        "description": "📄 PubMedQA - Literature-based biomedical QA",
+        "corpus_source": "ojoos/pubmed_abstracts"
+    },
+    "bioasq": {
+        "config": "task2b",
+        "description": "🧬 BioASQ - Biomedical yes/no QA",
+        "corpus_source": "uiyunkim-hub/pubmed-abstract"
+    }
+}
+
+# 🔑 Active dataset key
+ACTIVE_QA_DATASET = "qiaojin/PubMedQA"  # 📄 PubMedQA - Literature-based biomedical QA
 
 # === DATA PATHS ===
 DATA_PATH = "data/public_corpus/"
@@ -62,10 +109,11 @@ TEMPERATURE = 0.05
 
 # === DATA SOURCE ===
 # The source URL for indexing. Can point to Hugging Face datasets or web URLs.
-INDEX_SOURCE_URL = "wikipedia:20220301.en"
+# Automatically select corpus based on active dataset
+INDEX_SOURCE_URL = QA_DATASETS.get(ACTIVE_QA_DATASET, {}).get("corpus_source", "wikimedia/wikipedia")
 
 # Optional alternative data sources (uncomment to switch)
-# INDEX_SOURCE_URL = "wikipedia:20220301.en" # Default Wikipedia dump.
+# INDEX_SOURCE_URL = "wikimedia/wikipedia" # Default Wikipedia dump.
 # ✅ Advantage: Broad general knowledge, widely used for QA datasets. Use for general-purpose testing or when a diverse knowledge base is needed.
 # INDEX_SOURCE_URL = "hf:huggingface/documentation" # Example: Hugging Face documentation dataset.
 # ✅ Advantage: High-quality, structured, domain-specific text. Use when your queries are about NLP, ML, or Hugging Face ecosystem.
@@ -84,3 +132,11 @@ USE_MIXED_PRECISION = False
 # and experiencing out-of-memory issues or want faster training/inference.
 # Keep False for CPU/MPS as it generally offers no benefit or can cause issues if not fully supported.
 # For most consumer GPUs, float16 (half-precision) is typically used when True.
+
+# === TRILATERATION RETRIEVER SETTINGS ===
+TRILATERATION_ITERATIVE = True  # Whether to use iterative refinement (add selected docs to anchors)
+TRILATERATION_MAX_REFINES = 3  # Maximum number of refinement iterations
+TRILATERATION_CONVERGENCE_TOL = 1e-4  # Convergence tolerance for x* movement between iterations
+
+DEFAULT_STORING_METHOD = StoringMethod.CHROMA
+DEFAULT_DISTANCE_METRIC = DistanceMetric.COSINE

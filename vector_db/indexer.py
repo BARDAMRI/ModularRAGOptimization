@@ -1,12 +1,16 @@
 # vector_db/indexer.py
+import os
+from typing import Tuple
+
+from datasets import load_dataset
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
 from configurations.config import HF_MODEL_NAME
+from utility.device_utils import get_optimal_device
+from utility.distance_metrics import DistanceMetric
+from utility.logger import logger
 from vector_db.vector_db_factory import VectorDBFactory
 from vector_db.vector_db_interface import VectorDBInterface
-from utility.logger import logger
-from utility.device_utils import get_optimal_device
-from typing import Tuple
-from utility.distance_metrics import DistanceMetric
 
 
 def load_vector_db(source_path: str = "local_data_dir",
@@ -31,6 +35,23 @@ def load_vector_db(source_path: str = "local_data_dir",
     distance_metric
     """
     logger.info(f"Loading vector database for source_path: '{source_path}', storing_method: '{storing_method}'")
+    dataset_dir = os.path.join("data", source_path.split("/")[-1])
+
+    # Check if dataset_dir exists locally; if not, try to download from Hugging Face datasets
+    if not os.path.exists(dataset_dir):
+        logger.info(
+            f"Source path '{dataset_dir}' does not exist locally. Attempting to download from Hugging Face datasets...")
+        try:
+            dataset = load_dataset(source_path, trust_remote_code=True)
+            os.makedirs(dataset_dir, exist_ok=True)
+            dataset.save_to_disk(dataset_dir)
+            logger.info(f"✅ Dataset '{source_path}' downloaded and saved to {dataset_dir}")
+            source_path = dataset_dir
+        except Exception as e:
+            logger.error(f"❌ Failed to download dataset '{source_path}' from Hugging Face: {e}")
+            raise e
+    else:
+        logger.info(f"Source path '{source_path}' found locally. Using local data.")
 
     # Get or create cached embedding model
     embedding_model = _get_cached_embedding_model()
