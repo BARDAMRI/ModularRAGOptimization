@@ -1,0 +1,38 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module modules.query</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong><a href="modules.html"><font color="#ffffff">modules</font></a>.query</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:/Users/bardamri/PycharmProjects/ModularRAGOptimization/modules/query.py">/Users/bardamri/PycharmProjects/ModularRAGOptimization/modules/query.py</a></font></td></tr></table>
+    <p><tt>#&nbsp;query.py</tt></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#eeaa77">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Functions</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl><dt><a name="-evaluate_answer_quality"><strong>evaluate_answer_quality</strong></a>(answer, question, model, tokenizer, device)</dt></dl>
+ <dl><dt><a name="-query_model"><strong>query_model</strong></a>(prompt, model, tokenizer, device, index=None, max_retries=3, quality_threshold=0.7)</dt><dd><tt>#&nbsp;Send&nbsp;a&nbsp;query&nbsp;to&nbsp;the&nbsp;model&nbsp;with&nbsp;a&nbsp;retrieval-feedback&nbsp;loop.</tt></dd></dl>
+ <dl><dt><a name="-rephrase_query"><strong>rephrase_query</strong></a>(original_prompt, previous_answer, model, tokenizer, device)</dt></dl>
+ <dl><dt><a name="-retrieve_context"><strong>retrieve_context</strong></a>(query, index, top_k=2, similarity_cutoff=0.85)</dt></dl>
+ <dl><dt><a name="-score_similarity"><strong>score_similarity</strong></a>(text, query)</dt></dl>
+</td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#55aa55">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Data</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#55aa55"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><strong>MAX_NEW_TOKENS</strong> = 64<br>
+<strong>MAX_RETRIES</strong> = 3<br>
+<strong>QUALITY_THRESHOLD</strong> = 0.7<br>
+<strong>RETRIEVER_TOP_K</strong> = 2<br>
+<strong>SIMILARITY_CUTOFF</strong> = 0.85<br>
+<strong>Settings</strong> = _Settings(_llm=None, _embed_model=None, _callbac...None, _prompt_helper=None, _transformations=None)</td></tr></table>
+</body></html>
