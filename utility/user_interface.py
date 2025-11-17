@@ -1,3 +1,35 @@
+"""
+User interface utilities for selecting vector database configurations
+"""
+import os
+import sys
+import termios
+from datetime import datetime
+from enum import Enum
+from typing import Optional, Tuple, Callable
+
+import torch
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
+from configurations.config import NQ_SAMPLE_SIZE, MAX_NEW_TOKENS, TEMPERATURE, INDEX_SOURCE_URL, RETRIEVER_TOP_K, \
+    ACTIVE_QA_DATASET
+from configurations.config import TRILATERATION_ITERATIVE, TRILATERATION_MAX_REFINES, TRILATERATION_CONVERGENCE_TOL
+from experiments.noise_experiment import run_noise_experiment
+from experiments.retrieval_experiment import run_retrieval_base_experiment
+from matrics.results_logger import ResultsLogger
+from modules.model_loader import load_model
+from modules.query import process_query_with_context
+from scripts.evaluator import enumerate_top_documents
+from scripts.qa_data_set_loader import load_qa_queries
+from utility.device_utils import get_optimal_device
+from utility.logger import logger
+from vector_db.indexer import get_embedding_model_info, load_vector_db
+from vector_db.storing_methods import StoringMethod
+from vector_db.vector_db_interface import VectorDBInterface
+
+PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 def select_dataset_and_corpus():
     from configurations.config import QA_DATASETS
     print_section_header("🎓 DATASET SELECTION")
@@ -124,35 +156,6 @@ def _wrap_special_commands(fn):
             return result
 
     return wrapper
-
-
-"""
-User interface utilities for selecting vector database configurations
-"""
-import os
-import sys
-import termios
-from enum import Enum
-from typing import Optional, Tuple, Callable
-import torch
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from datetime import datetime
-from configurations.config import NQ_SAMPLE_SIZE, MAX_NEW_TOKENS, TEMPERATURE, QUALITY_THRESHOLD, MAX_RETRIES, \
-    INDEX_SOURCE_URL, RETRIEVER_TOP_K, ACTIVE_QA_DATASET
-from configurations.config import TRILATERATION_ITERATIVE, TRILATERATION_MAX_REFINES, TRILATERATION_CONVERGENCE_TOL
-from experiments.noise_experiment import run_noise_experiment
-from matrics.results_logger import ResultsLogger
-from modules.model_loader import load_model
-from modules.query import process_query_with_context
-from scripts.evaluator import enumerate_top_documents
-from scripts.qa_data_set_loader import load_qa_queries
-from utility.device_utils import get_optimal_device
-from utility.logger import logger
-from vector_db.indexer import get_embedding_model_info, load_vector_db
-from vector_db.storing_methods import StoringMethod
-from vector_db.vector_db_interface import VectorDBInterface
-
-PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class Mode(str, Enum):
@@ -646,6 +649,7 @@ def setup_vector_database():
         print(f"\n🔄 Automatically loading vector DB for dataset '{dataset_key}' using corpus '{corpus_source}'...")
         try:
             with monitor_performance("vector_db_loading"):
+                from utility.embedding_utils import get_text_embedding
                 logger.info(
                     f"Loading Vector DB with method: {storing_method}, source: {source_path}, distance: {distance_metric}")
                 vector_db, embedding_model = load_vector_db(
@@ -751,6 +755,10 @@ def validate_prerequisites(mode: str, dataset_key, vector_db) -> bool:
         print("❌ Evaluation mode requires both a dataset and a vector database.")
         return False
 
+    if mode == "retrieval_base" and (dataset_key is None or vector_db is None):
+        print("❌ Retrieval Base experiment requires both a dataset and a vector database.")
+        return False
+
     if mode == "noise" and vector_db is None:
         print("❌ Noise robustness test requires a vector database.")
         return False
@@ -764,9 +772,7 @@ def validate_prerequisites(mode: str, dataset_key, vector_db) -> bool:
 def display_main_menu(vector_db=None, dataset_key=None):
     """Display the main menu and get user choice."""
     print_section_header("🎯 SELECT MODE")
-
     eval_label = "📊 Evaluation Mode" if dataset_key and vector_db else "📊 Evaluation Mode (disabled – no dataset/DB)"
-    noise_label = "🔬 Noise Robustness Experiment" if vector_db else "🔬 Noise Robustness Experiment (disabled – no DB)"
     dev_label = "🔧 Development Test Mode" if vector_db else "🔧 Development Test Mode (limited – no DB)"
 
     options = [
@@ -776,7 +782,7 @@ def display_main_menu(vector_db=None, dataset_key=None):
         ("4", "📈 Results Analysis"),
         ("5", "⚙️ System Information"),
         ("6", "📥️ Download QA Dataset"),
-        ("7", noise_label),
+        ("7", "🧪 Experiments & Evaluation"),
         ("8", "🚪 Exit"),
         ("9", "🔄 Reset Vector DB & Embedding Model")
     ]
@@ -786,6 +792,26 @@ def display_main_menu(vector_db=None, dataset_key=None):
 
     return ask_selection(
         prompt_text="\nEnter your choice: ",
+        options=[(key, key) for key, _ in options]
+    )
+
+
+def show_experiments_menu():
+    """
+    Display the experiments and evaluation menu and get user choice.
+    """
+    print_section_header("🧪 EXPERIMENTS & EVALUATION")
+    options = [
+        ("1", "🧪 Simple Retrieval Evaluation"),
+        ("2", "🔬 Noise Robustness Experiment"),
+        ("3", "🔧 Development Test Mode"),
+        ("4", "🧪 New Experiment (coming soon)"),
+        ("5", "⬅️ Back to Main Menu")
+    ]
+    for key, label in options:
+        print(f"{key}. {label}")
+    return ask_selection(
+        prompt_text="\nSelect experiment: ",
         options=[(key, key) for key, _ in options]
     )
 
@@ -1124,6 +1150,72 @@ def run_noise_robustness_experiment(
         top_k=RETRIEVER_TOP_K,
         output_path=output_path
     )
+
+
+def run_retrieval_base_algorithm_experiment(
+        vector_db: VectorDBInterface,
+        embedding_model: HuggingFaceEmbedding):
+    # Validate prerequisites
+    if not validate_prerequisites("retrieval_base", ACTIVE_QA_DATASET, vector_db):
+        return
+    # Load evaluator model
+    from modules.model_loader import load_evaluator_model
+    try:
+        evaluator_model = load_evaluator_model()
+        print("✅ Evaluator model loaded successfully.")
+    except Exception as e:
+        print(f"❌ Failed to load evaluator model: {e}")
+        logger.error(f"Failed to load evaluator model: {e}")
+        return
+
+    print_section_header("🧪 SIMPLE RETRIEVAL BASELINE EXPERIMENT")
+
+    # ---------------------------
+    # 1. Load queries generically
+    # ---------------------------
+    try:
+        queries = load_qa_queries(NQ_SAMPLE_SIZE)
+        print(f"📁 Loaded {len(queries)} queries for experiment.")
+    except Exception as e:
+        print(f"❌ Failed to load QA queries: {e}")
+        logger.error(f"Failed to load queries: {e}")
+        return
+
+    # ---------------------------
+    # 2. Prepare output filename
+    # ---------------------------
+    db_type = vector_db.db_type
+    distance_metric = vector_db.distance_metric
+    timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+    default_filename = f"{db_type}_{distance_metric}_retrieval_base_{timestamp}.xlsx"
+
+    filename = prompt_with_validation(
+        f"Enter output Excel filename (press Enter for default: {default_filename}):\n",
+        lambda s: s == "" or s.endswith('.xlsx'),
+        default=default_filename
+    )
+
+    if not filename or not filename.endswith('.xlsx'):
+        logger.warning("Invalid filename. Using default.")
+        filename = default_filename
+
+    output_dir = os.path.join(PROJECT_PATH, "results", "retrieval_base_experiment")
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, filename)
+
+    # ---------------------------
+    # 3. Run experiment
+    # ---------------------------
+    run_retrieval_base_experiment(
+        queries=queries,
+        vector_db=vector_db,
+        embed_model=embedding_model,
+        top_k=RETRIEVER_TOP_K,
+        output_path=output_path,
+        evaluator_model=evaluator_model
+    )
+
+    print("✅ Retrieval Baseline experiment completed.")
 
 
 ############################################################

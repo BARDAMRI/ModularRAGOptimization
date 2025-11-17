@@ -63,7 +63,6 @@ class VectorDBFactory:
             raise ValueError(f"Unsupported vector database type: {db_type}. Available types: {available_types}")
 
         logger.info(f"Creating {db_type} vector database for source: {source_path}")
-        print(f"Creating {db_type} vector database for source: {source_path}")
 
         # Get the implementation class and instantiate it
         implementation_class = cls._implementations[db_type]

@@ -1,9 +1,15 @@
+import json
 import os
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from urllib.parse import urlparse
 
+# Make sure all imports are present
+import datasets
+import pandas as pd
 import requests
 from datasets import load_dataset
+from llama_index.core import Document
+from llama_index.core import SimpleDirectoryReader
 
 from utility.logger import logger
 
@@ -170,72 +176,228 @@ def download_and_save_from_hf(dataset_name: str, config: Optional[str], target_d
         raise
 
 
-import concurrent.futures
-from tqdm import tqdm
-import time
-
-
-def load_local_dataset(local_dir: str):
+def _load_documents_from_csv(file_path: str,
+                             text_column_name: Optional[str] = None,
+                             metadata_column_names: Optional[List[str]] = None) -> List[Document]:
     """
-    Load a local dataset directory either as a Hugging Face dataset or fallback to SimpleDirectoryReader.
-    Now supports parallel processing and real-time progress display without caching.
+    Loads LlamaIndex Documents from a single CSV file.
+    Uses 'text_column_name' for text and 'metadata_column_names' for metadata.
     """
-    import json
-    import datasets
-    from llama_index.core import Document
-    from llama_index.core import SimpleDirectoryReader
-
-    PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    logger.info(f"Attempting to load local dataset from directory: {local_dir}")
-    dataset_dict_path = os.path.join(PROJECT_PATH, "data", local_dir, "dataset_dict.json")
     documents = []
+    if metadata_column_names is None:
+        metadata_column_names = []
 
-    def _process_example(example):
-        for col in ['text', 'abstract', 'context', 'content']:
-            if col in example and example[col]:
-                return Document(text=example[col])
-        return None
+    try:
+        df = pd.read_csv(file_path)
+    except Exception as e:
+        logger.error(f"Failed to read CSV file {file_path}: {e}")
+        return []
+
+    text_col = text_column_name
+
+    # 1. Find text column
+    if text_col and text_col in df.columns:
+        logger.info(f"Using specified text column: '{text_col}'")
+    else:
+        if text_col:
+            logger.warning(f"Specified text column '{text_col}' not found. Falling back to heuristic.")
+        text_col = next(
+            (c for c in df.columns if 'text' in c.lower() or 'abstract' in c.lower() or 'content' in c.lower()),
+            None)
+        if text_col:
+            logger.info(f"Using heuristic text column: '{text_col}'")
+
+    if not text_col:
+        logger.error(f"No suitable text column found in {file_path}. Columns available: {list(df.columns)}")
+        return []
+
+    # 2. Validate metadata columns
+    valid_metadata_cols = []
+    for col in metadata_column_names:
+        if col in df.columns:
+            valid_metadata_cols.append(col)
+        else:
+            logger.warning(f"Metadata column '{col}' not found in {file_path}. Skipping.")
+
+    if valid_metadata_cols:
+        logger.info(f"Loading metadata from columns: {valid_metadata_cols}")
+
+    # 3. Create Document objects
+    for index, row in df.iterrows():
+        text_content = row[text_col]
+
+        # Skip rows where the text content is empty or NaN
+        if pd.isna(text_content) or not str(text_content).strip():
+            continue
+
+        metadata_dict = {}
+        for col in valid_metadata_cols:
+            if col != text_col:  # Avoid duplicating text in metadata
+                metadata_dict[col] = row[col]
+
+        documents.append(Document(text=str(text_content), metadata=metadata_dict))
+
+    logger.info(f"Loaded {len(documents)} documents with metadata from CSV file: {file_path}")
+    return documents
+
+
+def _load_documents_from_arrow(file_path: str,
+                               text_column_name: Optional[str] = None,
+                               metadata_column_names: Optional[List[str]] = None) -> List[Document]:
+    """
+    Loads LlamaIndex Documents from a single Arrow file.
+    Uses 'text_column_name' for text and 'metadata_column_names' for metadata.
+    """
+    documents = []
+    if metadata_column_names is None:
+        metadata_column_names = []
+
+    try:
+        ds = datasets.Dataset.from_file(file_path)
+    except Exception as e:
+        logger.error(f"Failed to read Arrow file {file_path}: {e}")
+        return []
+
+    text_col = text_column_name
+
+    # 1. Find text column
+    if text_col and text_col in ds.column_names:
+        logger.info(f"Using specified text column: '{text_col}'")
+    else:
+        if text_col:
+            logger.warning(f"Specified text column '{text_col}' not found in Arrow file. Falling back to heuristic.")
+
+        # Heuristic for arrow files
+        text_col = next((c for c in ds.column_names if c in ['text', 'abstract', 'content']), None)
+
+        if text_col:
+            logger.info(f"Using heuristic text column: '{text_col}'")
+
+    if not text_col:
+        logger.error(f"No suitable text column found in {file_path}. Columns available: {ds.column_names}")
+        return []
+
+    # 2. Validate metadata columns
+    valid_metadata_cols = []
+    for col in metadata_column_names:
+        if col in ds.column_names:
+            valid_metadata_cols.append(col)
+        else:
+            logger.warning(f"Metadata column '{col}' not found in {file_path}. Skipping.")
+
+    if valid_metadata_cols:
+        logger.info(f"Loading metadata from columns: {valid_metadata_cols}")
+
+    # 3. Create Document objects
+    for ex in ds:
+        text_content = ex.get(text_col)
+
+        # Skip rows where the text content is empty
+        if not text_content or not str(text_content).strip():
+            continue
+
+        metadata_dict = {}
+        for col in valid_metadata_cols:
+            if col != text_col:  # Avoid duplicating text in metadata
+                metadata_dict[col] = ex.get(col)
+
+        documents.append(Document(text=str(text_content), metadata=metadata_dict))
+
+    logger.info(f"Loaded {len(documents)} documents with metadata from Arrow file: {file_path}")
+    return documents
+
+
+def load_local_dataset(local_dir: str) -> List[Document]:
+    """
+    Load a local dataset by reading 'dataset_dict.json'.
+    - Iterates through all 'splits' defined in the json.
+    - Loads all .arrow and .csv files from each split directory.
+    - 'text_column': Specifies the column for document text.
+    - 'metadata_columns': Specifies a list of columns for document metadata.
+    Falls back to SimpleDirectoryReader if 'dataset_dict.json' is not found
+    or if no documents are loaded from the specified splits.
+    """
+    PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    dataset_dict_path = os.path.join(PROJECT_PATH, "data", local_dir, "dataset_dict.json")
+    data_path = os.path.join(PROJECT_PATH, "data", local_dir)
+    all_documents = []
 
     try:
         if os.path.exists(dataset_dict_path):
-            print(f"Found dataset_dict.json in {local_dir}, loading as Hugging Face dataset.")
-            logger.info(f"Found dataset_dict.json in {local_dir}, loading as Hugging Face dataset.")
+            logger.info(f"Found dataset_dict.json in {local_dir}, loading data.")
             with open(dataset_dict_path, "r", encoding="utf-8") as f:
                 dataset_info = json.load(f)
 
-            splits = dataset_info.get("splits", ["train"])
-            logger.info(f"Loading splits: {splits}")
+            # Get the specified text and metadata columns from the JSON
+            text_column = dataset_info.get("text_column")
+            metadata_columns = dataset_info.get("metadata_columns", [])  # Default to empty list
 
-            for split in splits:
-                split_dir = os.path.join(PROJECT_PATH, "data", local_dir, split)
+            if text_column:
+                logger.info(f"Using 'text_column' from JSON: {text_column}")
+            if metadata_columns:
+                logger.info(f"Using 'metadata_columns' from JSON: {metadata_columns}")
+
+            splits = dataset_info.get("splits")
+            if not splits:
+                raise ValueError(f"No 'splits' key found in {dataset_dict_path}")
+
+            logger.info(f"Processing splits: {splits}")
+
+            for split_name in splits:
+                logger.info(f"--- Loading split: {split_name} ---")
+                split_dir = os.path.join(data_path, split_name)
+
                 if not os.path.exists(split_dir):
-                    logger.warning(f"Split directory '{split_dir}' does not exist, skipping.")
+                    logger.warning(
+                        f"Split directory '{split_dir}' for split '{split_name}' does not exist. Skipping.")
                     continue
 
-                ds = datasets.load_from_disk(split_dir)
-                total_examples = len(ds)
-                logger.info(f"Loaded split '{split}' with {total_examples} examples.")
+                # Find all .arrow or .csv files in the split directory
+                data_files = [f for f in os.listdir(split_dir) if f.endswith(".arrow") or f.endswith(".csv")]
 
-                split_docs = []
-                with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
-                    for doc in tqdm(executor.map(_process_example, ds),
-                                    total=total_examples,
-                                    desc=f"Processing split '{split}'"):
-                        if doc:
-                            split_docs.append(doc)
-                documents.extend(split_docs)
+                if not data_files:
+                    logger.warning(f"No .arrow or .csv files found in split directory: {split_dir}")
+                    continue
 
-            logger.info(f"✅ Loaded total {len(documents)} documents from local Hugging Face dataset.")
-            print(f"✅ Finished loading {len(documents)} documents from {local_dir}")
-            return documents
+                logger.info(f"Found {len(data_files)} data files in split '{split_name}'.")
 
-        else:
-            print(f"No dataset_dict.json found in {local_dir}, falling back to SimpleDirectoryReader.")
-            reader = SimpleDirectoryReader(local_dir)
-            documents = reader.load_data()
-            logger.info(f"Loaded {len(documents)} documents using SimpleDirectoryReader.")
-            return documents
+                for data_file in data_files:
+                    file_path = os.path.join(split_dir, data_file)
+                    file_documents = []
+
+                    if data_file.endswith(".arrow"):
+                        logger.info(f"Loading documents from Arrow file: {data_file}")
+                        file_documents = _load_documents_from_arrow(
+                            file_path,
+                            text_column_name=text_column,
+                            metadata_column_names=metadata_columns
+                        )
+                    elif data_file.endswith(".csv"):
+                        logger.info(f"Loading documents from CSV file: {data_file}")
+                        file_documents = _load_documents_from_csv(
+                            file_path,
+                            text_column_name=text_column,
+                            metadata_column_names=metadata_columns
+                        )
+
+                    all_documents.extend(file_documents)
+
+            if all_documents:
+                logger.info(f"✅ Loaded total {len(all_documents)} documents from all splits.")
+                print(f"✅ Finished loading {len(all_documents)} documents from {local_dir}")
+                return all_documents
+            else:
+                logger.warning(
+                    "dataset_dict.json was found, but no documents were loaded from any splits. Falling back.")
+
+        # Fallback: either dataset_dict.json was missing OR it yielded no docs
+        print(f"No dataset_dict.json found (or it yielded no docs), falling back to SimpleDirectoryReader.")
+        logger.warning(f"Falling back to SimpleDirectoryReader for directory: {data_path}")
+        reader = SimpleDirectoryReader(data_path)
+        documents = reader.load_data()
+        logger.info(f"Loaded {len(documents)} documents using SimpleDirectoryReader.")
+        return documents
 
     except Exception as e:
-        logger.error(f"Error loading local dataset: {e}")
+        logger.error(f"Error loading local dataset from {local_dir}: {e}")
         raise

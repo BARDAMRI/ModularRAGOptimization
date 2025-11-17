@@ -3,6 +3,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from modules.query import extract_node_text_for_embedding, batch_generate_embeddings, \
     generate_embedding_with_normalization
+from utility.logger import logger
 
 
 def cosine_distance(a: np.ndarray, b: np.ndarray) -> float:
@@ -76,11 +77,15 @@ class TrilaterationRetriever:
         return x_star
 
     def retrieve(self, query: str):
+        logger.info(f"🔍 Starting retrieval for query: {query[:50]}...")
         query_emb = generate_embedding_with_normalization(query, self.embedding_model)
+        logger.info("✅ Query embedding generated successfully.")
         nodes_with_scores = self.vector_db.retrieve(query_emb, top_k=self.top_k_candidates)
+        logger.info(f"📚 Retrieved {len(nodes_with_scores)} candidates from vector DB.")
         nodes = [n.node for n in nodes_with_scores]
         texts = extract_node_text_for_embedding(nodes)
         candidates_embs = batch_generate_embeddings(texts, self.embedding_model)
+        logger.info(f"🧠 Generated embeddings for {len(candidates_embs)} candidates.")
 
         # Prepare anchors (from cache or fresh)
         if self.anchors_cache is None:
@@ -91,6 +96,7 @@ class TrilaterationRetriever:
             anchors = self.anchors_cache
 
         if not self.iterative:
+            logger.info("📏 Computing geometric intersection (non-iterative mode)...")
             # Non-iterative mode: standard behavior, do not mutate cache
             x_star = self._compute_geometric_intersection(query_emb, anchors)
 
@@ -98,6 +104,7 @@ class TrilaterationRetriever:
             # Iterative refinement mode
             anchors = anchors.copy()
             for step in range(self.max_refine_steps):
+                logger.debug(f"🔁 Iteration {step + 1}/{self.max_refine_steps} started...")
                 x_star = self._compute_geometric_intersection(query_emb, anchors)
 
                 # Find closest candidate to x_star
@@ -107,6 +114,7 @@ class TrilaterationRetriever:
 
                 # Check if best_emb is already an anchor
                 if self._already_anchor(best_emb, anchors):
+                    logger.debug(f"✅ Iteration {step + 1} completed. Anchors count: {len(anchors)}")
                     break
                 # Save previous intersection before updating anchors
                 x_prev = x_star.copy()
@@ -118,14 +126,18 @@ class TrilaterationRetriever:
                 # Check convergence
                 if self._has_converged(x_prev, x_star_new, self.convergence_tol):
                     x_star = x_star_new
+                    logger.debug(f"✅ Iteration {step + 1} completed. Anchors count: {len(anchors)}")
                     break
                 x_star = x_star_new
+                logger.debug(f"✅ Iteration {step + 1} completed. Anchors count: {len(anchors)}")
 
         # After loop (or non-iterative), select final best doc
         distances = [self._distance(x_star, emb) for emb in candidates_embs]
         best_idx = np.argmin(distances)
         best_doc = nodes[best_idx]
         best_distance = distances[best_idx]
+
+        logger.info(f"🏁 Retrieval complete. Best document selected with distance {best_distance:.4f}")
 
         return {
             "query": query,

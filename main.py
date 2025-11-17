@@ -8,10 +8,12 @@ import torch
 from matrics.results_logger import ResultsLogger, plot_score_distribution
 from scripts.qa_data_set_loader import download_qa_dataset
 from utility.logger import logger
+from utility.performance import (performance_report, performance_monitor, track_performance)
 from utility.user_interface import display_main_menu, show_system_info, run_interactive_mode, run_evaluation_mode, \
     run_development_test, startup_initialization, setup_vector_database, display_startup_banner, ask_yes_no, \
-    run_noise_robustness_experiment, handle_command_line_args, show_exit_message, show_error_message, \
-    confirm_reset_vector_db, show_vector_db_success, show_performance_summary_notice
+    handle_command_line_args, show_exit_message, show_error_message, \
+    confirm_reset_vector_db, show_vector_db_success, show_performance_summary_notice, show_experiments_menu, \
+    run_retrieval_base_algorithm_experiment
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -19,7 +21,7 @@ os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 if torch.backends.mps.is_available():
     torch.backends.mps.allow_tf32 = False
-    print("🔧 MPS configured for compatibility")
+    logger.info("🔧 MPS configured for compatibility")
 
 # Suppress FutureWarning specifically from huggingface_hub
 warnings.filterwarnings(
@@ -31,10 +33,6 @@ warnings.filterwarnings(
 
 # Import performance monitoring with fallbacks
 try:
-    from utility.performance import (
-        monitor_performance, performance_report, performance_monitor, track_performance
-    )
-    from utility.cache import cache_stats, clear_all_caches
 
     PERFORMANCE_AVAILABLE = True
     CACHE_AVAILABLE = True
@@ -61,15 +59,15 @@ except ImportError:
 
 
     def performance_report():
-        print("Performance monitoring not available")
+        logger.info("Performance monitoring not available")
 
 
     def cache_stats():
-        print("Cache monitoring not available")
+        logger.info("Cache monitoring not available")
 
 
     def clear_all_caches():
-        print("Cache clearing not available")
+        logger.info("Cache clearing not available")
 
 # Global variables for model and vector DB
 tokenizer = None
@@ -85,31 +83,53 @@ distance_metric = None
 @track_performance("results_analysis")
 def run_analysis():
     """Run analysis on logged results."""
-    print("\n📈 RESULTS ANALYSIS")
-    print("=" * 25)
+    logger.info("\n📈 RESULTS ANALYSIS")
+    logger.info("=" * 25)
 
     logger.info("Running analysis on logged results...")
     try:
         logger_instance = ResultsLogger()
         logger_instance.summarize_scores()
         plot_score_distribution()
-        print("✅ Analysis completed")
+        logger.info("✅ Analysis completed")
     except Exception as e:
-        print(f"❌ Analysis failed: {e}")
+        logger.info(f"❌ Analysis failed: {e}")
         logger.error(f"Analysis error: {e}")
 
 
 def download_dataset():
     """Download the QA dataset."""
 
-    print("\n📥 Downloading QA Dataset...")
+    logger.info("\n📥 Downloading QA Dataset...")
     try:
         dataset = download_qa_dataset()
-        print("✅ Dataset downloaded successfully.")
+        logger.info("✅ Dataset downloaded successfully.")
         return dataset
     except Exception as e:
-        print(f"❌ Failed to download dataset: {e}")
         logger.error(f"Dataset download error: {e}")
+
+
+def handle_experiment_selection(experiment_choice):
+    """Handle the experiment selection from the experiments menu."""
+    global vector_db, embedding_model, tokenizer, model, device, storing_method, source_path, distance_metric
+    if experiment_choice == '1':
+        run_retrieval_base_algorithm_experiment(vector_db=vector_db, embedding_model=embedding_model)
+    elif experiment_choice == '2':
+        run_evaluation_mode(vector_db, embedding_model, tokenizer, model, device)
+    elif experiment_choice == '3':
+        run_development_test(vector_db, embedding_model, tokenizer, model, device)
+    elif experiment_choice == '4':
+        run_analysis()
+    elif experiment_choice == '5':
+        show_system_info(vector_db, model, device)
+    elif experiment_choice == '6':
+        download_dataset()
+    elif experiment_choice == '7':
+        show_exit_message()
+    elif experiment_choice == '8':
+        if confirm_reset_vector_db():
+            vector_db, embedding_model, storing_method, source_path, distance_metric = setup_vector_database()
+            show_vector_db_success()
 
 
 def main_loop():
@@ -132,7 +152,8 @@ def main_loop():
         elif choice == '6':
             download_dataset()
         elif choice == "7":
-            run_noise_robustness_experiment(vector_db, embedding_model)
+            experiment_choice = show_experiments_menu()
+            handle_experiment_selection(experiment_choice)
         elif choice == "8":
             show_exit_message()
             break
@@ -193,8 +214,8 @@ def main():
 
         try:
             if ask_yes_no("Would you like to print the performance summary now? (y/n): "):
-                print("\n📊 SESSION SUMMARY")
-                print("-" * 20)
+                logger.info("\n📊 SESSION SUMMARY")
+                logger.info("-" * 20)
                 if PERFORMANCE_AVAILABLE:
                     performance_report()
                 if CACHE_AVAILABLE:
@@ -213,35 +234,35 @@ def main():
 
 def print_help():
     """Display comprehensive help information."""
-    print("🚀 RAG System - Command Line Usage (MPS Enhanced)")
-    print("=" * 60)
-    print("USAGE:")
-    print("  python main.py                 - Run interactive RAG system")
-    print("  python main.py --analyze       - Analyze logged results")
-    print("  python main.py --performance   - Show performance report")
-    print("  python main.py --cache-stats   - Show cache statistics")
-    print("  python main.py --clear-cache   - Clear all caches")
-    print("  python main.py --help          - Show this help")
-    print("\n🍎 MPS (Apple Silicon) Features:")
-    print("  • Automatic float32 conversion for compatibility")
-    print("  • BFloat16 issues automatically resolved")
-    print("  • Memory fallback to CPU when needed")
-    print("  • Conservative generation settings for stability")
-    print("  • Real-time device monitoring and diagnostics")
-    print("\n📚 Vector Database Support:")
-    print("  • ChromaDB - Advanced persistent vector database")
-    print("  • Simple Storage - LlamaIndex default storage")
-    print("  • Interactive setup wizard with validation")
-    print("  • Support for local, URL, and HuggingFace sources")
-    print("\n💬 Interactive Features:")
-    print("  • Natural language Q&A interface")
-    print("  • Real-time confidence scoring")
-    print("  • Device usage indicators")
-    print("  • Built-in help and statistics commands")
-    print("\n🔧 Troubleshooting:")
-    print("  • Use Development Test mode for diagnostics")
-    print("  • Check logs in logger.log for details")
-    print("  • Vector DB is optional for basic Q&A")
+    logger.info("🚀 RAG System - Command Line Usage (MPS Enhanced)")
+    logger.info("=" * 60)
+    logger.info("USAGE:")
+    logger.info("  python main.py                 - Run interactive RAG system")
+    logger.info("  python main.py --analyze       - Analyze logged results")
+    logger.info("  python main.py --performance   - Show performance report")
+    logger.info("  python main.py --cache-stats   - Show cache statistics")
+    logger.info("  python main.py --clear-cache   - Clear all caches")
+    logger.info("  python main.py --help          - Show this help")
+    logger.info("\n🍎 MPS (Apple Silicon) Features:")
+    logger.info("  • Automatic float32 conversion for compatibility")
+    logger.info("  • BFloat16 issues automatically resolved")
+    logger.info("  • Memory fallback to CPU when needed")
+    logger.info("  • Conservative generation settings for stability")
+    logger.info("  • Real-time device monitoring and diagnostics")
+    logger.info("\n📚 Vector Database Support:")
+    logger.info("  • ChromaDB - Advanced persistent vector database")
+    logger.info("  • Simple Storage - LlamaIndex default storage")
+    logger.info("  • Interactive setup wizard with validation")
+    logger.info("  • Support for local, URL, and HuggingFace sources")
+    logger.info("\n💬 Interactive Features:")
+    logger.info("  • Natural language Q&A interface")
+    logger.info("  • Real-time confidence scoring")
+    logger.info("  • Device usage indicators")
+    logger.info("  • Built-in help and statistics commands")
+    logger.info("\n🔧 Troubleshooting:")
+    logger.info("  • Use Development Test mode for diagnostics")
+    logger.info("  • Check logs in logger.log for details")
+    logger.info("  • Vector DB is optional for basic Q&A")
 
 
 if __name__ == "__main__":

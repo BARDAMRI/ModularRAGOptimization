@@ -35,7 +35,8 @@ def load_vector_db(source_path: str = "local_data_dir",
     distance_metric
     """
     logger.info(f"Loading vector database for source_path: '{source_path}', storing_method: '{storing_method}'")
-    dataset_dir = os.path.join("data", source_path.split("/")[-1])
+    PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    dataset_dir = os.path.join(PROJECT_PATH, "data", source_path.split("/")[-1])
 
     # Check if dataset_dir exists locally; if not, try to download from Hugging Face datasets
     if not os.path.exists(dataset_dir):

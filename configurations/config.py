@@ -6,7 +6,7 @@ from utility.distance_metrics import DistanceMetric, StoringMethod
 # ==========================
 
 MODEL_PATH = "tiiuae/falcon-rw-1b"  # 🐦 Falcon 1B - very lightweight, extremely fast, basic QA
-
+EVALUATION_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"  # MiniLM-6B for evaluation - fast and efficient
 # ==========================
 # Optional lightweight models (uncomment to switch)
 # ==========================
@@ -73,7 +73,7 @@ QA_DATASETS = {
     "qiaojin/PubMedQA": {
         "config": "pqa_labeled",
         "description": "📄 PubMedQA - Literature-based biomedical QA",
-        "corpus_source": "ojoos/pubmed_abstracts"
+        "corpus_source": "pubmed_selected_articles"
     },
     "bioasq": {
         "config": "task2b",
@@ -104,7 +104,7 @@ QUALITY_THRESHOLD = 0.7
 RETRIEVER_TOP_K = 10
 SIMILARITY_CUTOFF = 0.85
 MAX_NEW_TOKENS = 50
-NQ_SAMPLE_SIZE = 5
+NQ_SAMPLE_SIZE = -1  # Use -1 for full dataset
 TEMPERATURE = 0.05
 
 # === DATA SOURCE ===

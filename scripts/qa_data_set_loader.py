@@ -1,7 +1,9 @@
 import json
 from pathlib import Path
+
 from datasets import load_dataset, DatasetDict
 from datasets.utils.logging import disable_progress_bar
+
 from configurations.config import NQ_SAMPLE_SIZE, ACTIVE_QA_DATASET, QA_DATASETS
 from utility.logger import logger
 
@@ -19,55 +21,44 @@ def get_dataset_dirname(name: str, config: str | None = None) -> str:
     return dirname
 
 
-def load_qa_queries(sample_size: int = NQ_SAMPLE_SIZE) -> list[str]:
+def load_qa_queries(sample_size: int = NQ_SAMPLE_SIZE) -> list[dict]:
     """
-    Loads a list of QA queries from the local QA dataset.
-
-    Args:
-        sample_size (int): Number of queries to load.
-
-    Returns:
-        List[str]: List of questions loaded from the dataset.
+    Loads QA entries from local JSONL dataset.
+    Returns full dict entries (question + pubid + all other fields).
     """
-    # Step 1: Resolve dataset info from config
+
     if ACTIVE_QA_DATASET not in QA_DATASETS:
         raise ValueError(f"Dataset '{ACTIVE_QA_DATASET}' not found in QA_DATASETS config.")
 
     dataset_info = QA_DATASETS[ACTIVE_QA_DATASET]
     config = dataset_info.get("config", None)
 
-    # Step 2: Safe directory name (same logic as in download_qa_dataset)
     dataset_dirname = get_dataset_dirname(ACTIVE_QA_DATASET, config)
 
     optional_json_files = ["train.json", "validation.json", "test.json"]
-    # check if any of the optional files exist
+
     existing_file = None
     for file_name in optional_json_files:
         dataset_path = getQACollectionsPath(dataset_dirname) / file_name
         if dataset_path.exists():
             existing_file = dataset_path
             break
-    if existing_file:
-        dataset_path = existing_file
-    else:
-        logger.error(f"Dataset file not found in : {optional_json_files}")
+
+    if not existing_file:
         raise FileNotFoundError(f"Dataset file not found in : {optional_json_files}")
 
-    # Step 3: Load queries
-    queries = []
-    with open(dataset_path, "r", encoding="utf-8") as f:
+    entries = []
+    with open(existing_file, "r", encoding="utf-8") as f:
         for i, line in enumerate(f):
-            if i >= sample_size:
+            if sample_size != -1 and i >= sample_size:
                 break
             try:
                 data = json.loads(line)
-                question = data.get("question")
-                if question:
-                    queries.append(question)
+                entries.append(data)
             except Exception as e:
                 logger.warning(f"Skipping malformed line {i}: {e}")
 
-    return queries
+    return entries
 
 
 def download_qa_dataset():

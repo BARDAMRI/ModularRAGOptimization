@@ -1,5 +1,6 @@
 import subprocess
 import os
+from utility.logger import logger
 
 
 def download_llamaindex_docs(url, destination_folder):
@@ -16,9 +17,9 @@ def download_llamaindex_docs(url, destination_folder):
         "--quiet"
     ]
 
-    print(f"Downloading LlamaIndex documentation into '{destination_folder}'...")
+    logger.info(f"Downloading LlamaIndex documentation into '{destination_folder}'...")
     subprocess.run(command)
-    print(f"Download complete! You can browse the docs offline from '{destination_folder}'.")
+    logger.info(f"Download complete! You can browse the docs offline from '{destination_folder}'.")
 
 
 URL = input('insert URL: \t')

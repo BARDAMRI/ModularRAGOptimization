@@ -1,20 +1,21 @@
 # modules/query.py - Refactored for better organization
-import numpy as np
+import re
 from typing import Union, Optional, Dict, Callable, List, Tuple, Any
+
+import numpy as np
+import torch
 from llama_index.core import VectorStoreIndex
 from llama_index.core.schema import MetadataMode, TextNode
-import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from transformers import AutoModelForCausalLM, GPT2TokenizerFast, PreTrainedModel, PreTrainedTokenizer
 
+from configurations.config import INDEX_SOURCE_URL
 from configurations.config import MAX_RETRIES, QUALITY_THRESHOLD, MAX_NEW_TOKENS, TEMPERATURE
+from modules.model_loader import load_model
 from utility.embedding_utils import get_query_vector
 from utility.logger import logger
 from utility.similarity_calculator import calculate_similarities, SimilarityMethod
-import re
-from modules.model_loader import load_model
 from vector_db.indexer import load_vector_db
-from configurations.config import INDEX_SOURCE_URL
 
 # =====================================================
 
@@ -479,8 +480,8 @@ def extract_answer_from_output(raw_output: str, original_prompt: str) -> str:
     """
     Extract clean answer from model output, handling various formats.
     """
-    print(f"🔍 Debug - Raw output: {repr(raw_output)}")
-    print(f"🔍 Debug - Original prompt: {repr(original_prompt)}")
+    logger.info(f"🔍 Debug - Raw output: {repr(raw_output)}")
+    logger.info(f"🔍 Debug - Original prompt: {repr(original_prompt)}")
 
     # Method 1: Try to find the first occurrence of "Answer:" and extract what follows
     if "Answer:" in raw_output:
@@ -508,7 +509,7 @@ def extract_answer_from_output(raw_output: str, original_prompt: str) -> str:
             if answer_part.endswith(('" Question', '" Q')):
                 answer_part = answer_part.split('"')[0]
 
-            print(f"🔍 Debug - Extracted answer: {repr(answer_part)}")
+            logger.info(f"🔍 Debug - Extracted answer: {repr(answer_part)}")
             return answer_part.strip()
 
     # Method 2: If no "Answer:" found, try to extract from the end
@@ -519,7 +520,7 @@ def extract_answer_from_output(raw_output: str, original_prompt: str) -> str:
             sentences = remaining.split('.')
             if sentences and sentences[0].strip():
                 answer = sentences[0].strip()
-                print(f"🔍 Debug - Fallback answer: {repr(answer)}")
+                logger.info(f"🔍 Debug - Fallback answer: {repr(answer)}")
                 return answer
 
     # Method 3: Last resort - try to find any reasonable answer
@@ -529,11 +530,11 @@ def extract_answer_from_output(raw_output: str, original_prompt: str) -> str:
         # Return the first quoted string that's not the question
         for match in quoted_matches:
             if match.lower() not in original_prompt.lower() and len(match.strip()) > 0:
-                print(f"🔍 Debug - Quoted answer: {repr(match)}")
+                logger.info(f"🔍 Debug - Quoted answer: {repr(match)}")
                 return match.strip()
 
     # Final fallback
-    print(f"🔍 Debug - No clean answer found, returning cleaned raw output")
+    logger.info(f"🔍 Debug - No clean answer found, returning cleaned raw output")
     clean_output = raw_output.replace(original_prompt, "").strip()
     return clean_output[:100] if clean_output else "No answer generated"
 
@@ -833,7 +834,7 @@ def rephrase_query(
 # Example usage and testing
 def test_mps_query_processing():
     """Test the MPS-safe query processing pipeline."""
-    print("🧪 Testing MPS-safe query processing...")
+    print.info("🧪 Testing MPS-safe query processing...")
 
     try:
 
@@ -841,19 +842,19 @@ def test_mps_query_processing():
         # Load model
         tokenizer, model = load_model()
         device = next(model.parameters()).device
-        print(f"✅ Model loaded on {device}")
+        logger.info(f"✅ Model loaded on {device}")
 
         # Load vector DB (optional)
         try:
             vector_db, embedding_model = load_vector_db(logger=logger, source="url", source_path=INDEX_SOURCE_URL)
-            print("✅ Vector DB loaded")
+            logger.info("✅ Vector DB loaded")
         except Exception as e:
-            print(f"⚠️  Vector DB failed to load: {e}")
+            logger.error(f"⚠️  Vector DB failed to load: {e}")
             vector_db, embedding_model = None, None
 
         # Test simple query
         test_query = "What is artificial intelligence?"
-        print(f"\n🔍 Testing query: '{test_query}'")
+        logger.info(f"\n🔍 Testing query: '{test_query}'")
 
         result = process_query_with_context(
             test_query, model, tokenizer, device,
@@ -861,21 +862,21 @@ def test_mps_query_processing():
         )
 
         if result["error"]:
-            print(f"❌ Query failed: {result['error']}")
+            logger.error(f"❌ Query failed: {result['error']}")
             return False
         else:
-            print(f"✅ Query successful!")
-            print(f"   Answer: {result['answer'][:100]}...")
-            print(f"   Score: {result['score']}")
-            print(f"   Device: {result['device_used']}")
+            logger.info(f"✅ Query successful!")
+            logger.info(f"   Answer: {result['answer'][:100]}...")
+            logger.info(f"   Score: {result['score']}")
+            logger.info(f"   Device: {result['device_used']}")
             return True
 
     except Exception as e:
-        print(f"❌ Test failed: {e}")
+        logger.error(f"❌ Test failed: {e}")
         return False
 
 
 if __name__ == "__main__":
     # Run the test
     success = test_mps_query_processing()
-    print(f"\n🎯 MPS Query Processing Test: {'PASSED' if success else 'FAILED'}")
+    logger.info(f"\n🎯 MPS Query Processing Test: {'PASSED' if success else 'FAILED'}")

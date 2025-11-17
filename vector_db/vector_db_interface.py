@@ -49,12 +49,12 @@ class VectorDBInterface(ABC):
         pass
 
     @abstractmethod
-    def retrieve(self, query: str, top_k: int = 5) -> List[NodeWithScore]:
+    def retrieve(self, query: Union[str, np.ndarray], top_k: int = 5) -> List[NodeWithScore]:
         """
         Retrieve relevant documents for a given query.
 
         Args:
-            query (str): Query string
+            query ( Union[str, np.ndarray]): Query string or embedding vector
             top_k (int): Number of top results to return
 
         Returns:

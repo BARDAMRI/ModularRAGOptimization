@@ -24,8 +24,8 @@ file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(file_formatter)
 
 # (Optional) Stream handler for console output
-# stream_handler = logging.StreamHandler()
-# stream_handler.setFormatter(file_formatter)
-# logger.addHandler(stream_handler)
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(file_formatter)
+logger.addHandler(stream_handler)
 
 logger.addHandler(file_handler)

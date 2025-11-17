@@ -1,12 +1,15 @@
 # modules/model_loader.py - Complete version with performance monitoring
+from typing import Tuple
+
+import torch
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
 )
-import torch
-from configurations.config import MODEL_PATH, FORCE_CPU, OPTIMIZE_FOR_MPS, USE_MIXED_PRECISION, TEMPERATURE
-from typing import Tuple
 
+from sentence_transformers import CrossEncoder
+from configurations.config import EVALUATION_MODEL_NAME
+from configurations.config import MODEL_PATH, FORCE_CPU, OPTIMIZE_FOR_MPS, USE_MIXED_PRECISION
 from utility.device_utils import get_optimal_device
 from utility.logger import logger
 
@@ -154,6 +157,20 @@ def load_model() -> Tuple[AutoTokenizer, torch.nn.Module]:
 
     except Exception as e:
         logger.error(f"Failed to load model: {e}")
+        raise e
+
+
+def load_evaluator_model() -> CrossEncoder:
+    """
+    Load a lightweight evaluator model (e.g., cross-encoder) for scoring query-document pairs.
+    """
+    logger.info(f"Loading evaluator model: {EVALUATION_MODEL_NAME} ...")
+    try:
+        model = CrossEncoder(EVALUATION_MODEL_NAME)
+        logger.info("Evaluator model loaded successfully.")
+        return model
+    except Exception as e:
+        logger.error(f"Failed to load evaluator model '{EVALUATION_MODEL_NAME}': {e}")
         raise e
 
 

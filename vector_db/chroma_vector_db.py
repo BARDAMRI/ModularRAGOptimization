@@ -3,6 +3,7 @@ Chroma Vector Database Implementation
 """
 
 import os
+import time
 from typing import List, Dict, Any, Union
 
 import numpy as np
@@ -11,6 +12,7 @@ from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageCon
 from llama_index.core.schema import NodeWithScore, TextNode
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
+from tqdm import tqdm
 
 from utility.distance_metrics import DistanceMetric
 from utility.logger import logger
@@ -91,56 +93,90 @@ class ChromaVectorDB(VectorDBInterface):
         # Load or create index
         collection_count = self.collection.count()
         if collection_count > 0:
-            logger.info(f"Existing documents in collection: {collection_count}")
-            documents = load_local_dataset(parsed_name)
-            logger.info(f"Loaded {len(documents)} documents from local dataset")
-            # Determine how many documents to add (assuming documents are unique by id)
-            # Since we don't have direct access to document ids in the current code,
-            # we will assume adding all documents (could be optimized if ids known)
-            # However, to follow instructions, we add only missing documents.
-            # Here, we check if vector_db is already loaded; if not, load it.
+            logger.info(f"Existing documents in collection: {collection_count}. Loading existing index...")
             self.vector_db = VectorStoreIndex.from_vector_store(
                 vector_store=self.chroma_store,
                 embed_model=self.embedding_model,
                 storage_context=storage_context
             )
-            existing_ids = set()
-            # Try to get existing node ids to avoid duplicates
-            try:
-                # This assumes the vector_store has a method to get all ids
-                # If not available, we skip this optimization
-                existing_ids = set(self.collection.get(include=["ids"])["ids"])
-            except Exception:
-                existing_ids = set()
-            # Filter documents to add only those not in existing_ids
-            documents_to_add = []
-            for doc in documents:
-                # doc should have an id attribute or metadata with id
-                # If not, we add all documents
-                doc_id = getattr(doc, "doc_id", None)
-                if doc_id is None and hasattr(doc, "get_doc_id"):
-                    doc_id = doc.get_doc_id()
-                if doc_id is None:
-                    # Can't determine id, add anyway
-                    documents_to_add.append(doc)
-                else:
-                    if doc_id not in existing_ids:
-                        documents_to_add.append(doc)
-            logger.info(f"Documents to add (missing in collection): {len(documents_to_add)}")
-            if documents_to_add:
-                self.vector_db.insert_nodes(documents_to_add)
-                logger.info(f"Added {len(documents_to_add)} new documents to Chroma")
-            else:
-                logger.info("No new documents to add; collection is up to date")
         else:
+            import json
             documents = load_local_dataset(parsed_name)
             logger.info(f"Starting indexing the documents into Chroma")
-            self.vector_db = VectorStoreIndex.from_documents(
-                documents,
+            total_docs = len(documents)
+            batch_size = 10000
+            added_count = 0
+            skipped_count = 0
+            start_time = time.time()
+            self.vector_db = VectorStoreIndex.from_vector_store(
+                vector_store=self.chroma_store,
                 embed_model=self.embedding_model,
                 storage_context=storage_context
-            )
-            logger.info(f"Indexed {len(documents)} documents into Chroma")
+            )  # initialize empty index
+
+            total_batches = (total_docs + batch_size - 1) // batch_size
+
+            # --- Checkpointing additions ---
+            checkpoint_path = os.path.join(chroma_path, "index_progress.json")
+            last_indexed = 0
+            if os.path.exists(checkpoint_path):
+                try:
+                    with open(checkpoint_path, "r") as f:
+                        checkpoint = json.load(f)
+                        last_indexed = int(checkpoint.get("last_indexed", 0))
+                except Exception as e:
+                    logger.warning(f"Failed to load checkpoint: {e}")
+                    last_indexed = 0
+            if last_indexed:
+                print(f"🧩 Resuming from checkpoint: {last_indexed}/{total_docs}")
+            else:
+                print("🆕 Starting fresh indexing...")
+            # --- End checkpointing additions ---
+
+            # Only index batches that have not been done yet
+            logger.info("⚙️ Running in sequential indexing mode (safe for MPS)")
+            start_batch = last_indexed // batch_size
+            pbar = tqdm(total=total_batches, desc="Indexing documents")
+            # Advance progress bar to already indexed batches
+            if start_batch > 0:
+                pbar.update(start_batch)
+            for batch_idx in range(start_batch, total_batches):
+                start_idx = batch_idx * batch_size
+                end_idx = min(start_idx + batch_size, total_docs)
+                batch_docs = documents[start_idx:end_idx]
+                try:
+                    self.vector_db.insert_nodes(batch_docs)
+                except Exception as e:
+                    logger.error(f"Error processing batch {batch_idx + 1}: {e}")
+                batch_size_actual = end_idx - start_idx
+                added_count += batch_size_actual
+                elapsed = time.time() - start_time
+                percent_done = (added_count / total_docs) * 100
+                avg_time_per_doc = elapsed / added_count if added_count else 0
+                remaining_docs = total_docs - added_count
+                eta = remaining_docs * avg_time_per_doc
+
+                # --- Checkpoint update ---
+                import time as _time
+                with open(checkpoint_path, "w") as f:
+                    json.dump({"last_indexed": end_idx, "timestamp": _time.time()}, f)
+                # --- End checkpoint update ---
+
+                logger.info(
+                    f"Progress: {percent_done:.2f}% | Batch {batch_idx + 1}/{total_batches} | ETA: {eta / 60:.1f} min")
+                pbar.update(1)
+            pbar.close()
+
+            # After all indexing is done, remove checkpoint file
+            if os.path.exists(checkpoint_path):
+                try:
+                    os.remove(checkpoint_path)
+                except Exception as e:
+                    logger.warning(f"Could not remove checkpoint file: {e}")
+
+            total_time = time.time() - start_time
+            logger.info(f"Indexing complete: Added {added_count} documents, Skipped {skipped_count} documents, "
+                        f"Total time: {total_time:.2f}s")
 
         # Verify the vector_db is properly set
         if not isinstance(self.vector_db, VectorStoreIndex):
@@ -159,7 +195,8 @@ class ChromaVectorDB(VectorDBInterface):
         Returns:
             List[NodeWithScore]: Retrieved documents with scores
         """
-        logger.info(f"Chroma direct query: {query} (top_k={top_k})")
+        logger.info(f"Retrieving top {top_k} documents from Chroma")
+        logger.debug(f"Chroma direct query: {query} (top_k={top_k})")
 
         # Prepare query depending on type
         if isinstance(query, str):
