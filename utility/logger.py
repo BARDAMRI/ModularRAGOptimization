@@ -21,6 +21,7 @@ logger.setLevel(logging.INFO)
 # File handler for logging to a file
 file_handler = logging.FileHandler(log_file_path, mode='a', encoding='utf-8')
 file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(file_formatter)
 
 # (Optional) Stream handler for console output

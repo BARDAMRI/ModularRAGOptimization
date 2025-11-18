@@ -37,29 +37,26 @@ def run_retrieval_base_experiment(
         writer.writerow([
             "index", "question", "ground_truth_id",
             "naive_id", "tri_id",
-            "naive_hit", "tri_hit",  # <-- These are your REAL metrics
+            "naive_hit", "tri_hit",
             "naive_conf_score", "tri_conf_score"
         ])
 
         for idx, entry in enumerate(queries):
+            logger.debug(f"Processing Query {idx + 1}/{len(queries)}")
             question = entry.get("question")
             gt_id = str(entry.get("pubid"))  # Normalize ID to string
 
             # =====================================================
             # FIX 1: Use Standard API for Embeddings
-            # Do NOT use custom 'generate_embedding_with_normalization'
-            # Use the model's native method to ensure space consistency
             # =====================================================
-            q_emb = (embed_model.get_query_embedding(question))
+            q_emb = embed_model.get_query_embedding(question)
 
-            # 2. Create a Numpy version for your Trilateration Math
-            if isinstance(q_emb_list, np.ndarray):
-                q_emb_array = q_emb_list
-                q_emb_list = q_emb_list.tolist()  # Ensure we have a list for DB
-            else:
-                q_emb_array = np.array(q_emb_list)
+            # Force to Numpy Array immediately for both retrievers
+            if not isinstance(q_emb, np.ndarray):
+                q_emb = np.array(q_emb)
+
             # ---- 1. Naive Baseline ----
-            naive_results = vector_db.retrieve(query=q_emb_array, top_k=1)
+            naive_results = vector_db.retrieve(query=q_emb, top_k=1)
 
             naive_id = "MISSING"
             naive_score = 0.0
@@ -73,9 +70,7 @@ def run_retrieval_base_experiment(
                 naive_score = float(evaluator_model.predict([[question, content]])[0])
 
             # ---- 2. Trilateration Retriever ----
-            # The retriever internal logic must also be updated to use
-            # embed_model.get_query_embedding(query) internally!
-            tri_result = tri.retrieve(question, query_emb=q_emb_array)
+            tri_result = tri.retrieve(question, query_emb=q_emb)
 
             tri_id = "MISSING"
             tri_score = 0.0
