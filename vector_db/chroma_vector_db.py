@@ -102,8 +102,8 @@ class ChromaVectorDB(VectorDBInterface):
         else:
             import json
             documents = load_local_dataset(parsed_name)
-            logger.info(f"Starting indexing the documents into Chroma")
             total_docs = len(documents)
+            logger.info(f"Starting indexing the documents into Chroma. Total documents to index: {total_docs}")
             batch_size = 10000
             added_count = 0
             skipped_count = 0
@@ -112,7 +112,7 @@ class ChromaVectorDB(VectorDBInterface):
                 vector_store=self.chroma_store,
                 embed_model=self.embedding_model,
                 storage_context=storage_context
-            )  # initialize empty index
+            )
 
             total_batches = (total_docs + batch_size - 1) // batch_size
 
@@ -202,7 +202,8 @@ class ChromaVectorDB(VectorDBInterface):
         if isinstance(query, str):
             results = self.collection.query(
                 query_texts=[query],
-                n_results=top_k
+                n_results=top_k,
+                include=["documents", "metadatas", "embeddings"]
             )
 
         elif isinstance(query, np.ndarray):
@@ -213,7 +214,8 @@ class ChromaVectorDB(VectorDBInterface):
 
             results = self.collection.query(
                 query_embeddings=[vec.tolist()],
-                n_results=top_k
+                n_results=top_k,
+                include=["documents", "metadatas", "embeddings"]
             )
         else:
             raise TypeError(f"Unsupported query type: {type(query)}")
@@ -225,10 +227,11 @@ class ChromaVectorDB(VectorDBInterface):
 
         # Convert Chroma results to NodeWithScore
         nodes_with_scores = []
-        for doc_id, document, metadata, score in zip(
+        for doc_id, document, metadata, embedding, score in zip(
                 results["ids"][0],
                 results["documents"][0],
                 results["metadatas"][0],
+                results["embeddings"][0],
                 results["distances"][0]
         ):
             node = TextNode(
@@ -236,6 +239,8 @@ class ChromaVectorDB(VectorDBInterface):
                 id_=doc_id,
                 metadata=metadata
             )
+            # Attach vector from Chroma
+            node.embedding = np.array(embedding, dtype=np.float32)
             nodes_with_scores.append(NodeWithScore(node=node, score=score))
 
         logger.info(f"Chroma returned {len(nodes_with_scores)} results")

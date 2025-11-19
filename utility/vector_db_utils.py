@@ -384,14 +384,11 @@ def load_local_dataset(local_dir: str) -> List[Document]:
 
             if all_documents:
                 logger.info(f"✅ Loaded total {len(all_documents)} documents from all splits.")
-                print(f"✅ Finished loading {len(all_documents)} documents from {local_dir}")
                 return all_documents
             else:
                 logger.warning(
                     "dataset_dict.json was found, but no documents were loaded from any splits. Falling back.")
 
-        # Fallback: either dataset_dict.json was missing OR it yielded no docs
-        print(f"No dataset_dict.json found (or it yielded no docs), falling back to SimpleDirectoryReader.")
         logger.warning(f"Falling back to SimpleDirectoryReader for directory: {data_path}")
         reader = SimpleDirectoryReader(data_path)
         documents = reader.load_data()

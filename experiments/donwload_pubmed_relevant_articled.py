@@ -1,82 +1,24 @@
+import os
 import re
 import string
 
 import datasets
-from Bio import Entrez
+
+PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Load the dataset from HuggingFace
 dataset_name = "ojoos/pubmed_abstracts"
-dataset = datasets.load_dataset(dataset_name)
+pubmedqa_splits = {
+    "pqa_unlabeled": "pqa_unlabeled",
+    "pqa_artificial": "pqa_artificial",
+    "pqa_labeled": "pqa_labeled",
+}
 
-print(f"Dataset '{dataset_name}' loaded successfully.")
-print(dataset)
-
-# Load the dataset from HuggingFace
-benchmarkName = "qiaojin/PubMedQA"
-benchmark = datasets.load_dataset(benchmarkName, 'pqa_artificial')
-
-print(f"Dataset '{benchmarkName}' with config 'pqa_artificial' loaded successfully.")
-print(benchmark)
-
-"""# Task
-- Extract the PubMed ID in the 'pubid' field of the first entry in the 'train' split of the `benchmark` dataset, 
-- Search PubMed using this ID to retrieve and display the article's title and abstract.
-
-## Extract PubMed ID
-
-### Subtask:
-Extract the PubMed ID (PMID) from the 'pubid' field of the first entry in the 'train' split of the `benchmark` dataset.
-"""
-
-first_entry = benchmark['train'][0]
-pubmed_id = first_entry['pubid']
-
-print(f"Extracted PubMed ID: {pubmed_id}")
-
-"""## Search PubMed for Article Details
-
-### Subtask:
-Use the extracted PMID to query PubMed and retrieve the article's title and abstract.
-
-**Reasoning**:
-Before querying PubMed, it's essential to install the `biopython` library, which provides the `Entrez` module for interacting with NCBI databases.
-"""
-Entrez.email = "bardamri1702@gmail.com"
-
-# Fetch the PubMed article details
-handle = Entrez.efetch(db="pubmed", id=pubmed_id, retmode="xml", rettype="fasta")
-record = Entrez.read(handle)
-handle.close()
-
-# The structure of the record can vary, so we'll inspect it to find the title and abstract. For a typical PubMed XML
-# record, the title and abstract are usually found within MedlineCitation/Article/ArticleTitle and
-# MedlineCitation/Article/Abstract/AbstractText. Let's print the record structure to help in parsing. print(record)
-
-# Extracting title and abstract The `record` variable will be a dictionary. We need to navigate through it to find
-# the relevant information. Based on common Entrez XML output for PubMed, the article details are usually under
-# 'PubmedArticle' then 'MedlineCitation' then 'Article'.
-
-article_title = "N/A"
-article_abstract = "N/A"
-
-if record and record['PubmedArticle']:
-    pubmed_article = record['PubmedArticle'][0]
-    if 'MedlineCitation' in pubmed_article and 'Article' in pubmed_article['MedlineCitation']:
-        article = pubmed_article['MedlineCitation']['Article']
-
-        if 'ArticleTitle' in article:
-            article_title = str(article['ArticleTitle'])
-
-        if 'Abstract' in article and 'AbstractText' in article['Abstract']:
-            # AbstractText can be a list of strings if there are multiple paragraphs
-            article_abstract = " ".join(article['Abstract']['AbstractText'])
-        print(f"Article Title: {article_title}\n")
-        print(f"Article Abstract: {article_abstract}\n")
-    else:
-        print("Article details not found in the record.")
-else:
-    print("No PubmedArticle found in the record.")
-
+#  load all datasets into one dataset
+datasets_dict = {}
+for config_name in pubmedqa_splits.values():
+    datasets_dict[config_name] = datasets.load_dataset("qiaojin/PubMedQA", config_name)
+    print(f"Dataset '{dataset_name}' with config {config_name} loaded successfully.")
 
 """## Final Task
 
@@ -95,39 +37,6 @@ Present the extracted title and abstract to the user.
 *   For a production system, implementing robust error handling and retry mechanisms for the `Entrez` queries would be beneficial to manage potential network issues or invalid PubMed IDs.
 """
 
-"""# Task
-Inspect the `text` field of `dataset['train']` to understand the structure of the ordinal ID and abstract. Normalize the previously retrieved `article_abstract` and the abstracts from `dataset['train']` for consistent comparison. Iterate through `dataset['train']`, parse the text to extract the ordinal ID and abstract, and compare the normalized abstract with the normalized `article_abstract`. Report the ordinal ID of the matching row, or state if no match is found, and then summarize the process.
-
-## Inspect Dataset Format
-
-### Subtask:
-Examine a few entries from the `dataset['train']['text']` to understand the exact structure of the ordinal ID and abstract within the 'text' field. This will help in correctly parsing the data.
-
-**Reasoning**:
-To understand the structure of the 'text' field, I will display the content of the first five entries from the 'train' split of the `dataset`.
-"""
-
-for i, entry_text in enumerate(dataset['train'][0:5]['text']):
-    print(f"Entry {i + 1}:\n{entry_text}\n---\n")
-
-"""The inspection of the first few entries of `dataset['train']['text']` reveals two main patterns:
-
-1.  **Entries with only an Ordinal ID**: Some entries, like Entry 1, 2, 4, and 5, contain only a numeric value. This value appears to be an ordinal ID.
-2.  **Entries with Ordinal ID and Abstract**: Other entries, like Entry 3, contain a numeric ordinal ID followed by a tab character (`\t`) and then the abstract text. The abstract text itself might contain numbered points or other formatting.
-
-This mixed structure indicates that when parsing, we need to differentiate between entries that are just an ID and those that include an abstract. For entries with an abstract, the ID and the abstract are separated by a tab character.
-
-The inspection of the first few entries of `dataset['train']['text']` reveals two main patterns:
-
-1.  **Entries with only an Ordinal ID**: Some entries, like Entry 1, 2, 4, and 5, contain only a numeric value. This value appears to be an ordinal ID.
-2.  **Entries with Ordinal ID and Abstract**: Other entries, like Entry 3, contain a numeric ordinal ID followed by a tab character (`\t`) and then the abstract text. The abstract text itself might contain numbered points or other formatting.
-
-This mixed structure indicates that when parsing, we need to differentiate between entries that are just an ID and those that include an abstract. For entries with an abstract, the ID and the abstract are separated by a tab character.
-
-**Reasoning**:
-To ensure consistent comparison, I will define a normalization function that converts text to lowercase, removes punctuation, and strips extra whitespace. This function will be applied to both the `article_abstract` and the abstracts extracted from `dataset['train']`.
-"""
-
 
 def normalize_text(text):
     """Normalizes text by lowercasing, removing punctuation, and stripping extra whitespace."""
@@ -138,47 +47,6 @@ def normalize_text(text):
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
-
-normalized_article_abstract = normalize_text(article_abstract)
-print(f"Normalized Article Abstract (first 200 chars): {normalized_article_abstract[:200]}...")
-
-"""**Reasoning**:
-Now that the normalization function is defined and the structure of `dataset['train']['text']` is understood, I will iterate through the dataset, parse each entry to extract its ordinal ID and abstract, normalize the abstract, and compare it with the `normalized_article_abstract`. If a match is found, the corresponding ordinal ID will be reported.
-
-
-"""
-
-matching_ordinal_id = None
-
-# Iterate through the entire dataset to find the matching abstract
-for i, entry_text in enumerate(dataset['train']['text']):
-    ordinal_id = None
-    abstract_from_dataset = None
-
-    if '\t' in entry_text:
-        # Split by the first tab to separate ID and abstract
-        parts = entry_text.split('\t', 1)
-        ordinal_id = parts[0]
-        abstract_from_dataset = parts[1]
-    else:
-        # Check if it's just a number (ordinal ID without abstract)
-        if entry_text.strip().isdigit():
-            ordinal_id = entry_text.strip()
-        # If it's not just a number, it might be an abstract without a clear ID prefix
-        # However, based on initial inspection, abstracts are usually preceded by an ID and a tab.
-        # For simplicity and based on observed patterns, we'll assume abstracts come with an ID and tab.
-        # Entries with only a number are skipped for abstract comparison.
-
-    if abstract_from_dataset:
-        normalized_abstract_from_dataset = normalize_text(abstract_from_dataset)
-        if normalized_abstract_from_dataset == normalized_article_abstract:
-            matching_ordinal_id = ordinal_id
-            break
-
-if matching_ordinal_id:
-    print(f"Found a match! Ordinal ID: {matching_ordinal_id}")
-else:
-    print("No matching abstract found in the dataset.")
 
 """# Task
 Extract all unique PubMed IDs (PMIDs) from the 'train' split of the `qiaojin/PubMedQA` dataset, then use these PMIDs to fetch article titles and abstracts from PubMed in batches. Finally, process the fetched data and save it into multiple CSV files, each containing columns for PMID, Title, and Abstract.
@@ -194,9 +62,12 @@ To extract all unique PubMed IDs, I will iterate through the 'train' split of `b
 
 unique_pubmed_ids = set()
 
-for entry in benchmark['train']:
-    unique_pubmed_ids.add(entry['pubid'])
-
+for config_name, benchmark in datasets_dict.items():
+    unique_set_ids = set()
+    for entry in benchmark['train']:
+        unique_pubmed_ids.add(entry['pubid'])
+        unique_set_ids.add(entry['pubid'])
+    print(f"Extracted PubMed IDs from dataset split: {config_name}. Total unique IDs added: {len(unique_set_ids)}")
 unique_pubmed_ids_list = list(unique_pubmed_ids)
 
 print(f"Total number of unique PubMed IDs found: {len(unique_pubmed_ids_list)}")
@@ -314,13 +185,17 @@ num_files = int(np.ceil(len(df_articles) / chunk_size))
 
 print(f"Saving {len(df_articles)} articles into {num_files} CSV files...")
 
+data_path = os.path.join(PROJECT_PATH, "data", "pubmed_selected_articles", "train")
+if not os.path.exists(data_path):
+    os.makedirs(data_path, exist_ok=True)
+os.chdir(data_path)
 # Iterate and save to multiple CSV files
 for i in range(num_files):
     start_idx = i * chunk_size
     end_idx = (i + 1) * chunk_size
     df_chunk = df_articles.iloc[start_idx:end_idx]
 
-    output_filename = f"pubmed_articles_part_{i + 1}.csv"
+    output_filename = os.path.join(data_path, f"pubmed_articles_part_{i + 1}.csv")
     df_chunk.to_csv(output_filename, index=False)
 
     print(f"Saved {len(df_chunk)} rows to {output_filename}")
