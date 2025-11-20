@@ -13,7 +13,7 @@ from utility.user_interface import display_main_menu, show_system_info, run_inte
     run_development_test, startup_initialization, setup_vector_database, display_startup_banner, ask_yes_no, \
     handle_command_line_args, show_exit_message, show_error_message, \
     confirm_reset_vector_db, show_vector_db_success, show_performance_summary_notice, show_experiments_menu, \
-    run_retrieval_base_algorithm_experiment
+    run_retrieval_base_algorithm_experiment, cache_stats
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

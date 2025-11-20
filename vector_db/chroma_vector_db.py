@@ -203,7 +203,7 @@ class ChromaVectorDB(VectorDBInterface):
             results = self.collection.query(
                 query_texts=[query],
                 n_results=top_k,
-                include=["documents", "metadatas", "embeddings"]
+                include=["documents", "metadatas", "embeddings", "distances"]
             )
 
         elif isinstance(query, np.ndarray):
@@ -215,7 +215,7 @@ class ChromaVectorDB(VectorDBInterface):
             results = self.collection.query(
                 query_embeddings=[vec.tolist()],
                 n_results=top_k,
-                include=["documents", "metadatas", "embeddings"]
+                include=["documents", "metadatas", "embeddings", "distances"]
             )
         else:
             raise TypeError(f"Unsupported query type: {type(query)}")

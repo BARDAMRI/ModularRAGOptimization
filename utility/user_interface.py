@@ -1187,7 +1187,7 @@ def run_retrieval_base_algorithm_experiment(
     db_type = vector_db.db_type
     distance_metric = vector_db.distance_metric
     timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-    default_filename = f"{db_type}_{distance_metric}_retrieval_base_{timestamp}.csv"
+    default_filename = f"{db_type}_{distance_metric}_top_{RETRIEVER_TOP_K}_results_retrieval_base_{timestamp}.csv"
     filename = prompt_with_validation(
         f"Enter output CSV filename (press Enter for default: {default_filename}):\n",
         lambda s: s == "" or s.endswith('.csv'),
