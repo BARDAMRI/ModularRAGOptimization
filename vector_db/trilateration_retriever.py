@@ -1,4 +1,5 @@
 import numpy as np
+import torch.nn
 from scipy.special import softmax
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -19,7 +20,7 @@ class TrilaterationRetriever:
             self,
             embedding_model,
             vector_db,
-            evaluator_model,
+            evaluator_model: torch.nn.Module,
             top_k_candidates=25,
     ):
         self.embedding_model = embedding_model

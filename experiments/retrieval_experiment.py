@@ -1,6 +1,7 @@
 import csv
 
 import numpy as np
+import torch.nn
 from llama_index.core.embeddings import BaseEmbedding
 from sentence_transformers import CrossEncoder
 
@@ -15,7 +16,7 @@ def run_retrieval_base_experiment(
         embed_model: BaseEmbedding,
         top_k: int,
         output_path: str,
-        evaluator_model: CrossEncoder
+        evaluator_model: torch.nn.Module
 ) -> str:
     logger.info(f"🚀 Starting Retrieval Experiment with {len(queries)} queries...")
 

@@ -113,7 +113,7 @@ def handle_experiment_selection(experiment_choice):
     """Handle the experiment selection from the experiments menu."""
     global vector_db, embedding_model, tokenizer, model, device, storing_method, source_path, distance_metric
     if experiment_choice == '1':
-        run_retrieval_base_algorithm_experiment(vector_db=vector_db, embedding_model=embedding_model)
+        run_retrieval_base_algorithm_experiment(vector_db=vector_db, embedding_model=embedding_model, evaluator_model=model)
     elif experiment_choice == '2':
         run_evaluation_mode(vector_db, embedding_model, tokenizer, model, device)
     elif experiment_choice == '3':

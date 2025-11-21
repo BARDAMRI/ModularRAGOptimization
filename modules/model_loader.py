@@ -233,7 +233,7 @@ def generate_text_mps_safe(model, inputs, device, tokenizer, max_tokens: int = 6
         return outputs
 
 
-def test_mps_compatibility():
+def test_mps_compatibility() -> bool:
     """
     Test MPS compatibility with a simple generation.
     """
@@ -374,7 +374,7 @@ def monitor_gpu_memory():
 
 
 @track_performance("complete_model_test")
-def test_model_loading():
+def test_model_loading() -> bool | str | int | None:
     logger.info("Testing GPU-optimized model loading...")
     try:
         with monitor_performance("test_model_loading"):

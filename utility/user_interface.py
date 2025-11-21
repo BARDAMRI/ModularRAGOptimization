@@ -1154,18 +1154,11 @@ def run_noise_robustness_experiment(
 
 def run_retrieval_base_algorithm_experiment(
         vector_db: VectorDBInterface,
-        embedding_model: HuggingFaceEmbedding):
+        embedding_model: HuggingFaceEmbedding,
+        evaluator_model: torch.nn.Module
+):
     # Validate prerequisites
     if not validate_prerequisites("retrieval_base", ACTIVE_QA_DATASET, vector_db):
-        return
-    # Load evaluator model
-    from modules.model_loader import load_evaluator_model
-    try:
-        evaluator_model = load_evaluator_model()
-        print("✅ Evaluator model loaded successfully.")
-    except Exception as e:
-        print(f"❌ Failed to load evaluator model: {e}")
-        logger.error(f"Failed to load evaluator model: {e}")
         return
 
     print_section_header("🧪 SIMPLE RETRIEVAL BASELINE EXPERIMENT")
