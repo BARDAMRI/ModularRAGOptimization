@@ -10,14 +10,16 @@ from typing import Optional, Tuple, Callable
 
 import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from sentence_transformers import CrossEncoder
+from transformers import AutoTokenizer
 
 from configurations.config import NQ_SAMPLE_SIZE, MAX_NEW_TOKENS, TEMPERATURE, INDEX_SOURCE_URL, RETRIEVER_TOP_K, \
-    ACTIVE_QA_DATASET
+    ACTIVE_QA_DATASET, EVALUATOR_TYPE
 from configurations.config import TRILATERATION_ITERATIVE, TRILATERATION_MAX_REFINES, TRILATERATION_CONVERGENCE_TOL
 from experiments.noise_experiment import run_noise_experiment
 from experiments.retrieval_experiment import run_retrieval_base_experiment
 from matrics.results_logger import ResultsLogger
-from modules.model_loader import load_model
+from modules.model_loader import load_model, load_evaluator_model
 from modules.query import process_query_with_context
 from scripts.evaluator import enumerate_top_documents
 from scripts.qa_data_set_loader import load_qa_queries
@@ -25,6 +27,7 @@ from utility.device_utils import get_optimal_device
 from utility.logger import logger
 from vector_db.indexer import get_embedding_model_info, load_vector_db
 from vector_db.storing_methods import StoringMethod
+from vector_db.trilateration_retriever import cosine_distance
 from vector_db.vector_db_interface import VectorDBInterface
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -516,14 +519,15 @@ def setup_from_args(args) -> Tuple[str, str]:
         return interactive_vector_db_setup()
 
 
-def startup_initialization():
+def startup_initialization() -> Tuple[AutoTokenizer, torch.nn.Module, CrossEncoder]:
     """Initialize model and display startup information."""
 
     print("🚀 Loading model with MPS support...")
     with monitor_performance("startup_model_loading"):
         tokenizer, model = load_model()
+        cross_encoder_model = load_evaluator_model()
         print(f"✅ Model loaded on device: {next(model.parameters()).device}")
-        return tokenizer, model
+        return tokenizer, model, cross_encoder_model
 
 
 def display_startup_banner():
@@ -805,7 +809,7 @@ def show_experiments_menu():
         ("1", "🧪 Simple Retrieval Evaluation"),
         ("2", "🔬 Noise Robustness Experiment"),
         ("3", "🔧 Development Test Mode"),
-        ("4", "🧪 New Experiment (coming soon)"),
+        ("4", "🧪 Compare LLM scoring to vector DB distance"),
         ("5", "⬅️ Back to Main Menu")
     ]
     for key, label in options:
@@ -1208,6 +1212,387 @@ def run_retrieval_base_algorithm_experiment(
     )
 
     print("✅ Retrieval Baseline experiment completed.")
+
+
+# --------------------------------------------------------------
+# LLM Score vs Distance Scatter Experiment
+# --------------------------------------------------------------
+
+def llm_score(evaluator_model, tokenizer, query: str, document: str) -> float:
+    """
+    Bulletproof LLM scoring function (enhanced v2):
+    - Forces output in <score>X</score>
+    - Contains aggressive cleaning + multiple fallbacks
+    - Handles MPS/CPU/float32 issues
+    - Avoids discrete patterns (0.1/0.5/1) via soft normalization
+    """
+
+    import torch
+    import re
+
+    try:
+        device = next(evaluator_model.parameters()).device
+
+        # ---------------------
+        # 1. BUILD THE PROMPT
+        # ---------------------
+        prompt = (
+            "You are a strict numerical scoring model.\n"
+            "Your ONLY task is to output a semantic relevance score between the query and the document.\n"
+            "\n"
+            "RULES:\n"
+            "- Output MUST be in the exact XML format: <score>X</score>\n"
+            "- X must be a real number between 0 and 1 with decimal precision.\n"
+            "- Do NOT add explanations.\n"
+            "- Do NOT add reasoning.\n"
+            "- Do NOT output anything except the XML tag.\n"
+            "\n"
+            "Example output:\n"
+            "<score>0.42</score>\n"
+            "\n"
+            f"Query:\n{query}\n\n"
+            f"Document:\n{document}\n\n"
+            "Return ONLY:\n<score>X</score>"
+        )
+
+        # ---------------------
+        # 2. TOKENIZE
+        # ---------------------
+        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024)
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+
+        # ---------------------
+        # 3. GENERATE
+        # ---------------------
+        with torch.no_grad():
+            outputs = evaluator_model.generate(
+                **inputs,
+                max_new_tokens=24,
+                do_sample=False,
+                temperature=0.0,
+                num_beams=1,
+                repetition_penalty=1.1
+            )
+
+        generated_ids = outputs[0][inputs["input_ids"].shape[1]:]
+        text = tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
+
+        # ---------------------
+        # 4. STRICT XML PARSING
+        # ---------------------
+        xml_match = re.search(r"<score>\s*([0-9]*\.?[0-9]+)\s*</score>", text)
+        if xml_match:
+            val = float(xml_match.group(1))
+            return float(max(0.0, min(1.0, val)))
+
+        # ---------------------
+        # 5. ANY NUMBER FALLBACK
+        # ---------------------
+        nums = re.findall(r"[0-9]*\.?[0-9]+", text)
+        if nums:
+            val = float(nums[0])
+            return float(max(0.0, min(1.0, val)))
+
+        print(f"⚠️ llm_score(): Could not parse model output: {text}")
+        return 0.0
+
+    except Exception as e:
+        print(f"⚠️ llm_score exception: {e}")
+        return 0.0
+
+
+def crossencoder_score(cross_encoder_model, query: str, document: str) -> float:
+    """
+    Bulletproof scoring function for CrossEncoder models.
+
+    - Ensures numerical output between 0 and 1
+    - Handles batching issues
+    - Handles CPU/MPS/CUDA automatically
+    - Gracefully handles model errors
+    """
+
+    import torch
+    import numpy as np
+
+    try:
+        # CrossEncoder expects a list of pairs: [(query, doc)]
+        pair = [(query, document)]
+
+        raw_score = cross_encoder_model.predict(pair)
+
+        # ---------- Normalize output ----------
+        # 1. Tensor → float
+        if isinstance(raw_score, torch.Tensor):
+            raw_score = raw_score.detach().cpu().numpy()
+
+        # 2. Numpy array → Python float
+        if isinstance(raw_score, np.ndarray):
+            if raw_score.size == 1:
+                raw_score = float(raw_score[0])
+            else:
+                raw_score = float(raw_score.mean())  # fallback safety
+
+        # 3. Convert from logits if needed
+        # Some CrossEncoders output logits in (-inf, +inf)
+        # We convert them to probability using sigmoid:
+        try:
+            score = 1 / (1 + np.exp(-raw_score))  # sigmoid
+        except Exception:
+            score = float(raw_score)
+
+        # Clamp to [0,1]
+        score = float(max(0.0, min(1.0, score)))
+
+        return score
+
+    except Exception as e:
+        print(f"⚠️ crossencoder_score error: {e}")
+        return 0.0
+
+
+def run_llm_score_vs_distance_scatter_experiment(
+        vector_db: VectorDBInterface,
+        tokenizer: any,
+        llm_model,
+        cross_encoder_model,
+):
+    """
+    Experiment:
+    For 10 random queries:
+        • Sample 1000 random documents (no relation to query), ONCE.
+        • Compute LLM semantic score(query, doc)
+        • Compute vector distance(doc, reference_doc)
+    Produce scatter plots: x = LLM score, y = embedding distance.
+    """
+    print_section_header("📊 LLM SCORE vs VECTOR DISTANCE SCATTER EXPERIMENT")
+
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import random
+
+    # ---------------------------------------
+    # Step 0 — Sample documents ONCE (global)
+    # ---------------------------------------
+    try:
+        raw_sample = vector_db.collection.peek(limit=1000)
+    except Exception as e:
+        print(f"❌ Failed to peek documents from vector DB: {e}")
+        return
+
+    sample_docs = raw_sample.get("documents", []) or []
+    sample_embs = raw_sample.get("embeddings")
+    if sample_embs is None:
+        sample_embs = []
+
+    if len(sample_docs) == 0 or len(sample_embs) == 0:
+        print("⚠️ No documents returned from peek(); aborting experiment.")
+        return
+
+    indices = list(range(len(sample_docs)))
+    random.shuffle(indices)
+    sample_docs = [sample_docs[i] for i in indices]
+    sample_embs = [sample_embs[i] for i in indices]
+
+    # ---------------------------------------
+    # Step 1 — Load 10 queries
+    # ---------------------------------------
+    try:
+        queries = load_qa_queries(10)
+        print(f"📁 Loaded {len(queries)} queries.")
+    except Exception as e:
+        print(f"❌ Failed to load QA queries: {e}")
+        return
+
+        # Ask user for filename
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+    default_base = f"llm_score_vs_vector_distance_{timestamp}"
+    filename_base = prompt_with_validation(
+        f"Enter base filename (without extension) or press Enter for default ({default_base}): \n",
+        lambda s: True,
+        default=default_base
+    )
+
+    # Step 2 — Prepare output directory
+
+    # Step 3 — Process each query using the SAME 1000 docs
+    import csv
+    output_dir = os.path.join(PROJECT_PATH, "results", "scatter_experiment")
+    os.makedirs(output_dir, exist_ok=True)
+    for q_index, entry in enumerate(queries):
+        question = entry.get("question", "")
+        print(f"🔍 Processing query {q_index + 1}/10")
+
+        # Initialize arrays for all possible types
+        xs = []
+        ys = []
+        xs_llm = []
+        ys_llm = []
+        xs_ce = []
+        ys_ce = []
+
+        # Compute ground truth embedding for this query
+        gt_id = entry.get("pubid") or entry.get("PMID") or entry.get("pmid")
+        if not gt_id:
+            print(f"⚠️ No ground truth ID found for query {q_index + 1}; skipping.")
+            continue
+        try:
+            gt_results = vector_db.collection.get(
+                where={"PMID": gt_id},
+                include=["embeddings", "documents", "metadatas"]
+            )
+            gt_embs = gt_results.get("embeddings")
+            if gt_embs is None or len(gt_embs) == 0 or gt_embs[0] is None:
+                print(f"⚠️ No ground truth embedding found for ID {gt_id} (query {q_index + 1}); skipping.")
+                continue
+            gt_emb = np.array(gt_embs[0], dtype=np.float32)
+        except Exception as e:
+            print(f"⚠️ Error retrieving ground truth embedding for ID {gt_id}: {e}; skipping query.")
+            continue
+
+        # Log evaluator type
+        if EVALUATOR_TYPE == "LLM":
+            print("Using LLM evaluator for scoring.")
+        elif EVALUATOR_TYPE == "CrossEncoder":
+            print("Using CrossEncoder evaluator for scoring.")
+        elif EVALUATOR_TYPE == "Both":
+            print("Using BOTH LLM and CrossEncoder evaluators for scoring.")
+
+        # Iterate through all sampled documents
+        for doc_text, emb in zip(sample_docs, sample_embs):
+            doc_emb = np.array(emb, dtype=np.float32)
+
+            # ---------------------------------------
+            #   SCORING SECTION — supports:
+            #   • LLM
+            #   • CrossEncoder
+            #   • Both (two parallel scores)
+            # ---------------------------------------
+
+            llm_s = None
+            ce_s = None
+
+            # LLM scoring
+            if EVALUATOR_TYPE in ["LLM", "Both"]:
+                try:
+                    llm_s = llm_score(llm_model, tokenizer, question, doc_text)
+                    if isinstance(llm_s, list):
+                        llm_s = llm_s[0]
+                    llm_s = float(llm_s)
+                except Exception as e:
+                    llm_s = None
+
+            # Cross‑Encoder scoring
+            if EVALUATOR_TYPE in ["CrossEncoder", "Both"]:
+                try:
+                    ce_s = crossencoder_score(cross_encoder_model, question, doc_text)
+                    if isinstance(ce_s, list):
+                        ce_s = ce_s[0]
+                    ce_s = float(ce_s)
+                except Exception as e:
+                    ce_s = None
+
+            # If no valid score from the selected evaluator(s), skip
+            if EVALUATOR_TYPE == "LLM" and llm_s is None:
+                continue
+            if EVALUATOR_TYPE == "CrossEncoder" and ce_s is None:
+                continue
+            if EVALUATOR_TYPE == "Both" and llm_s is None and ce_s is None:
+                continue
+
+            # --- Use vector DB metric if available ---
+            metric = getattr(vector_db, "distance_metric", None)
+            if metric == DistanceMetric.COSINE:
+                metric_func = cosine_distance
+            elif metric == DistanceMetric.EUCLIDEAN:
+                metric_func = lambda a, b: np.linalg.norm(a - b)
+            elif metric == DistanceMetric.INNER_PRODUCT:
+                metric_func = lambda a, b: -np.dot(a, b)
+            else:
+                metric_func = cosine_distance
+            dist = metric_func(gt_emb, doc_emb)
+
+            # Append to appropriate arrays
+            if EVALUATOR_TYPE == "LLM":
+                xs.append(llm_s)
+                ys.append(dist)
+            elif EVALUATOR_TYPE == "CrossEncoder":
+                xs.append(ce_s)
+                ys.append(dist)
+            elif EVALUATOR_TYPE == "Both":
+                # append **both** results, aligned to same distance
+                if llm_s is not None:
+                    xs_llm.append(llm_s)
+                    ys_llm.append(dist)
+                if ce_s is not None:
+                    xs_ce.append(ce_s)
+                    ys_ce.append(dist)
+
+        # ---- Create new plot for this query ----
+        plt.figure(figsize=(10, 6))
+
+        if EVALUATOR_TYPE == "LLM":
+            if xs and ys:
+                plt.scatter(xs, ys, alpha=0.4, label="LLM Score")
+            else:
+                print(f"⚠️ No valid points for query {q_index + 1}; skipping plot.")
+                plt.close()
+                continue
+        elif EVALUATOR_TYPE == "CrossEncoder":
+            if xs and ys:
+                plt.scatter(xs, ys, alpha=0.4, label="CrossEncoder Score")
+            else:
+                print(f"⚠️ No valid points for query {q_index + 1}; skipping plot.")
+                plt.close()
+                continue
+        elif EVALUATOR_TYPE == "Both":
+            has_points = False
+            if xs_llm and ys_llm:
+                plt.scatter(xs_llm, ys_llm, alpha=0.4, label="LLM")
+                has_points = True
+            if xs_ce and ys_ce:
+                plt.scatter(xs_ce, ys_ce, alpha=0.4, label="CrossEncoder")
+                has_points = True
+            if not has_points:
+                print(f"⚠️ No valid points for query {q_index + 1}; skipping plot.")
+                plt.close()
+                continue
+
+        plt.legend()
+        plt.title(f"LLM Score vs Vector Distance — Query {q_index + 1}")
+        plt.xlabel("LLM Score (0–1)" if EVALUATOR_TYPE != "CrossEncoder" else "CrossEncoder Score (0–1)")
+        plt.ylabel("Vector Distance")
+        plt.grid(True)
+
+        # Filename per query
+        plot_path = os.path.join(output_dir, f"{filename_base}_query_{q_index + 1}.png")
+        plt.savefig(plot_path, dpi=300)
+        print(f"📈 Plot saved: {plot_path}")
+        plt.close()
+
+        # ---- Save CSV for this query ----
+        csv_path = os.path.join(output_dir, f"{filename_base}_query_{q_index + 1}.csv")
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            if EVALUATOR_TYPE == "LLM":
+                writer.writerow(["llm_score", "distance"])
+                for x, y in zip(xs, ys):
+                    writer.writerow([x, y])
+            elif EVALUATOR_TYPE == "CrossEncoder":
+                writer.writerow(["crossencoder_score", "distance"])
+                for x, y in zip(xs, ys):
+                    writer.writerow([x, y])
+            elif EVALUATOR_TYPE == "Both":
+                writer.writerow(["llm_score", "crossencoder_score", "distance"])
+                max_len = max(len(xs_llm), len(xs_ce))
+                for i in range(max_len):
+                    row_llm = xs_llm[i] if i < len(xs_llm) else ""
+                    row_ce = xs_ce[i] if i < len(xs_ce) else ""
+                    row_dist = ys_llm[i] if i < len(ys_llm) else (ys_ce[i] if i < len(ys_ce) else "")
+                    writer.writerow([row_llm, row_ce, row_dist])
+        print(f"📄 CSV saved: {csv_path}")
+
+    print("✅ Experiment completed.")
 
 
 ############################################################

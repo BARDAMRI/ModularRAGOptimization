@@ -13,7 +13,8 @@ from utility.user_interface import display_main_menu, show_system_info, run_inte
     run_development_test, startup_initialization, setup_vector_database, display_startup_banner, ask_yes_no, \
     handle_command_line_args, show_exit_message, show_error_message, \
     confirm_reset_vector_db, show_vector_db_success, show_performance_summary_notice, show_experiments_menu, \
-    run_retrieval_base_algorithm_experiment, cache_stats
+    run_retrieval_base_algorithm_experiment, cache_stats, run_llm_score_vs_distance_scatter_experiment, \
+    run_noise_robustness_experiment
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -72,6 +73,7 @@ except ImportError:
 # Global variables for model and vector DB
 tokenizer = None
 model = None
+cross_encoder_model = None
 vector_db = None
 embedding_model = None
 device = None
@@ -111,25 +113,35 @@ def download_dataset():
 
 def handle_experiment_selection(experiment_choice):
     """Handle the experiment selection from the experiments menu."""
-    global vector_db, embedding_model, tokenizer, model, device, storing_method, source_path, distance_metric
+    global vector_db, embedding_model, tokenizer, model, cross_encoder_model, device, storing_method, source_path, distance_metric
     if experiment_choice == '1':
-        run_retrieval_base_algorithm_experiment(vector_db=vector_db, embedding_model=embedding_model, evaluator_model=model)
+        run_retrieval_base_algorithm_experiment(
+            vector_db=vector_db,
+            embedding_model=embedding_model,
+            evaluator_model=model
+        )
+
     elif experiment_choice == '2':
-        run_evaluation_mode(vector_db, embedding_model, tokenizer, model, device)
+        run_noise_robustness_experiment(
+            vector_db=vector_db,
+            embedding_model=embedding_model
+        )
+
     elif experiment_choice == '3':
         run_development_test(vector_db, embedding_model, tokenizer, model, device)
+
     elif experiment_choice == '4':
-        run_analysis()
+
+        run_llm_score_vs_distance_scatter_experiment(
+            vector_db=vector_db,
+            tokenizer=tokenizer,
+            llm_model=model,
+            cross_encoder_model=cross_encoder_model,
+        )
+
     elif experiment_choice == '5':
-        show_system_info(vector_db, model, device)
-    elif experiment_choice == '6':
-        download_dataset()
-    elif experiment_choice == '7':
-        show_exit_message()
-    elif experiment_choice == '8':
-        if confirm_reset_vector_db():
-            vector_db, embedding_model, storing_method, source_path, distance_metric = setup_vector_database()
-            show_vector_db_success()
+        # Back to main menu
+        return
 
 
 def main_loop():
@@ -172,7 +184,7 @@ def main():
 
     logger.info("Application started with enhanced MPS support.")
 
-    global vector_db, embedding_model, tokenizer, model, device, storing_method, source_path, distance_metric
+    global vector_db, embedding_model, tokenizer, model, cross_encoder_model, device, storing_method, source_path, distance_metric
     try:
         # Unified command line argument handling
         if handle_command_line_args(sys.argv):
@@ -180,7 +192,7 @@ def main():
 
         # Normal application flow
         device = display_startup_banner()
-        tokenizer, model = startup_initialization()
+        tokenizer, model, cross_encoder_model = startup_initialization()
 
         # Setup vector database
         vector_db, embedding_model, storing_method, source_path, distance_metric = setup_vector_database()

@@ -7,6 +7,8 @@ from utility.distance_metrics import DistanceMetric, StoringMethod
 
 MODEL_PATH = "tiiuae/falcon-rw-1b"  # 🐦 Falcon 1B - very lightweight, extremely fast, basic QA
 EVALUATION_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"  # MiniLM-6B for evaluation - fast and efficient
+EVALUATOR_TYPE = "CrossEncoder"  # Options: "LLM" or "CrossEncoder" or "Both"
+
 # ==========================
 # Optional lightweight models (uncomment to switch)
 # ==========================
@@ -32,6 +34,7 @@ HF_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
 # HF_MODEL_NAME = "BAAI/bge-small-en-v1.5" # ✨ High accuracy for its size. Part of the BGE family, known for strong retrieval performance.
 # HF_MODEL_NAME = "BAAI/bge-base-en-v1.5" # 🔥 Even higher accuracy than bge-small, but slower and requires more RAM.
 # HF_MODEL_NAME = "BAAI/bge-large-en-v1.5" # 🚀 State-of-the-art accuracy, but very large (~1.3GB) and slow on CPU/MPS. Only for high-end GPUs.
+
 
 # ==========================
 # QA DATASET CONFIGURATION
@@ -106,6 +109,16 @@ SIMILARITY_CUTOFF = 0.85
 MAX_NEW_TOKENS = 50
 NQ_SAMPLE_SIZE = -1  # Use -1 for full dataset
 TEMPERATURE = 0.05
+
+# ======== TRILATERATION SETTINGS ========
+# Hyperparameters for the metric least-squares trilateration variant
+LIN_SOLVER_MAX_ITERATIONS = 20  # Maximum gradient-descent iterations in metric least-squares solver
+LIN_SOLVER_STEP_SIZE = 0.1  # Learning rate used in optimization updates
+LIN_SOLVER_TOLERANCE = 1e-4  # Stop condition: minimal gradient magnitude change
+LIN_SOLVER_EPSILON = 1e-8  # Numerical stability constant preventing division by zero
+DISTANCE_SCALE_GAMMA = 1.0  # Scale mapping similarity → pseudo-radius (normalizes distances)
+NUM_BASE_ANCHORS = 4  # Number of initial anchors for trilateration
+TRILATERATION_MODE = "metric_least_squares"  # Options: "weighted_centroid" or "metric_least_squares"
 
 # === DATA SOURCE ===
 # The source URL for indexing. Can point to Hugging Face datasets or web URLs.
