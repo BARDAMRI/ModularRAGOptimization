@@ -5,17 +5,20 @@ from utility.distance_metrics import DistanceMetric, StoringMethod
 # ✅ ACTIVE MODEL CONFIGURATION (for QA on CPU / M1 / 16GB RAM)
 # ==========================
 
-MODEL_PATH = "tiiuae/falcon-rw-1b"  # 🐦 Falcon 1B - very lightweight, extremely fast, basic QA
+# MODEL_PATH = "tiiuae/falcon-rw-1b"  # 🐦 Falcon 1B - very lightweight, extremely fast, basic QA
 EVALUATION_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"  # MiniLM-6B for evaluation - fast and efficient
-EVALUATOR_TYPE = "CrossEncoder"  # Options: "LLM" or "CrossEncoder" or "Both"
+EVALUATOR_TYPE = "Both"  # Options: "LLM" or "CrossEncoder" or "Both"
 
 # ==========================
 # Optional lightweight models (uncomment to switch)
 # ==========================
 # MODEL_PATH = "microsoft/phi-2"  # 🧠 Phi-2 (2.7B) - small, high-quality, works well on CPU with low RAM
+MODEL_PATH = "Qwen/Qwen2.5-1.5B-Instruct"
 # MODEL_PATH = "EleutherAI/gpt-neo-1.3B"                 # 🤖 GPT-Neo 1.3B - simple, good compatibility, fair QA
 # MODEL_PATH = "openchat/openchat-3.5-0106"              # 💬 OpenChat 3.5 (3.5B) - solid QA/dialogue, quantize for better speed
 
+
+GEMINI_API_KEY = "AIzaSyAcbEcq95LnBMkvs1fSyO8GhymljgIuPKM"  # Google Gemini API key
 # ==========================
 # Do NOT use these unless you have 24GB+ VRAM or offloading infra
 # ==========================
@@ -92,7 +95,7 @@ ACTIVE_QA_DATASET = "qiaojin/PubMedQA"  # 📄 PubMedQA - Literature-based biome
 DATA_PATH = "data/public_corpus/"
 PUBLIC_CORPUS_DATASET = "wikitext"
 PUBLIC_CORPUS_DIR = "data/public_corpus"
-
+RUN_RANDOM_SCENARIO = True  # If True, runs random scenarios for testing
 # === DEVICE CONFIGURATION ===
 DEVICE_TYPE_MPS = "mps"
 DEVICE_TYPE_CPU = "cpu"

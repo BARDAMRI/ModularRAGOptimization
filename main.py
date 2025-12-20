@@ -4,7 +4,11 @@ import sys
 import warnings
 
 import torch
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
+from experiments.llm_score_vs_distance import run_llm_score_vs_distance_scatter_experiment, \
+    run_retriever_rank_vs_distance_experiment
+from experiments.retrieval_base_algorithm import run_retrieval_base_algorithm_experiment
 from matrics.results_logger import ResultsLogger, plot_score_distribution
 from scripts.qa_data_set_loader import download_qa_dataset
 from utility.logger import logger
@@ -13,8 +17,8 @@ from utility.user_interface import display_main_menu, show_system_info, run_inte
     run_development_test, startup_initialization, setup_vector_database, display_startup_banner, ask_yes_no, \
     handle_command_line_args, show_exit_message, show_error_message, \
     confirm_reset_vector_db, show_vector_db_success, show_performance_summary_notice, show_experiments_menu, \
-    run_retrieval_base_algorithm_experiment, cache_stats, run_llm_score_vs_distance_scatter_experiment, \
-    run_noise_robustness_experiment
+    cache_stats, run_noise_robustness_experiment
+from vector_db.vector_db_interface import VectorDBInterface
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -72,10 +76,10 @@ except ImportError:
 
 # Global variables for model and vector DB
 tokenizer = None
-model = None
+model: torch.nn.Module | None = None
 cross_encoder_model = None
-vector_db = None
-embedding_model = None
+vector_db: VectorDBInterface | None = None
+embedding_model: HuggingFaceEmbedding | None = None
 device = None
 storing_method = None
 source_path = None
@@ -131,15 +135,20 @@ def handle_experiment_selection(experiment_choice):
         run_development_test(vector_db, embedding_model, tokenizer, model, device)
 
     elif experiment_choice == '4':
-
         run_llm_score_vs_distance_scatter_experiment(
             vector_db=vector_db,
-            tokenizer=tokenizer,
+            embedding_model=embedding_model,
+            llm_tokenizer=tokenizer,
             llm_model=model,
             cross_encoder_model=cross_encoder_model,
         )
 
     elif experiment_choice == '5':
+        run_retriever_rank_vs_distance_experiment(
+            vector_db=vector_db,
+            embedding_model=embedding_model
+        )
+    else:
         # Back to main menu
         return
 
