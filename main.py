@@ -6,6 +6,7 @@ import warnings
 import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
+from experiments.QACollection.cross_entropy_vs_retriever import run_entropy_correlation_experiment
 from experiments.llm_score_vs_distance import run_llm_score_vs_distance_scatter_experiment, \
     run_retriever_rank_vs_distance_experiment
 from experiments.retrieval_base_algorithm import run_retrieval_base_algorithm_experiment
@@ -147,6 +148,12 @@ def handle_experiment_selection(experiment_choice):
         run_retriever_rank_vs_distance_experiment(
             vector_db=vector_db,
             embedding_model=embedding_model
+        )
+    elif experiment_choice == '6':
+        run_entropy_correlation_experiment(
+            vector_db=vector_db,
+            embedding_model=embedding_model,
+            scoring_model=cross_encoder_model
         )
     else:
         # Back to main menu

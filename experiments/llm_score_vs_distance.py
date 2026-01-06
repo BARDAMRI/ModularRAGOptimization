@@ -62,27 +62,44 @@ import time
 
 
 def gemini_score(query, document, max_retries=3):
-    """
-    מבצעת קריאה ל-Gemini עם מנגנון Retry במקרה של עומס (503).
-    """
-    # הגדרת הפרומפט המשופר (כפי שסיכמנו קודם)
     prompt = f"""
-    ### ROLE
-    You are an expert scientific assessor.
-    ### TASK
-    Evaluate the relevance of the DOCUMENT to the QUERY. Provide a score 0.0-1.0 (increments of 0.05).
-    ### SCORING RUBRIC
-    - 1.0: Perfect match.
-    - 0.5: Same field, different context/organism.
-    - 0.0: Irrelevant.
-    ### CONSTRAINTS
-    Output ONLY the numeric score.
-    ---
-    QUERY: {query}
-    ---
-    DOCUMENT: {document[:8000]}
-    ---
-    """
+### ROLE
+You are an expert scientific relevance assessor.
+
+### TASK
+Given a QUERY and a DOCUMENT excerpt, output a single relevance score.
+
+### OUTPUT FORMAT (STRICT)
+- Output ONLY one number from this list (no extra text):
+  0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0
+
+### SCORING GUIDE
+- 1.0 = Directly answers the query OR provides the exact evidence needed.
+- 0.9 = Extremely relevant; minor missing detail.
+- 0.8 = Strongly relevant; key concepts and context match.
+- 0.7 = Relevant; supports the query but not perfectly aligned.
+- 0.6 = Moderately relevant; same subtopic, partial support.
+- 0.5 = Same field; different context/population/setting.
+- 0.4 = Weak relevance; only a small overlap of terms/concepts.
+- 0.3 = Mostly unrelated; superficial keyword overlap.
+- 0.2 = Nearly irrelevant.
+- 0.1 = Barely related.
+- 0.0 = Completely irrelevant.
+
+### DECISION RULES
+- Judge semantic relevance, not writing quality.
+- If the DOCUMENT contradicts the QUERY or is off-topic, score <= 0.2.
+- If the DOCUMENT is about the right general domain but wrong specific question, score around 0.4–0.6.
+- If the DOCUMENT provides direct evidence, score >= 0.8.
+
+---
+QUERY:
+{query}
+
+---
+DOCUMENT (excerpt):
+{document[:8000]}
+"""
 
     for attempt in range(max_retries):
         try:
@@ -92,9 +109,12 @@ def gemini_score(query, document, max_retries=3):
             )
             text = response.text.strip()
 
-            m = re.search(r"([01](?:\.\d+)?)", text)
+            m = re.search(r"\b(0\.[0-9]|1\.0|0\.0|1)\b", text)
             if m:
-                return min(1.0, max(0.0, float(m.group(1))))
+                val = float(m.group(1))
+                # Normalize rare "1" to "1.0" and clamp
+                val = 1.0 if val == 1 else val
+                return min(1.0, max(0.0, val))
             return 0.0
 
         except Exception as e:
