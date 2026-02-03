@@ -1,6 +1,7 @@
 import csv
 import os
 import re
+import time
 from datetime import datetime
 
 import matplotlib.pyplot as plt
@@ -58,39 +59,36 @@ def sample_random_docs_by_pmid(vector_db, n):
 # LLM Score vs Distance Scatter Experiment
 # --------------------------------------------------------------
 
-import time
+def gemini_score(query, document, max_retries=10):
+    """
+    Rates the relevance of a document to a query on a scale of 1-10 and normalizes it to 0.1-1.0.
+    Handles rate limiting (429) and server overloads (503) with exponential backoff.
 
+    Args:
+        query (str): The search query.
+        document (str): The document text to assess.
+        max_retries (int): Maximum number of retry attempts for API errors.
 
-def gemini_score(query, document, max_retries=3):
+    Returns:
+        float: Normalized relevance score (0.0 to 1.0).
+    """
     prompt = f"""
 ### ROLE
-You are an expert scientific relevance assessor.
+Expert Scientific Relevance Assessor.
 
 ### TASK
-Given a QUERY and a DOCUMENT excerpt, output a single relevance score.
+Rate the relevance of the DOCUMENT to the QUERY on a scale of 1 to 10.
+Return ONLY the integer.
 
-### OUTPUT FORMAT (STRICT)
-- Output ONLY one number from this list (no extra text):
-  0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0
+### SCORING DEFINITIONS (STRICT - NO OVERLAP)
+- 10: [PERFECT] Document contains the exact answer or specific evidence needed.
+- 8: [STRONG] Document is directly on-topic and provides significant information, but no direct answer.
+- 6: [SPECIFIC FIELD] Document is in the same sub-field and discusses relevant entities, but not the specific question.
+- 4: [GENERAL DOMAIN] Document is in the same general scientific field but answers a different problem.
+- 2: [TANGENTIAL] Only shares keywords; the context is entirely different.
+- 1: [IRRELEVANT] No connection at all.
 
-### SCORING GUIDE
-- 1.0 = Directly answers the query OR provides the exact evidence needed.
-- 0.9 = Extremely relevant; minor missing detail.
-- 0.8 = Strongly relevant; key concepts and context match.
-- 0.7 = Relevant; supports the query but not perfectly aligned.
-- 0.6 = Moderately relevant; same subtopic, partial support.
-- 0.5 = Same field; different context/population/setting.
-- 0.4 = Weak relevance; only a small overlap of terms/concepts.
-- 0.3 = Mostly unrelated; superficial keyword overlap.
-- 0.2 = Nearly irrelevant.
-- 0.1 = Barely related.
-- 0.0 = Completely irrelevant.
-
-### DECISION RULES
-- Judge semantic relevance, not writing quality.
-- If the DOCUMENT contradicts the QUERY or is off-topic, score <= 0.2.
-- If the DOCUMENT is about the right general domain but wrong specific question, score around 0.4–0.6.
-- If the DOCUMENT provides direct evidence, score >= 0.8.
+*For values 3, 5, 7, 9: Use only if the document falls exactly between two definitions.*
 
 ---
 QUERY:
@@ -104,26 +102,34 @@ DOCUMENT (excerpt):
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
-                model='gemini-2.5-flash',
+                model='gemini-2.0-flash',
                 contents=prompt
             )
             text = response.text.strip()
 
-            m = re.search(r"\b(0\.[0-9]|1\.0|0\.0|1)\b", text)
+            m = re.search(r"\b([1-9]|10)\b", text)
             if m:
-                val = float(m.group(1))
-                # Normalize rare "1" to "1.0" and clamp
-                val = 1.0 if val == 1 else val
-                return min(1.0, max(0.0, val))
+                raw_val = int(m.group(1))
+                return float(raw_val) / 10.0
             return 0.0
 
         except Exception as e:
-            if "503" in str(e) or "overloaded" in str(e).lower():
+            if attempt == max_retries - 1:
+                logger.error("🛑 All retry attempts failed. Quota is likely exhausted for the day.")
+                return -1.0
+            err_msg = str(e).lower()
+            if "429" in err_msg or "resource_exhausted" in err_msg:
+                wait_time = (attempt + 1) * 15
+                logger.warning(
+                    f"⚠️ Quota exceeded (429). Retrying in {wait_time}s... (Attempt {attempt + 1}/{max_retries})")
+                time.sleep(wait_time)
+            elif "503" in err_msg or "overloaded" in err_msg:
                 wait_time = (attempt + 1) * 5
-                print(f"⚠️ Server overloaded (503). Retrying in {wait_time}s... (Attempt {attempt + 1}/{max_retries})")
+                logger.warning(
+                    f"⚠️ Server overloaded (503). Retrying in {wait_time}s... (Attempt {attempt + 1}/{max_retries})")
                 time.sleep(wait_time)
             else:
-                print(f"⚠️ gemini_score exception: {e}")
+                logger.error(f"⚠️ gemini_score unexpected exception: {e}")
                 return 0.0
 
     return 0.0

@@ -809,8 +809,9 @@ def show_experiments_menu():
         ("3", "🔧 Development Test Mode"),
         ("4", "🧪 Compare LLM scoring to vector DB distance"),
         ("5", "🧪 Compare Top-K Document Enumeration to distance"),
-        ("6", "🧪 Run Cross-Entropy Correlation Experiment"),
-        ("7", "🚪 Return to Main Menu")
+        ("6", "🧪 Run LLM relevance scoring experiment"),
+        ("7", "🧪 Run Cross-Entropy Correlation Experiment"),
+        ("8", "🚪 Return to Main Menu")
     ]
     for key, label in options:
         print(f"{key}. {label}")
