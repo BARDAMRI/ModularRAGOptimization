@@ -7,6 +7,7 @@ import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 from experiments.QACollection.cross_entropy_vs_retriever import run_entropy_correlation_experiment
+from experiments.global_correlation_experiment import run_global_correlation_experiment
 from experiments.llm_relevance_analysis import run_llm_relevance_experiment
 from experiments.llm_score_vs_distance import run_llm_score_vs_distance_scatter_experiment, \
     run_retriever_rank_vs_distance_experiment
@@ -160,6 +161,12 @@ def handle_experiment_selection(experiment_choice):
             vector_db=vector_db,
             embedding_model=embedding_model,
             scoring_model=cross_encoder_model
+        )
+    elif experiment_choice == '8':
+        run_global_correlation_experiment(
+            vector_db=vector_db,
+            embedding_model=embedding_model,
+            num_queries=200,
         )
     else:
         # Back to main menu
