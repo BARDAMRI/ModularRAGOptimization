@@ -26,12 +26,12 @@ from scripts.qa_data_set_loader import load_qa_queries
 from utility.logger import logger
 from vector_db.trilateration_retriever import cosine_distance
 
-# --- Throughput (billing): 20 docs / API call, 40 concurrent batch calls ---
-MAX_CONCURRENT_REQUESTS = 40
+# --- API-friendly pacing: fewer concurrent calls + longer backoff + delay between batches (TPM) ---
+MAX_CONCURRENT_REQUESTS = 5
 semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 CHROMA_FETCH_CHUNK = 400
-TASK_SUBMIT_INTERVAL_S = 0.01
-RATE_LIMIT_BACKOFF_BASE_S = 10.0
+TASK_SUBMIT_INTERVAL_S = 0.5
+RATE_LIMIT_BACKOFF_BASE_S = 20.0
 
 
 # ---------------------------------------------------------------------------
@@ -312,7 +312,7 @@ async def _async_gemini_score_batch(
             except Exception as e:
                 err_msg = str(e).lower()
                 if "429" in err_msg or "resource_exhausted" in err_msg:
-                    wait_time = min(RATE_LIMIT_BACKOFF_BASE_S * (2 ** attempt), 600.0)
+                    wait_time = min(RATE_LIMIT_BACKOFF_BASE_S * (2 ** attempt), 300.0)
                     logger.warning(
                         f"Gemini 429; backoff {wait_time:.1f}s (attempt {attempt + 1}/{max_retries})"
                     )
@@ -334,16 +334,17 @@ async def _gather_scores_batched_smooth_paced(
         doc_contexts: list[str],
         batch_size: int = 20,
 ) -> list[float]:
+    """
+    Run batch API calls sequentially with TASK_SUBMIT_INTERVAL_S between starts
+    (lowers burst TPM vs parallel create_task + gather).
+    """
     batches = [doc_contexts[i: i + batch_size] for i in range(0, len(doc_contexts), batch_size)]
-    tasks: list[asyncio.Task] = []
+    flat: list[float] = []
     for i, batch in enumerate(batches):
         if i > 0:
             await asyncio.sleep(TASK_SUBMIT_INTERVAL_S)
-        tasks.append(asyncio.create_task(_async_gemini_score_batch(client, query_text, batch)))
-    batch_scores = await asyncio.gather(*tasks)
-    flat: list[float] = []
-    for arr in batch_scores:
-        flat.extend(list(arr))
+        scores = await _async_gemini_score_batch(client, query_text, batch)
+        flat.extend(list(scores))
     if len(flat) < len(doc_contexts):
         flat.extend([0.0] * (len(doc_contexts) - len(flat)))
     return flat[: len(doc_contexts)]
