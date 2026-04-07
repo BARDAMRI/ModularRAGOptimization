@@ -1,1 +1,4 @@
 default__vector_store.json filter=lfs diff=lfs merge=lfs -text
+results/global_exp/**/*.db filter=lfs diff=lfs merge=lfs -text
+results/global_exp/**/global_results*.csv filter=lfs diff=lfs merge=lfs -text
+results/global_exp/**/pool_manifest.csv filter=lfs diff=lfs merge=lfs -text

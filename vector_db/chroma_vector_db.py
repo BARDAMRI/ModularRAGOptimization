@@ -184,19 +184,23 @@ class ChromaVectorDB(VectorDBInterface):
 
         logger.info(f"Chroma VectorDB initialized successfully with {type(self.vector_db).__name__}")
 
-    def retrieve(self, query: Union[str, np.ndarray], top_k: int = 5) -> List[NodeWithScore]:
+    def retrieve(self, query: Union[str, np.ndarray], top_k: int = 5, prints=True) -> List[NodeWithScore]:
         """
         Retrieve documents using direct Chroma collection query.
 
         Args:
             query (Union[str, np.ndarray]): Query text or embedding vector
             top_k (int): Number of top results to return
+            prints (bool): Whether to print retrieval details
+
 
         Returns:
             List[NodeWithScore]: Retrieved documents with scores
+
         """
-        logger.info(f"Retrieving top {top_k} documents from Chroma")
-        logger.debug(f"Chroma direct query: {query} (top_k={top_k})")
+        if prints:
+            logger.info(f"Retrieving top {top_k} documents from Chroma")
+            logger.debug(f"Chroma direct query: {query} (top_k={top_k})")
 
         # Prepare query depending on type
         if isinstance(query, str):
@@ -222,7 +226,8 @@ class ChromaVectorDB(VectorDBInterface):
 
         # No results case
         if not results["ids"] or not results["ids"][0]:
-            logger.warning("No results returned from Chroma")
+            if prints:
+                logger.warning("No results returned from Chroma")
             return []
 
         # Convert Chroma results to NodeWithScore
@@ -243,7 +248,8 @@ class ChromaVectorDB(VectorDBInterface):
             node.embedding = np.array(embedding, dtype=np.float32)
             nodes_with_scores.append(NodeWithScore(node=node, score=score))
 
-        logger.info(f"Chroma returned {len(nodes_with_scores)} results")
+        if prints:
+            logger.info(f"Chroma returned {len(nodes_with_scores)} results")
         return nodes_with_scores
 
     def advanced_retrieve(self, query: str, top_k: int = 5,

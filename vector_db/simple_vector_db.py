@@ -46,32 +46,36 @@ class SimpleVectorDB(VectorDBInterface):
             self.persist()
             logger.info(f"Indexed {len(documents)} documents into Simple vector DB")
 
-    def retrieve(self, query_or_vector: Union[str, np.ndarray], top_k: int = 5) -> List[NodeWithScore]:
+    def retrieve(self, query_or_vector: Union[str, np.ndarray], top_k: int = 5, prints=True) -> List[NodeWithScore]:
         """
         Retrieve documents using either a text query or an embedding vector.
         Note: Only cosine similarity is supported in this implementation.
         """
         if isinstance(query_or_vector, str):
-            logger.info(f"Simple retrieval with text query: '{query_or_vector}' (top_k={top_k})")
+            if prints:
+                logger.info(f"Simple retrieval with text query: '{query_or_vector}' (top_k={top_k})")
             retriever = self.vector_db.as_retriever(similarity_top_k=top_k)
             return retriever.retrieve(query_or_vector)
 
         elif isinstance(query_or_vector, np.ndarray):
-            logger.info("Simple retrieval with embedding vector")
+            if prints:
+                logger.info("Simple retrieval with embedding vector")
 
             index_struct = self.vector_db.index_struct
             docstore = self.vector_db.docstore
             all_nodes = list(docstore.docs.values())
 
             if not all_nodes:
-                logger.warning("No nodes available in Simple vector DB")
+                if prints:
+                    logger.warning("No nodes available in Simple vector DB")
                 return []
 
             embedded_nodes = self.vector_db._embedding_store._id_to_embedding
             all_embeddings = np.array([embedded_nodes[node.node_id] for node in all_nodes])
 
             if all_embeddings.shape[0] == 0:
-                logger.error("No embeddings found in embedding store")
+                if prints:
+                    logger.error("No embeddings found in embedding store")
                 return []
 
             norms = np.linalg.norm(all_embeddings, axis=1) * np.linalg.norm(query_or_vector)

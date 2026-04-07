@@ -24,3 +24,6 @@ logs/
 .DS_Store
 */data/**/*
 *.txt
+
+__pycache__/
+*.py[cod]

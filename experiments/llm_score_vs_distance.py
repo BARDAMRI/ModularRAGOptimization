@@ -14,6 +14,10 @@ from utility.distance_metrics import DistanceMetric
 from utility.logger import logger
 from vector_db.trilateration_retriever import cosine_distance
 
+print(f"DEBUG: GEMINI_API_KEY is loaded: {bool(GEMINI_API_KEY)}")
+if GEMINI_API_KEY:
+    print(f"DEBUG: Key starts with: {GEMINI_API_KEY[:5]}...")
+
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 

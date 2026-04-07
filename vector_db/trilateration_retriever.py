@@ -91,11 +91,10 @@ class TrilaterationRetriever:
         self.base_anchors = base_anchors
         logger.info(f"Base anchors created: {len(base_anchors)} total.")
 
-
     # ---------------------------------------------------------
     #  STAGE 1–7 — MAIN ITERATIVE RETRIEVAL
     # ---------------------------------------------------------
-    def retrieve(self, query: str):
+    def retrieve(self, query: str, prints=True):
         """
         Full iterative trilateration-based retrieval.
         """
@@ -191,7 +190,6 @@ class TrilaterationRetriever:
 
         # fallback after max iterations
         return {"best_doc": best_doc, "score": best_score}
-
 
     # ---------------------------------------------------------
     #  METRIC LEAST SQUARES INTERSECTION (STAGE 3 OPTION B)

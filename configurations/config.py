@@ -18,7 +18,7 @@ MODEL_PATH = "Qwen/Qwen2.5-1.5B-Instruct"
 # MODEL_PATH = "openchat/openchat-3.5-0106"              # 💬 OpenChat 3.5 (3.5B) - solid QA/dialogue, quantize for better speed
 
 
-GEMINI_API_KEY = "AIzaSyCkQcscO97N4zV6nWoVQGqVdyEkO2Vs7NQ"  # Google Gemini API key
+GEMINI_API_KEY = "AIzaSyC3RQ9yANLlYcIhQ65mZCeiGNgC2chKal0"  # Google Gemini API key
 # ==========================
 # Do NOT use these unless you have 24GB+ VRAM or offloading infra
 # ==========================
