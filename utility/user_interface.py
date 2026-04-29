@@ -786,7 +786,8 @@ def display_main_menu(vector_db=None, dataset_key=None):
         ("6", "📥️ Download QA Dataset"),
         ("7", "🧪 Experiments & Evaluation"),
         ("8", "🚪 Exit"),
-        ("9", "🔄 Reset Vector DB & Embedding Model")
+        ("9", "🔄 Reset Vector DB & Embedding Model"),
+        ("10", "🧾 Print Ollama Available Models"),
     ]
 
     for key, label in options:

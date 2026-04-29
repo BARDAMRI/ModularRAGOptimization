@@ -21,7 +21,7 @@ from utility.user_interface import display_main_menu, show_system_info, run_inte
     run_development_test, startup_initialization, setup_vector_database, display_startup_banner, ask_yes_no, \
     handle_command_line_args, show_exit_message, show_error_message, \
     confirm_reset_vector_db, show_vector_db_success, show_performance_summary_notice, show_experiments_menu, \
-    cache_stats, run_noise_robustness_experiment
+    cache_stats, run_noise_robustness_experiment, ask_selection, print_section_header
 from vector_db.vector_db_interface import VectorDBInterface
 
 PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -164,12 +164,123 @@ def handle_experiment_selection(experiment_choice):
             scoring_model=cross_encoder_model
         )
     elif experiment_choice == '8':
-        from experiments.global_correlation_experiment import run_global_correlation_experiment_async
-        asyncio.run(run_global_correlation_experiment_async(
-            vector_db=vector_db,
-            embedding_model=embedding_model,
-            num_queries=200,
-        ))
+        print_section_header("🌐 GLOBAL CORRELATION (BATCH API)")
+        print(
+            "\n"
+            "[1] Pilot Mode (Test Run)\n"
+            "  Description: Short run on a small number of queries (e.g., 5).\n"
+            "  Goal: Validate DB wiring, JSONL format, and submission to Gemini Batch API.\n"
+            "  Recommendation: Always run this before a full experiment.\n"
+            "\n"
+            "[2] Full Experiment Mode\n"
+            "  Description: Run on the full query pool (e.g., 200) with batching of 20 docs/request.\n"
+            "  Goal: Collect full correlation data. Requires higher quota and longer wait time.\n"
+            "\n"
+            "[3] Sync & Analyze (Harvester)\n"
+            "  Description: Check last job status, then ingest the Batch output JSONL, update SQLite,\n"
+            "  and generate plots/statistics.\n"
+            "  Goal: Close the loop after the Batch job completes.\n"
+            "\n"
+            "[0] Back to Main Menu\n"
+        )
+
+        action = input("Select option (1/2/3/0) [default=1]: ").strip() or "1"
+        if action == "0":
+            return
+
+        if action == "1":
+            from experiments.global_correlation_experiment import run_global_correlation_pilot_batch_generator
+            asyncio.run(run_global_correlation_pilot_batch_generator(
+                vector_db=vector_db,
+                embedding_model=embedding_model,
+                num_queries=200,
+                pilot_num_queries=5,
+                k=100,
+            ))
+            return
+
+        if action == "2":
+            print(
+                "\nWARNING: Full experiment will generate and submit a very large Batch job.\n"
+                "This may take a long time and consume significant quota.\n"
+            )
+            if not ask_yes_no("Do you want to continue with FULL experiment?", default='False'):
+                return
+            from experiments.global_correlation_experiment import run_global_correlation_experiment_async
+            asyncio.run(run_global_correlation_experiment_async(
+                vector_db=vector_db,
+                embedding_model=embedding_model,
+                num_queries=200,
+                k=100,
+            ))
+            return
+
+        if action == "3":
+            # Sync & Analyze: user provides paths; we optionally check last job status using job_id in experiment_meta.
+            from experiments.global_correlation_experiment import check_batch_status
+            from sync_batch_results import sync_batch_results
+            import sqlite3 as _sqlite3
+
+            # Best-effort default: latest run folder in results/global_exp
+            default_db_path = ""
+            try:
+                base = os.path.join("results", "global_exp")
+                if os.path.isdir(base):
+                    dirs = [d for d in os.listdir(base) if os.path.isdir(os.path.join(base, d))]
+                    dirs = sorted(dirs, reverse=True)
+                    if dirs:
+                        guess = os.path.join(base, dirs[0], "experiment_results.db")
+                        if os.path.exists(guess):
+                            default_db_path = guess
+            except Exception:
+                default_db_path = ""
+
+            db_prompt = "Path to experiment_results.db"
+            if default_db_path:
+                db_prompt += f" [default={default_db_path}]"
+            db_prompt += ": "
+            db_path = input(db_prompt).strip() or default_db_path
+            if not db_path:
+                print("No db_path provided. Aborting Sync & Analyze.")
+                return
+
+            output_prompt = (
+                "\n"
+                "Path to Batch OUTPUT JSONL file(s) (from Google)\n"
+                "  (Examples: ~/Downloads/output.jsonl OR ~/Downloads/my_batch_folder/ OR ~/Downloads/*.jsonl)\n"
+                "  Note: You can now provide a single file, a folder containing .jsonl files, or a glob pattern.\n"
+                "  You must download these files from https://aistudio.google.com/app/batch\n"
+                "  once the status shows 'SUCCEEDED'.\n"
+                "> "
+            )
+            output_jsonl_path = input(output_prompt).strip()
+            if not output_jsonl_path:
+                print("No output_jsonl_path provided. Aborting Sync & Analyze.")
+                return
+
+            # Optional status check
+            try:
+                conn = _sqlite3.connect(db_path)
+                cur = conn.cursor()
+                cur.execute("SELECT value FROM experiment_meta WHERE key = ?", ("last_batch_job_id",))
+                row = cur.fetchone()
+                conn.close()
+                job_id = str(row[0]) if row and row[0] else None
+            except Exception:
+                job_id = None
+
+            if job_id:
+                print(f"Checking last batch job status (job_id={job_id})...")
+                try:
+                    check_batch_status(job_id)
+                except Exception as e:
+                    print(f"Status check failed (continuing to sync anyway): {e}")
+
+            sync_batch_results(db_path=db_path, output_paths_input=output_jsonl_path)
+            return
+
+        print("Invalid selection. Returning to menu.")
+        return
     else:
         # Back to main menu
         return
@@ -204,6 +315,12 @@ def main_loop():
             if confirm_reset_vector_db():
                 vector_db, embedding_model, storing_method, source_path, distance_metric = setup_vector_database()
                 show_vector_db_success()
+        elif choice == "10":
+            try:
+                from experiments.global_correlation_experiment import _ollama_print_available_models_once
+                _ollama_print_available_models_once()
+            except Exception as e:
+                logger.warning(f"Could not print Ollama models: {e}")
 
 
 def main():

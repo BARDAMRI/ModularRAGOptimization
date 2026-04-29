@@ -104,6 +104,33 @@ DEVICE_TYPE_CPU = "cpu"
 LLM_MODEL_NAME = MODEL_PATH
 LLAMA_MODEL_DIR = MODEL_PATH
 
+# ==========================
+# Global Correlation LLM Provider
+# ==========================
+# Options:
+# - "gemini"  -> Gemini Batch API (offline JSONL generation + harvester)
+# - "ollama"  -> BGU cis-ollama (live scoring; no Gemini cost)
+CORRELATION_LLM_PROVIDER = "ollama"
+
+# BGU CIS Ollama endpoint (see AI_ollama_Chat_ guide + your examples)
+OLLAMA_HOST = "https://cis-ollama.auth.ad.bgu.ac.il"
+
+# Example model names from your guide: "llama3.2", "gpt-oss:20b"
+# Balanced quality/speed for structured scoring responses.
+CORRELATION_OLLAMA_MODEL = "Qwen3.5:9B"
+
+# cis-ollama uses internal TLS; disable verification by default (matches examples).
+OLLAMA_VERIFY_SSL = False
+
+# Safety: request timeout (seconds) for Ollama calls.
+OLLAMA_TIMEOUT_S = 60
+
+# ==========================
+# Global Correlation small-batch limits (Pilot)
+# ==========================
+# Limits docs per query in Pilot mode to keep validation runs fast and observable.
+CORRELATION_PILOT_MAX_DOCS_PER_QUERY = 40
+
 # === OPTIMIZATION PARAMETERS ===
 MAX_RETRIES = 3
 QUALITY_THRESHOLD = 0.7
