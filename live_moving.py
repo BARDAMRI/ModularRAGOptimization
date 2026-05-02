@@ -14,7 +14,9 @@ A plain-text snapshot (``results/global_exp/live_status.txt``) is overwritten
 every refresh cycle so the latest state is always available without scrolling.
 
 Run:
-    python live_moving.py [optional/path/to/experiment_results.db]
+    python live_moving.py
+    python live_moving.py results/global_exp/pilot_run_ollama_2026-04-29_16-24-59
+    python live_moving.py results/global_exp/pilot_run_ollama_2026-04-29_16-24-59/experiment_results.db
 """
 
 import os
@@ -39,7 +41,8 @@ try:
 except Exception:
     _genai_client = None
 
-BASE_DIR = "results/global_exp"
+PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.join(PROJECT_PATH, "results", "global_exp")
 SNAPSHOT_FILE = os.path.join(BASE_DIR, "live_status.txt")
 REFRESH_SECONDS = 10          # Interval between full refreshes
 GOOGLE_POLL_EVERY = 3         # Poll Google only every N refreshes (avoid rate limits)
@@ -70,11 +73,37 @@ def get_latest_db() -> str | None:
         ]
         if not runs:
             return None
-        latest = max(runs, key=os.path.getmtime)
-        candidate = os.path.join(latest, "experiment_results.db")
-        return candidate if os.path.exists(candidate) else None
+        # Pick latest run folder that actually has experiment_results.db.
+        for run_dir in sorted(runs, key=os.path.getmtime, reverse=True):
+            candidate = os.path.join(run_dir, "experiment_results.db")
+            if os.path.exists(candidate):
+                return candidate
+        return None
     except Exception:
         return None
+
+
+def resolve_db_path(user_input: str | None) -> str | None:
+    """
+    Resolve an explicit DB/run path to experiment_results.db.
+    Fallback behavior (required): if missing/invalid input -> latest run DB.
+    """
+    raw = (user_input or "").strip()
+    if not raw:
+        return get_latest_db()
+
+    p = os.path.expanduser(raw)
+    if os.path.isfile(p):
+        return p if os.path.basename(p) == "experiment_results.db" else get_latest_db()
+    if os.path.isdir(p):
+        candidate = os.path.join(p, "experiment_results.db")
+        return candidate if os.path.exists(candidate) else get_latest_db()
+    return get_latest_db()
+
+
+def _snapshot_file_for_db(db_path: str) -> str:
+    """Keep snapshot next to the monitored run DB."""
+    return os.path.join(os.path.dirname(db_path), "live_status.txt")
 
 
 # ─── data gathering ─────────────────────────────────────────────────────────
@@ -88,6 +117,8 @@ def _read_db(db_path: str) -> dict:
         "all_job_ids_raw": None,
         "chunk_job_meta": {},    # chunk_XXXX_job_id -> job_id
         "chunk_err_meta": {},    # chunk_XXXX_error  -> error
+        "fatal_llm_error": "",
+        "fatal_llm_error_query_idx": "",
         # results
         "total_placeholder_rows": 0,
         "synced_rows": 0,
@@ -114,6 +145,10 @@ def _read_db(db_path: str) -> dict:
                     data["chunk_job_meta"][k] = str(v)
                 elif k.startswith("chunk_") and k.endswith("_error"):
                     data["chunk_err_meta"][k] = str(v)
+                elif k == "fatal_llm_error":
+                    data["fatal_llm_error"] = str(v)
+                elif k == "fatal_llm_error_query_idx":
+                    data["fatal_llm_error_query_idx"] = str(v)
         except Exception:
             pass
 
@@ -324,6 +359,10 @@ def _build_spearman_summary(spearman_df: pd.DataFrame) -> str:
 
 def _current_phase(data: dict, google_rows: list[dict]) -> str:
     """Human-readable description of what the system is doing RIGHT NOW."""
+    if data.get("fatal_llm_error"):
+        q_idx = data.get("fatal_llm_error_query_idx") or "?"
+        return f"🛑 Fatal LLM connectivity error at query {q_idx}: {data['fatal_llm_error'][:140]}"
+
     if "ollama" in str(data.get("run_mode", "")).lower():
         total_ph = data["total_placeholder_rows"]
         synced = data["synced_rows"]
@@ -358,7 +397,7 @@ def _current_phase(data: dict, google_rows: list[dict]) -> str:
     return "✅ Phase 4 — Complete. All rows synced. Run Failure_Analyzer.py for final report."
 
 
-def generate_dashboard(db_path: str, google_rows: list[dict], start_time: float) -> Layout:
+def generate_dashboard(db_path: str, google_rows: list[dict], start_time: float, snapshot_file: str) -> Layout:
     data    = _read_db(db_path)
     elapsed = time.time() - start_time
 
@@ -429,20 +468,26 @@ def generate_dashboard(db_path: str, google_rows: list[dict], start_time: float)
     )
 
     # ── write plain-text snapshot (overwrite, not append) ──
-    _write_snapshot(data, google_rows, elapsed, phase_text, err_lines)
+    _write_snapshot(data, google_rows, elapsed, phase_text, err_lines, snapshot_file)
 
     return layout
 
 
 # ─── snapshot file ──────────────────────────────────────────────────────────
 
-def _write_snapshot(data: dict, google_rows: list[dict], elapsed: float,
-                    phase_text: str, err_lines: list[str]) -> None:
+def _write_snapshot(
+    data: dict,
+    google_rows: list[dict],
+    elapsed: float,
+    phase_text: str,
+    err_lines: list[str],
+    snapshot_file: str,
+) -> None:
     """
-    Overwrite SNAPSHOT_FILE with the latest plain-text summary.
+    Overwrite snapshot_file with the latest plain-text summary.
     Only the current state is written — this is a live status file, not a log.
     """
-    os.makedirs(os.path.dirname(SNAPSHOT_FILE), exist_ok=True)
+    os.makedirs(os.path.dirname(snapshot_file), exist_ok=True)
     try:
         total_ph = data["total_placeholder_rows"]
         synced   = data["synced_rows"]
@@ -514,7 +559,7 @@ def _write_snapshot(data: dict, google_rows: list[dict], elapsed: float,
             lines.append("  None")
         lines.append("")
 
-        with open(SNAPSHOT_FILE, "w", encoding="utf-8") as f:
+        with open(snapshot_file, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
     except Exception:
         pass
@@ -523,13 +568,14 @@ def _write_snapshot(data: dict, google_rows: list[dict], elapsed: float,
 # ─── main ───────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    db_path = sys.argv[1] if len(sys.argv) > 1 else get_latest_db()
+    db_path = resolve_db_path(sys.argv[1] if len(sys.argv) > 1 else "")
     if not db_path or not os.path.exists(db_path):
         console.print("[red]No experiment database found. Pass path as argument or run inside the project.[/red]")
         sys.exit(1)
 
+    snapshot_file = _snapshot_file_for_db(db_path)
     console.print(f"[bold green]Monitoring:[/bold green] {db_path}")
-    console.print(f"[dim]Snapshot file: {SNAPSHOT_FILE}[/dim]")
+    console.print(f"[dim]Snapshot file: {snapshot_file}[/dim]")
 
     start_time   = time.time()
     google_rows  = []
@@ -541,7 +587,7 @@ if __name__ == "__main__":
     job_ids  = [j.strip() for j in raw_ids.split(",") if j.strip()]
 
     with Live(
-        generate_dashboard(db_path, google_rows, start_time),
+        generate_dashboard(db_path, google_rows, start_time, snapshot_file),
         console=console,
         refresh_per_second=0.5,
         screen=True,
@@ -559,4 +605,4 @@ if __name__ == "__main__":
             if poll_counter % GOOGLE_POLL_EVERY == 0 and job_ids:
                 google_rows = _poll_google_jobs(job_ids)
 
-            live.update(generate_dashboard(db_path, google_rows, start_time))
+            live.update(generate_dashboard(db_path, google_rows, start_time, snapshot_file))

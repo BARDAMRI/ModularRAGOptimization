@@ -69,10 +69,13 @@ class ChromaVectorDB(VectorDBInterface):
         os.makedirs(chroma_path, exist_ok=True)
 
         # Initialize Chroma client and collection
+        logger.info(f"Opening Chroma PersistentClient at: {chroma_path}")
         self.chroma_client = PersistentClient(path=chroma_path)
+        logger.info("Chroma PersistentClient opened successfully")
         collection_name = f"collection_{parsed_name.replace(':', '_')}"
         if self.distance_metric not in {m.value for m in DistanceMetric}:
             raise ValueError(f"Unsupported distance metric: {self.distance_metric}")
+        logger.info(f"Opening/creating Chroma collection: {collection_name}")
         self.collection = self.chroma_client.get_or_create_collection(
             name=collection_name,
             metadata={
@@ -81,6 +84,7 @@ class ChromaVectorDB(VectorDBInterface):
                 "hnsw:construction_ef": 200
             }
         )
+        logger.info(f"Chroma collection ready: {collection_name}")
         stored_metric = self.collection.metadata.get("hnsw:space")
         assert stored_metric == self.distance_metric, (
             f"❌ Mismatch between stored metric ({stored_metric}) and requested ({self.distance_metric})"
@@ -91,7 +95,9 @@ class ChromaVectorDB(VectorDBInterface):
         storage_context = StorageContext.from_defaults(vector_store=self.chroma_store)
 
         # Load or create index
+        logger.info("Counting documents in Chroma collection...")
         collection_count = self.collection.count()
+        logger.info(f"Collection count received: {collection_count}")
         if collection_count > 0:
             logger.info(f"Existing documents in collection: {collection_count}. Loading existing index...")
             self.vector_db = VectorStoreIndex.from_vector_store(

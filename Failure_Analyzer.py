@@ -14,11 +14,12 @@ What it shows
 Run modes
 ─────────
   python Failure_Analyzer.py              → auto-detect latest run, print to terminal
+  python Failure_Analyzer.py path/to/run  → specific run directory
   python Failure_Analyzer.py path/to/db   → specific DB file
 
 Output file
 ───────────
-results/global_exp/failure_report.txt  (overwritten on each run — latest state only)
+<run_dir>/failure_report.txt  (overwritten on each run — latest state only)
 """
 
 import os
@@ -32,7 +33,8 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-BASE_DIR            = "results/global_exp"
+PROJECT_PATH        = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR            = os.path.join(PROJECT_PATH, "results", "global_exp")
 REPORT_FILE         = os.path.join(BASE_DIR, "failure_report.txt")
 MIN_IMPOSTER_SCORE  = 0.5   # (on 0-1 scale = 5/10) threshold for an "imposter"
 TOP_IMPOSTERS       = 30    # max rows in the imposter table
@@ -51,11 +53,37 @@ def get_latest_db() -> str | None:
         ]
         if not runs:
             return None
-        latest = max(runs, key=os.path.getmtime)
-        candidate = os.path.join(latest, "experiment_results.db")
-        return candidate if os.path.exists(candidate) else None
+        # Pick latest run folder that actually has experiment_results.db.
+        for run_dir in sorted(runs, key=os.path.getmtime, reverse=True):
+            candidate = os.path.join(run_dir, "experiment_results.db")
+            if os.path.exists(candidate):
+                return candidate
+        return None
     except Exception:
         return None
+
+
+def resolve_db_path(user_input: str | None) -> str | None:
+    """
+    Resolve user-provided path to experiment_results.db.
+    Required fallback behavior: invalid/missing path -> latest run DB.
+    """
+    raw = (user_input or "").strip()
+    if not raw:
+        return get_latest_db()
+
+    p = os.path.expanduser(raw)
+    if os.path.isfile(p):
+        return p if os.path.basename(p) == "experiment_results.db" else get_latest_db()
+    if os.path.isdir(p):
+        candidate = os.path.join(p, "experiment_results.db")
+        return candidate if os.path.exists(candidate) else get_latest_db()
+    return get_latest_db()
+
+
+def _report_file_for_db(db_path: str) -> str:
+    """Write report next to the monitored run."""
+    return os.path.join(os.path.dirname(db_path), "failure_report.txt")
 
 
 def _read_meta(conn) -> dict:
@@ -88,6 +116,8 @@ def section_pipeline_summary(conn, meta: dict, report_lines: list[str], run_mode
     chunk_errors = {k: v for k, v in meta.items() if k.startswith("chunk_") and k.endswith("_error")}
     loop_done    = meta.get("main_loop_completed", "0") in ("1", "true", "yes")
     all_ids      = meta.get("all_job_ids", "")
+    fatal_llm_error = meta.get("fatal_llm_error", "")
+    fatal_q_idx = meta.get("fatal_llm_error_query_idx", "")
 
     is_ollama = "ollama" in str(run_mode).lower()
     table_title = "📦 Pipeline Submission Summary" if not is_ollama else "📦 Ollama Run Summary"
@@ -98,6 +128,8 @@ def section_pipeline_summary(conn, meta: dict, report_lines: list[str], run_mode
     table.add_row("Pipeline loop completed", "✅ Yes" if loop_done else "⏳ Still running")
     if is_ollama:
         table.add_row("Provider", "Ollama (cluster)")
+        if fatal_llm_error:
+            table.add_row("Fatal LLM error", f"[red]q{fatal_q_idx}: {fatal_llm_error[:100]}[/red]")
     else:
         table.add_row("Chunks with job IDs",     str(len(chunk_jobs)))
         table.add_row("Chunks with errors",      f"[red]{len(chunk_errors)}[/red]")
@@ -454,7 +486,7 @@ def section_spearman(db_path: str, report_lines: list[str]) -> None:
 
 # ─── main report ────────────────────────────────────────────────────────────
 
-def analyze_failures(db_path: str) -> None:
+def analyze_failures(db_path: str, report_file: str | None = None) -> None:
     if not db_path or not os.path.exists(db_path):
         console.print(f"[red]DB not found: {db_path}[/red]")
         return
@@ -495,13 +527,14 @@ def analyze_failures(db_path: str) -> None:
     section_spearman(db_path, report_lines)
 
     # ── write report file (overwrite — latest state only) ──
-    os.makedirs(os.path.dirname(REPORT_FILE), exist_ok=True)
+    target_report = report_file or _report_file_for_db(db_path)
+    os.makedirs(os.path.dirname(target_report), exist_ok=True)
     try:
-        with open(REPORT_FILE, "w", encoding="utf-8") as f:
+        with open(target_report, "w", encoding="utf-8") as f:
             f.write("\n".join(report_lines) + "\n")
         console.print(
             Panel(
-                f"[bold green]Report saved →[/bold green] {REPORT_FILE}",
+                f"[bold green]Report saved →[/bold green] {target_report}",
                 border_style="green",
             )
         )
@@ -510,5 +543,5 @@ def analyze_failures(db_path: str) -> None:
 
 
 if __name__ == "__main__":
-    db_path = sys.argv[1] if len(sys.argv) > 1 else get_latest_db()
+    db_path = resolve_db_path(sys.argv[1] if len(sys.argv) > 1 else "")
     analyze_failures(db_path)

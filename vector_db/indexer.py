@@ -52,7 +52,11 @@ def load_vector_db(source_path: str = "local_data_dir",
             logger.error(f"❌ Failed to download dataset '{source_path}' from Hugging Face: {e}")
             raise e
     else:
-        logger.info(f"Source path '{source_path}' found locally. Using local data.")
+        # Normalize to the canonical local dataset directory under /data.
+        # This avoids ambiguous relative-path logs such as ".../ModularRAGOptimization/pubmed_selected_articles"
+        # and guarantees consistent path handling across callers.
+        source_path = dataset_dir
+        logger.info(f"Source path found locally. Using canonical data dir: '{source_path}'")
 
     # Get or create cached embedding model
     embedding_model = _get_cached_embedding_model()
