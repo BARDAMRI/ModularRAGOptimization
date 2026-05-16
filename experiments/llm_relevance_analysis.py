@@ -10,6 +10,7 @@ from llama_index.core.schema import TextNode
 from scipy import stats
 
 from experiments.llm_score_vs_distance import gemini_score, sample_random_docs_by_pmid
+from configurations.config import CORRELATION_LLM_PROVIDER
 from scripts.qa_data_set_loader import load_qa_queries
 from utility.logger import logger
 from vector_db.trilateration_retriever import cosine_distance
@@ -102,6 +103,10 @@ def run_llm_relevance_experiment(vector_db, embedding_model, num_queries=200, ou
     timestamp = datetime.now().strftime("%Y-%m-%d")
     run_dir = os.path.join(output_dir, f"run_{timestamp}")
     os.makedirs(run_dir, exist_ok=True)
+    logger.info(
+        f"LLM relevance experiment: CORRELATION_LLM_PROVIDER={CORRELATION_LLM_PROVIDER!r} "
+        f"(1–10 scores via experiments.llm_score_vs_distance.gemini_score)"
+    )
 
     results_csv = os.path.join(run_dir, "results.csv")
     failures_csv = os.path.join(run_dir, "llm_failures.csv")
@@ -133,7 +138,7 @@ def run_llm_relevance_experiment(vector_db, embedding_model, num_queries=200, ou
 
             gt_node = TextNode(text=gt_data['documents'][0], embedding=np.array(gt_data['embeddings'][0]))
             gt_node.id_ = gt_id
-            # Score the GT document with Gemini.
+            # Score the GT document with the configured LLM backend (Gemini, Ollama, or NVIDIA IH).
             gt_score = gemini_score(query, gt_node.text)
 
             if gt_score == -1.0:
@@ -161,7 +166,7 @@ def run_llm_relevance_experiment(vector_db, embedding_model, num_queries=200, ou
             is_gt = (node_id == gt_id)
 
             doc_text = node.get_content() if hasattr(node, "get_content") else node.text
-            # score the document with Gemini
+            # Score the document with the configured LLM backend.
             time.sleep(1.0)
             current_score = gemini_score(query, doc_text)
 

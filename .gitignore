@@ -27,3 +27,6 @@ logs/
 
 __pycache__/
 *.py[cod]
+
+# Local environment secrets
+.env

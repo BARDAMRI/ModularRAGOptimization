@@ -112,7 +112,7 @@ def _read_run_mode(db_path: str) -> str:
 # ─── individual analyses ─────────────────────────────────────────────────────
 
 def section_pipeline_summary(conn, meta: dict, report_lines: list[str], run_mode: str = "") -> None:
-    chunk_jobs   = {k: v for k, v in meta.items() if k.startswith("chunk_") and k.endswith("_job_id")}
+    chunk_jobs   = {k: v for k, v in meta.items() if k.startswith("chunk_") and k.endswith("_job_id") and "upload_part" not in k}
     chunk_errors = {k: v for k, v in meta.items() if k.startswith("chunk_") and k.endswith("_error")}
     loop_done    = meta.get("main_loop_completed", "0") in ("1", "true", "yes")
     all_ids      = meta.get("all_job_ids", "")
@@ -286,8 +286,10 @@ def section_gt_scores(conn, report_lines: list[str]) -> None:
     counts = scores.value_counts().sort_index()
     total  = len(scores)
     mean_s = gt_df["llm_score"].mean() * 10
-    hi     = (gt_df["llm_score"] >= 0.8).sum()   # 8+
-    lo     = (gt_df["llm_score"] <= 0.3).sum()   # 3-
+    # Scoring rubric anchors: {1, 3, 5, 8, 10} → {0.1, 0.3, 0.5, 0.8, 1.0}
+    # (7 and 9 tolerated as edge values).
+    hi     = (gt_df["llm_score"] >= 0.8).sum()   # HIGH RELEVANCE or PERFECT MATCH
+    lo     = (gt_df["llm_score"] <= 0.3).sum()   # IRRELEVANT or SURFACE MATCH
 
     table = Table(title=f"🎯 GT Document Score Distribution  (n={total})", show_lines=False)
     table.add_column("Score", justify="right", style="bold green")

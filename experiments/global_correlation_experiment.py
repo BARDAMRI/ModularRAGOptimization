@@ -1,13 +1,45 @@
 """
-Global correlation experiment: LLM relevance (batched) vs cosine distance to GT embedding.
+Global correlation experiment: LLM relevance scores vs cosine distance to GT embedding.
 
-Layout (logical):
-  constants & IDs / text pruning -> GT retrieval -> Gemini scoring -> SQLite lifecycle
-  -> run-dir / resume -> analytics -> vector pool I/O -> main loop
+Purpose
+-------
+For each QA query: collect documents from the vector store, compute cosine distance to GT,
+and obtain an LLM relevance score (1–10). Finally: global correlation between
+``llm_score`` and ``dist_to_gt``, plus plots.
+
+Entry points (from main.py)
+---------------------------
+* ``run_global_correlation_pilot_batch_generator`` — pilot (few queries).
+* ``run_global_correlation_experiment_async`` — full run (live or Gemini pipeline).
+* ``run_global_correlation_staged_async`` — staged mode: add documents in steps.
+* ``retry_missing_batches`` — resubmit failed Batch requests (Gemini only).
+* ``check_batch_status`` / ``submit_batch_job`` — Batch API helpers.
+
+Provider selection (``config.CORRELATION_LLM_PROVIDER``)
+------------------------------------------------------
+* ``ollama`` / ``nvidia_ih`` — **live** scoring via ``utility.llm_gateway.await_relevance_scores``.
+* ``gemini`` — **batch** scoring (JSONL → Gemini Batch API → harvest → sync to SQLite).
+
+Data flow (abstract)
+--------------------
+1. Load queries + build global document pool (union of top-k per query).
+2. Per query: locate GT in Chroma, compute ``rag_failed``, select target documents.
+3. Fetch text from Chroma; live path calls ``await_relevance_scores`` (gateway builds/sends/parses).
+   Batch path writes JSONL prompts and harvests via ``sync_batch_results`` (parse in gateway).
+4. Persist to SQLite: ``results``, ``batch_request_map``, ``experiment_meta``.
+5. Analysis: statistics, scatter plots, CSV.
+
+File layout
+-----------
+  Provider helpers → IDs / prompts → SQLite → Batch API → resume/analytics
+  → vector pool I/O → live scoring → pipeline harvest → staged mode
 """
 
+import hashlib
 import json
+import math
 import os
+import random
 import re
 import sqlite3
 import time
@@ -20,25 +52,36 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from ollama import Client
-from google import genai
-from google.genai import types
 from scipy import stats
 
 from configurations.config import (
-    CORRELATION_LLM_PROVIDER,
     CORRELATION_OLLAMA_MODEL,
     OLLAMA_MAX_CONCURRENT_REQUESTS,
     OLLAMA_DOCS_PER_REQUEST,
     CORRELATION_PILOT_MAX_DOCS_PER_QUERY,
+    CORRELATION_GEMINI_BATCH_MODEL,
     GEMINI_API_KEY,
+    STAGING_STRIDE,
+    STAGING_MAX_RANKED_PER_GT,
+    STAGING_MAX_RANDOM_PER_QUERY,
     OLLAMA_FAIL_FAST_ON_CONNECTION_ERROR,
     OLLAMA_HOST,
     OLLAMA_TIMEOUT_S,
     OLLAMA_VERIFY_SSL,
+    correlation_live_model_name, STAGING_MAX_RANKED_PER_QUERY,
 )
 from scripts.qa_data_set_loader import load_qa_queries
 from utility.logger import logger
+from utility.llm_gateway import (
+    LLMGatewayError,
+    LLMRequestKind,
+    await_relevance_scores_for_documents,
+    build_relevance_scoring_prompt,
+    get_gemini_client,
+    get_llm_gateway,
+    get_ollama_client,
+    normalize_provider,
+)
 from vector_db.trilateration_retriever import cosine_distance
 
 # --- Offline Gemini Batch API (JSONL generator) ---
@@ -48,9 +91,72 @@ CHROMA_FETCH_CHUNK = 400
 BATCH_SIZE = 20
 MAX_REQUESTS_PER_FILE = 50000  # Split to avoid 2GB limit (each req ~25KB * 50k = ~1.25GB)
 
+_LIVE_PROVIDER_ALIASES: dict[str, str] = {
+    "ollama": "ollama",
+    "nvidia_ih": "nvidia_ih",
+    "nvidia": "nvidia_ih",
+    "inference_hub": "nvidia_ih",
+}
+
+
+def _configured_correlation_provider() -> str:
+    """Current ``CORRELATION_LLM_PROVIDER`` (reads config module so runtime overrides apply)."""
+    from configurations import config as cfg
+
+    return str(cfg.CORRELATION_LLM_PROVIDER).strip().lower()
+
+
+def _normalize_live_provider(provider: str | None = None) -> str:
+    """Return canonical live provider id: ``ollama`` or ``nvidia_ih``."""
+    raw = (provider or _configured_correlation_provider()).strip().lower()
+    return _LIVE_PROVIDER_ALIASES.get(raw, raw)
+
+
+def _is_live_correlation_provider(provider: str | None = None) -> bool:
+    """Return True if scoring uses a live gateway provider (Ollama or NVIDIA IH)."""
+    return _normalize_live_provider(provider) in ("ollama", "nvidia_ih")
+
+
+def _is_gemini_batch_provider(provider: str | None = None) -> bool:
+    """True when scoring uses Gemini Batch API (not live Ollama / NVIDIA IH)."""
+    p = _configured_correlation_provider() if provider is None else str(provider).strip().lower()
+    return p == "gemini"
+
+
+def _live_provider_display_name(provider: str | None = None) -> str:
+    """Human-readable label for logs (Ollama, NVIDIA_IH, etc.)."""
+    p = _normalize_live_provider(provider)
+    if p == "nvidia_ih":
+        return "NVIDIA_IH"
+    if p == "ollama":
+        return "Ollama"
+    return p.upper() or "LIVE_LLM"
+
+
+def _live_run_prefix(*, is_pilot: bool, provider: str | None = None) -> str:
+    """Directory name prefix for a live run folder (pilot vs full, per provider)."""
+    p = _normalize_live_provider(provider)
+    if p == "nvidia_ih":
+        return "pilot_run_nvidia_ih" if is_pilot else "nvidia_ih_run"
+    return "pilot_run_ollama" if is_pilot else "ollama_run"
+
+
+def _live_mode_name(*, is_pilot: bool, provider: str | None = None) -> str:
+    """Value stored in experiment_config.json under ``mode`` for live runs."""
+    p = _normalize_live_provider(provider)
+    if p == "nvidia_ih":
+        return "nvidia_ih_pilot_live" if is_pilot else "nvidia_ih_live"
+    return "ollama_pilot_live" if is_pilot else "ollama_live"
+
+
+def _live_log_tag(*, is_pilot: bool = False, provider: str | None = None) -> str:
+    """Bracketed log prefix including provider name and optional Pilot marker."""
+    name = _live_provider_display_name(provider)
+    return f"[{name} Pilot]" if is_pilot else f"[{name}]"
+
 
 # ---------------------------------------------------------------------------
-# Utility: IDs & input pruning
+# Utility: IDs & input pruning (normalize ids, extract text for prompts)
 # ---------------------------------------------------------------------------
 
 
@@ -106,27 +212,8 @@ def _extract_contexts_text(document_text: str) -> str:
     return out if out else raw[:8000]
 
 
-def _extract_response_text(obj: dict) -> str | None:
-    """
-    Robust extraction for Gemini Batch API Output format.
-    """
-    try:
-        resp = obj.get("response", {})
-        body = resp.get("body", resp)
-        candidates = body.get("candidates", [])
-
-        if candidates and len(candidates) > 0:
-            content = candidates[0].get("content", {})
-            parts = content.get("parts", [])
-            if parts and len(parts) > 0:
-                return parts[0].get("text")
-
-        return body.get("text") or resp.get("text")
-    except Exception:
-        return None
-
 # ---------------------------------------------------------------------------
-# GT retrieval (Chroma)
+# GT retrieval (Chroma) — locate ground-truth document embedding
 # ---------------------------------------------------------------------------
 
 
@@ -142,6 +229,7 @@ def _gt_id_str(entry: dict) -> str:
 
 
 def _gt_pmid_int_for_chroma(entry: dict) -> int | None:
+    """Parse GT id as integer for Chroma metadata filters; None if not numeric."""
     try:
         return int(_gt_id_str(entry))
     except (TypeError, ValueError):
@@ -195,131 +283,20 @@ def _get_gt_embedding_dual_path(collection, gt_id_norm: str, gt_pmid: int | None
 
 
 # ---------------------------------------------------------------------------
-# Gemini: batch scoring
+# SQLite lifecycle — results, meta, batch_request_map, skipped_queries
 # ---------------------------------------------------------------------------
 
+META_KEY_MAIN_LOOP_COMPLETED = "main_loop_completed"
 
-def _is_safety_or_filter_block(response) -> bool:
-    if response is None:
-        return True
-    pf = getattr(response, "prompt_feedback", None)
-    if pf is not None:
-        br = getattr(pf, "block_reason", None)
-        if br is not None:
-            br_s = str(br).strip().upper()
-            if br_s and "UNSPECIFIED" not in br_s:
-                return True
-    for cand in getattr(response, "candidates", None) or []:
-        fr = getattr(cand, "finish_reason", None)
-        if fr is not None:
-            fr_s = str(fr).strip().upper()
-            if "SAFETY" in fr_s or "BLOCK" in fr_s:
-                return True
-    return False
-
-
-def _parse_batch_scores(text: str, expected_n: int) -> list[int]:
-    if text is None:
-        return [0] * expected_n
-    t = str(text).strip()
-    if not t:
-        return [0] * expected_n
-    def _normalize_out(vals: list[int]) -> list[int]:
-        out2 = [max(0, min(10, int(v))) for v in vals]
-        if len(out2) < expected_n:
-            out2.extend([0] * (expected_n - len(out2)))
-        return out2[:expected_n]
-
-    def _extract_from_obj(obj: Any) -> list[int] | None:
-        if isinstance(obj, list):
-            vals: list[int] = []
-            for x in obj:
-                try:
-                    vals.append(int(x))
-                except Exception:
-                    pass
-            return _normalize_out(vals) if vals else None
-        if isinstance(obj, dict):
-            # Common keys returned by chat-style models
-            for k in ("scores", "answer", "answers", "result", "results", "values", "output"):
-                if k in obj:
-                    got = _extract_from_obj(obj.get(k))
-                    if got is not None:
-                        return got
-        return None
-
-    # 1) Try parsing the full text as JSON first (object/array)
-    try:
-        full_obj = json.loads(t)
-        got = _extract_from_obj(full_obj)
-        if got is not None:
-            return got
-    except Exception:
-        pass
-
-    # 2) Try bracket array extraction
-    m = re.search(r"\[[\s\S]*?\]", t)
-    candidate = m.group(0).strip() if m else t
-    try:
-        arr = json.loads(candidate)
-        got = _extract_from_obj(arr)
-        if got is not None:
-            return got
-    except Exception:
-        pass
-
-    # 3) Numeric fallback
-    nums = re.findall(r"\b(10|[1-9])\b", t)
-    return _normalize_out([int(n) for n in nums[:expected_n]])
-
-
-def _get_batch_scoring_prompt(query: str, doc_contexts: list[str]) -> str:
-    docs_block = ""
-    for i, context in enumerate(doc_contexts, start=1):
-        docs_block += f"--- ITEM {i} ---\n{context[:4000]}\n\n"
-
-    return f"""
-### ROLE
-Expert Scientific Relevance Assessor.
-
-### TASK
-Rate the relevance of EACH ITEM (DOCUMENT excerpt) to the QUERY on a scale of 1 to 10.
-Return ONLY a JSON array of integers (length {len(doc_contexts)}). No extra text.
-
-### SCORING DEFINITIONS (STRICT - NO OVERLAP)
-- 10: [PERFECT] Document contains the exact answer or specific evidence needed.
-- 8: [STRONG] Document is directly on-topic and provides significant information, but no direct answer.
-- 6: [SPECIFIC FIELD] Document is in the same sub-field and discusses relevant entities, but not the specific question.
-- 4: [GENERAL DOMAIN] Document is in the same general scientific field but answers a different problem.
-- 2: [TANGENTIAL] Only shares keywords; the context is entirely different.
-- 1: [IRRELEVANT] No connection at all.
-
-*For values 3, 5, 7, 9: Use only if the document falls exactly between two definitions.*
-
-### OUTPUT RULES (MANDATORY)
-- Output must be valid JSON in ONE of these exact shapes only:
-  1) [8, 2, 10, 4, ...]
-  2) {{"scores":[8, 2, 10, 4, ...]}}
-- Each value must be an integer in 1..10 (0 is not allowed)
-- Return exactly {len(doc_contexts)} integers, in the same order as the ITEMS.
-- No explanations, no markdown, no keys besides "scores".
-
----
-QUERY:
-{query}
-
-        {docs_block}
-
-Return ONLY the JSON array of {len(doc_contexts)} integers.
-    """
-
-
-# ---------------------------------------------------------------------------
-# SQLite lifecycle
-# ---------------------------------------------------------------------------
+BATCH_STATUS_SUBMITTED = "submitted"
+BATCH_STATUS_SUCCEEDED = "succeeded"
+BATCH_STATUS_MISSING = "missing"
+BATCH_STATUS_FAILED = "failed"
+BATCH_STATUS_PENDING = "pending"
 
 
 def _init_sqlite(db_path):
+    """Open (or create) experiment_results.db with results, meta, and batch map tables."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute("""
@@ -357,14 +334,39 @@ def _init_sqlite(db_path):
         )
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_batch_request_map_query ON batch_request_map (query_idx)")
+    _ensure_batch_request_map_columns(conn)
     conn.commit()
     return conn
 
 
-META_KEY_MAIN_LOOP_COMPLETED = "main_loop_completed"
+def _ensure_batch_request_map_columns(conn) -> None:
+    """Add optional tracking columns on older DBs (idempotent)."""
+    cur = conn.cursor()
+    cur.execute("PRAGMA table_info(batch_request_map)")
+    cols = {str(row[1]) for row in cur.fetchall()}
+    if "status" not in cols:
+        cur.execute(
+            "ALTER TABLE batch_request_map ADD COLUMN status TEXT "
+            f"DEFAULT '{BATCH_STATUS_SUBMITTED}'"
+        )
+    if "updated_at" not in cols:
+        cur.execute(
+            "ALTER TABLE batch_request_map ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP"
+        )
+    conn.commit()
+
+
+def _snap_to_anchor(score: int) -> int:
+    """Clamp parsed integer score to the 1..10 anchor scale."""
+    try:
+        v = int(score)
+    except Exception:
+        return 1
+    return max(1, min(10, v))
 
 
 def _is_main_loop_completed(conn) -> bool:
+    """True when experiment_meta records that the main scoring loop finished."""
     cur = conn.cursor()
     cur.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='experiment_meta' LIMIT 1"
@@ -380,6 +382,7 @@ def _is_main_loop_completed(conn) -> bool:
 
 
 def _set_main_loop_completed(conn) -> None:
+    """Mark the main scoring loop as finished in experiment_meta."""
     cur = conn.cursor()
     cur.execute(
         "INSERT OR REPLACE INTO experiment_meta (key, value) VALUES (?, ?)",
@@ -389,6 +392,7 @@ def _set_main_loop_completed(conn) -> None:
 
 
 def _set_experiment_meta(conn, key: str, value: str) -> None:
+    """Upsert a key/value pair in the experiment_meta table."""
     cur = conn.cursor()
     cur.execute(
         "INSERT OR REPLACE INTO experiment_meta (key, value) VALUES (?, ?)",
@@ -398,6 +402,7 @@ def _set_experiment_meta(conn, key: str, value: str) -> None:
 
 
 def _mark_query_skipped(conn, query_idx: int, reason: str) -> None:
+    """Record a query as permanently skipped with a reason string."""
     cur = conn.cursor()
     cur.execute(
         "INSERT OR REPLACE INTO skipped_queries (query_idx, reason) VALUES (?, ?)",
@@ -407,36 +412,42 @@ def _mark_query_skipped(conn, query_idx: int, reason: str) -> None:
 
 
 def _is_query_skipped(conn, query_idx: int) -> bool:
+    """True if query_idx exists in skipped_queries."""
     cur = conn.cursor()
     cur.execute("SELECT 1 FROM skipped_queries WHERE query_idx = ? LIMIT 1", (int(query_idx),))
     return cur.fetchone() is not None
 
 
 def _count_skipped_queries(conn) -> int:
+    """Number of rows in skipped_queries."""
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) FROM skipped_queries")
     return int(cur.fetchone()[0])
 
 
 def _count_successful_queries(conn) -> int:
+    """Count of distinct query_idx values present in results."""
     cur = conn.cursor()
     cur.execute("SELECT COUNT(DISTINCT query_idx) FROM results")
     return int(cur.fetchone()[0])
 
 
 def _is_experiment_complete(conn, actual_num_queries: int) -> bool:
+    """True when main loop completed and processed+skipped queries cover the dataset."""
     if not _is_main_loop_completed(conn):
         return False
     return (_count_successful_queries(conn) + _count_skipped_queries(conn)) >= int(actual_num_queries)
 
 
 def _get_processed_ids_from_db(conn, q_idx):
+    """Set of doc_id values already stored for a query in results."""
     cursor = conn.cursor()
     cursor.execute("SELECT doc_id FROM results WHERE query_idx = ?", (q_idx,))
     return {_normalize_id(row[0]) for row in cursor.fetchall()}
 
 
 def _save_to_db(conn, rows):
+    """Bulk INSERT OR IGNORE of fully populated result rows."""
     cursor = conn.cursor()
     cursor.executemany(
         """
@@ -502,10 +513,13 @@ def _insert_placeholder_rows(conn, query_idx: int, rows: list[dict]) -> None:
 
 
 def _record_batch_request_map(conn, custom_id: str, query_idx: int, doc_ids: list[str]) -> None:
+    """Map a Gemini Batch custom_id to (query_idx, doc_ids) with status=submitted."""
+    _ensure_batch_request_map_columns(conn)
     cur = conn.cursor()
     cur.execute(
-        "INSERT OR REPLACE INTO batch_request_map (custom_id, query_idx, doc_ids_json) VALUES (?, ?, ?)",
-        (str(custom_id), int(query_idx), json.dumps(doc_ids)),
+        "INSERT OR REPLACE INTO batch_request_map "
+        "(custom_id, query_idx, doc_ids_json, status, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
+        (str(custom_id), int(query_idx), json.dumps(doc_ids), BATCH_STATUS_SUBMITTED),
     )
     conn.commit()
 
@@ -531,7 +545,7 @@ def _make_batch_request_line(custom_id: str, prompt: str) -> dict:
         "method": "POST",
         "url": "/v1/chat/completions",
         "body": {
-            "model": "gemini-2.0-flash",
+            "model": str(CORRELATION_GEMINI_BATCH_MODEL),
             "messages": [
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": prompt}
@@ -580,6 +594,7 @@ def _cleanup_remote_storage(client, aggressive=False):
         if total_gb > limit_gb or aggressive:
             # Sort by create_time if possible to delete oldest first (fallback to name)
             def get_time(x):
+                """Sort key: prefer create_time, then update_time, then name."""
                 return getattr(x, "create_time", getattr(x, "update_time", getattr(x, "name", "")))
             chunk_files.sort(key=get_time)
 
@@ -603,13 +618,15 @@ def _cleanup_remote_storage(client, aggressive=False):
     except Exception as e:
         logger.warning(f"[STORAGE] Cleanup failed: {e}")
 
-def submit_batch_job(jsonl_path: str, client=None):
+def submit_batch_job(jsonl_path: str, client=None, *, model: str | None = None):
     """
     Submit the JSONL file as a Gemini Batch job (best-effort, SDK-dependent).
     Prints job id and status.
     """
+    batch_model = str(model or CORRELATION_GEMINI_BATCH_MODEL).strip()
     if client is None:
-        client = genai.Client(api_key=GEMINI_API_KEY)
+        client = get_gemini_client(GEMINI_API_KEY)
+    get_llm_gateway().acquire("gemini", batch_model, LLMRequestKind.BATCH)
 
     # Clean up storage before uploading
     _cleanup_remote_storage(client, aggressive=False)
@@ -650,7 +667,7 @@ def submit_batch_job(jsonl_path: str, client=None):
     if batches is None or not hasattr(batches, "create"):
         raise RuntimeError("This google-genai SDK does not expose client.batches.create")
     job = batches.create(
-        model="gemini-2.0-flash",
+        model=batch_model,
         src=str(src),
     )
     job_id = getattr(job, "name", None) or getattr(job, "id", None) or str(job)
@@ -691,7 +708,7 @@ def check_batch_status(job_id: str):
     """
     Check batch job status (best-effort, SDK-dependent).
     """
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    client = get_gemini_client(GEMINI_API_KEY)
     batches = getattr(client, "batches", None)
     if batches is None or not hasattr(batches, "get"):
         raise RuntimeError("This google-genai SDK does not expose client.batches.get")
@@ -711,6 +728,7 @@ def submit_pilot_batch_job(jsonl_path: str):
     return job
 
 def _count_distinct_docs_for_query(conn, query_idx: int) -> int:
+    """How many distinct documents were recorded for one query."""
     cur = conn.cursor()
     cur.execute(
         "SELECT COUNT(DISTINCT doc_id) FROM results WHERE query_idx = ?",
@@ -720,11 +738,12 @@ def _count_distinct_docs_for_query(conn, query_idx: int) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Run directory / resume
+# Run directory / resume — run folders, experiment_config.json, resume logic
 # ---------------------------------------------------------------------------
 
 
 def _get_latest_run_dir(output_dir):
+    """Most recently modified subdirectory under output_dir, or None."""
     if not os.path.exists(output_dir):
         return None
     runs = [
@@ -738,6 +757,7 @@ def _get_latest_run_dir(output_dir):
 
 
 def _requested_num_queries_key(old_params: dict) -> int | None:
+    """Read num_queries_requested (or legacy num_queries) from saved experiment params."""
     v = old_params.get("num_queries_requested")
     if v is not None:
         return int(v)
@@ -746,6 +766,7 @@ def _requested_num_queries_key(old_params: dict) -> int | None:
 
 
 def _params_compatible(old_params: dict, new_params: dict) -> bool:
+    """True if an existing run's experiment_config matches new run parameters."""
     if old_params.get("k") != new_params["k"]:
         return False
     if _requested_num_queries_key(old_params) != new_params["num_queries_requested"]:
@@ -762,6 +783,7 @@ def _params_compatible(old_params: dict, new_params: dict) -> bool:
 
 
 def _should_resume_run(run_dir: str, new_params: dict) -> bool:
+    """True if latest run dir is compatible and not yet complete."""
     config_path = os.path.join(run_dir, "experiment_config.json")
     db_path = os.path.join(run_dir, "experiment_results.db")
     if not os.path.exists(config_path) or not os.path.exists(db_path):
@@ -816,11 +838,12 @@ def _setup_or_resume_run(
 
 
 # ---------------------------------------------------------------------------
-# Analytics
+# Analytics — correlation, scatter plots, failure reports
 # ---------------------------------------------------------------------------
 
 
 def _check_rag_baseline(vector_db, query_emb, gt_id, prints=False):
+    """True when top-1 retrieval does not return the ground-truth document."""
     initial_retrieval = vector_db.retrieve(query_emb, top_k=1, prints=prints)
     if not initial_retrieval:
         return True
@@ -829,6 +852,7 @@ def _check_rag_baseline(vector_db, query_emb, gt_id, prints=False):
 
 
 def _log_failure_analysis(run_dir, q_idx, query, query_df):
+    """Write per-query failure diagnostics to the run directory."""
     gt_row = query_df[query_df["is_gt"] == 1]
     if gt_row.empty:
         return
@@ -854,6 +878,7 @@ def _log_failure_analysis(run_dir, q_idx, query, query_df):
 
 
 def _generate_query_scatterplot(q_idx, df, run_dir):
+    """Save llm_score vs dist_to_gt scatter PNG for one query."""
     if df is None or len(df) == 0:
         logger.info(f"Query {q_idx}: no SQLite rows — skipping scatter plot.")
         return
@@ -875,6 +900,7 @@ def _generate_query_scatterplot(q_idx, df, run_dir):
 
 
 def _calculate_final_stats_and_plot_sqlite(conn, run_dir):
+    """Aggregate SQLite results, log correlation stats, and write summary plots."""
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -947,6 +973,7 @@ def _calculate_final_stats_and_plot_sqlite(conn, run_dir):
 
 
 def _collect_global_pool_doc_ids(vector_db, queries, embedding_model, k=50) -> list[str]:
+    """Union of doc ids retrieved for all queries (global scoring pool)."""
     pool_ids: set[str] = set()
     logger.info(f"Building global pool (ids only) from {len(queries)} queries (k={k})...")
     for entry in queries:
@@ -962,6 +989,42 @@ def _collect_global_pool_doc_ids(vector_db, queries, embedding_model, k=50) -> l
             for hit in vector_db.retrieve(gt_emb_arr, top_k=k, prints=False):
                 pool_ids.add(_normalize_id(getattr(hit.node, "id_", "")))
     return sorted(pool_ids)
+
+
+def _save_or_load_queries(run_dir: str, queries: list[dict]) -> list[dict]:
+    """
+    On first run: persist the ordered query list to queries.json.
+    On resume: load from disk, discarding the freshly-loaded list.
+
+    This is the query-side counterpart of :func:`_save_or_load_global_pool`.
+    Without it a resume that sees a changed/reordered source JSONL would silently
+    misattribute every SQLite score — q_idx 3 would be analysed against a different
+    question than was originally scored.
+    """
+    path = os.path.join(run_dir, "queries.json")
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            if len(loaded) != len(queries):
+                logger.warning(
+                    f"[QUERIES] Disk has {len(loaded)} queries, fresh load has {len(queries)}. "
+                    "Using disk version to preserve q_idx consistency with the original run."
+                )
+            logger.info(f"[QUERIES] Loaded query list from disk: {len(loaded)} entries")
+            return loaded
+        except Exception as exc:
+            logger.warning(f"[QUERIES] Could not load queries.json ({exc}). Using fresh load.")
+            return queries
+    tmp_path = path + ".tmp"
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(queries, f)
+        os.replace(tmp_path, path)
+        logger.info(f"[QUERIES] Query list persisted: {len(queries)} entries → {path}")
+    except Exception as exc:
+        logger.warning(f"[QUERIES] Could not save queries.json ({exc}).")
+    return queries
 
 
 def _save_or_load_global_pool(run_dir: str, sorted_doc_ids: list[str]) -> list[str]:
@@ -1001,6 +1064,7 @@ def _save_or_load_global_pool(run_dir: str, sorted_doc_ids: list[str]) -> list[s
 
 
 def _chroma_batch_get_documents_and_embeddings(collection, doc_ids: list[str]):
+    """Fetch document text and embeddings from Chroma in CHROMA_FETCH_CHUNK batches."""
     if not doc_ids:
         return {}
     raw = collection.get(ids=doc_ids, include=["documents", "embeddings"])
@@ -1076,12 +1140,12 @@ def _fetch_docs_in_batches(
 
 
 # ---------------------------------------------------------------------------
-# University Ollama: live scoring (end-to-end without Gemini Batch API)
+# Live scoring — real-time scoring via llm_gateway (Ollama / NVIDIA IH)
 # ---------------------------------------------------------------------------
 
 
-def _get_doc_ids_needing_score_ollama(conn, query_idx: int) -> set[str]:
-    """Ollama mode: treat only NULL as needing scoring (0.0 means parse/network failure)."""
+def _get_doc_ids_needing_score_live(conn, query_idx: int) -> set[str]:
+    """Live LLM mode (Ollama / NVIDIA IH): only NULL needs scoring (0.0 = parse/network failure)."""
     cur = conn.cursor()
     cur.execute(
         """
@@ -1108,7 +1172,7 @@ def _resolve_query_state(
     cannot be found (caller should skip/mark the query).
 
     score_mode "gemini": re-queues docs with llm_score NULL or 0.0.
-    score_mode "ollama": re-queues only docs with llm_score NULL.
+    score_mode "live" (or legacy "ollama"): re-queues only docs with llm_score NULL.
     """
     gt_id_norm = _gt_id_str(entry)
     gt_pmid = _gt_pmid_int_for_chroma(entry)
@@ -1117,8 +1181,8 @@ def _resolve_query_state(
         return None
     processed_ids = _get_processed_ids_from_db(conn, q_idx)
     needs_score = (
-        _get_doc_ids_needing_score_ollama(conn, q_idx)
-        if score_mode == "ollama"
+        _get_doc_ids_needing_score_live(conn, q_idx)
+        if score_mode in ("live", "ollama")
         else _get_doc_ids_needing_score(conn, q_idx)
     )
     missing_ids = [d for d in sorted_doc_ids if _normalize_id(d) not in processed_ids]
@@ -1126,203 +1190,28 @@ def _resolve_query_state(
     return gt_id_norm, gt_emb, target_ids
 
 
-_LAST_OLLAMA_ERROR: str | None = None
-_OLLAMA_CLIENT: Client | None = None
-_OLLAMA_REQUEST_RETRIES = 3
-_OLLAMA_RETRY_SLEEP_SECONDS = 2.0
-
-
-def _get_ollama_client() -> Client:
-    """Singleton Ollama client configured to work with BGU cluster."""
-    global _OLLAMA_CLIENT
-    if _OLLAMA_CLIENT is None:
-        try:
-            _OLLAMA_CLIENT = Client(
-                host=OLLAMA_HOST,
-                verify=bool(OLLAMA_VERIFY_SSL),
-                timeout=float(OLLAMA_TIMEOUT_S),
-            )
-        except TypeError:
-            # Some SDK versions may not support timeout in constructor.
-            _OLLAMA_CLIENT = Client(
-                host=OLLAMA_HOST,
-                verify=bool(OLLAMA_VERIFY_SSL),
-            )
-    return _OLLAMA_CLIENT
-
-def _cluster_llm_query(
-    prompt: str,
-    *,
-    provider: str,
-    model: str,
-    system_prompt: str = "Return strictly JSON only.",
-) -> str | None:
-    """Generic provider-facing query function updated for BGU Ollama cluster."""
-    p = str(provider).strip().lower()
-    if p != "ollama":
-        raise NotImplementedError(f"Unsupported LLM provider: {provider}")
-
-    client = _get_ollama_client()
-    last_err: Exception | None = None
-
-    for attempt in range(1, _OLLAMA_REQUEST_RETRIES + 1):
-        # Primary path: generate with explicit JSON format for stable score parsing.
-        try:
-            gen_resp = client.generate(
-                model=model,
-                prompt=prompt,
-                stream=False,
-                format="json",
-            )
-            gen_text = _extract_ollama_text_from_response(gen_resp)
-            if gen_text:
-                return gen_text
-        except Exception as e:
-            last_err = e
-            logger.warning(
-                f"Ollama generate attempt {attempt}/{_OLLAMA_REQUEST_RETRIES} failed: {e}"
-            )
-
-        # Fallback: chat endpoint, aligned with university examples.
-        try:
-            chat_resp = client.chat(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
-                think="low",
-            )
-            chat_text = _extract_ollama_text_from_response(chat_resp)
-            if chat_text:
-                return chat_text
-            last_err = RuntimeError("Ollama chat returned empty content")
-        except TypeError:
-            # Older SDKs may not support 'think'; retry without it.
-            try:
-                chat_resp = client.chat(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt},
-                    ],
-                )
-                chat_text = _extract_ollama_text_from_response(chat_resp)
-                if chat_text:
-                    return chat_text
-                last_err = RuntimeError("Ollama chat returned empty content")
-            except Exception as e:
-                last_err = e
-                logger.warning(
-                    f"Ollama chat attempt {attempt}/{_OLLAMA_REQUEST_RETRIES} failed: {e}"
-                )
-        except Exception as e:
-            last_err = e
-            logger.warning(
-                f"Ollama chat attempt {attempt}/{_OLLAMA_REQUEST_RETRIES} failed: {e}"
-            )
-
-        if attempt < _OLLAMA_REQUEST_RETRIES:
-            time.sleep(_OLLAMA_RETRY_SLEEP_SECONDS)
-
-    if last_err is not None:
-        raise last_err
-    raise RuntimeError("Ollama query failed: no response from generate/chat")
-
-def _llm_response_to_dict(resp: Any) -> dict:
-    """Convert provider SDK response object to dict safely."""
-    if isinstance(resp, dict):
-        return resp
-    if resp is None:
-        return {}
-    if hasattr(resp, "model_dump"):
-        try:
-            out = resp.model_dump()
-            return out if isinstance(out, dict) else {}
-        except Exception:
-            return {}
-    return {}
-
-
-def _extract_ollama_text_from_response(resp: Any) -> str | None:
+def print_live_provider_info_once() -> None:
     """
-    Parse Ollama SDK response like the example:
-      - generate: {"response":"..."}
-      - chat: {"message":{"content":"..."}}
-    Returns only the text needed for score parsing.
+    Print provider/model info for the configured live backend.
+    Best-effort only (Ollama lists cluster models; NVIDIA IH prints model + key hint).
     """
-    payload = _llm_response_to_dict(resp)
-    direct = payload.get("response")
-    if isinstance(direct, str) and direct.strip():
-        return direct.strip()
-    msg = payload.get("message", {})
-    content = msg.get("content") if isinstance(msg, dict) else None
-    if isinstance(content, str) and content.strip():
-        return content.strip()
-    return None
+    prov = _normalize_live_provider()
+    if prov == "nvidia_ih":
+        from configurations.config import NVIDIA_IH_API_KEY, NVIDIA_IH_MODEL
 
-
-def _validate_and_normalize_batch_scores(scores: list[int], expected_n: int) -> list[int]:
-    """
-    Post-parse validation:
-    - exactly expected_n items
-    - every item integer in 1..10
-    Invalid/missing values are normalized and logged.
-    """
-    out: list[int] = []
-    changes = 0
-    for i in range(expected_n):
-        raw = scores[i] if i < len(scores) else 1
-        try:
-            v = int(raw)
-        except Exception:
-            v = 1
-            changes += 1
-        if v < 1:
-            v = 1
-            changes += 1
-        elif v > 10:
-            v = 10
-            changes += 1
-        out.append(v)
-    if changes > 0:
-        logger.warning(
-            f"[LLM] Score validation adjusted {changes} value(s); expected_n={expected_n}."
-        )
-    return out
-
-
-def _ollama_call_generate(prompt: str) -> str | None:
-    """
-    Calls BGU cis-ollama server using /api/generate with JSON output mode.
-    Returns the raw text generated by the model.
-    """
-    global _LAST_OLLAMA_ERROR
-    _LAST_OLLAMA_ERROR = None
+        if not (NVIDIA_IH_API_KEY or "").strip():
+            print("[NVIDIA_IH] Warning: IH_API_KEY / NVIDIA_IH_API_KEY is not set.")
+        print(f"[NVIDIA_IH] Model: {NVIDIA_IH_MODEL}")
+        return
+    if prov != "ollama":
+        print(f"[{_live_provider_display_name(prov)}] Live provider configured (no cluster listing).")
+        return
     try:
-        out = _cluster_llm_query(
-            prompt=prompt,
-            provider="ollama",
-            model=CORRELATION_OLLAMA_MODEL,
-            system_prompt="Return strictly JSON only.",
+        client = get_ollama_client(
+            OLLAMA_HOST,
+            verify_ssl=bool(OLLAMA_VERIFY_SSL),
+            timeout_s=float(OLLAMA_TIMEOUT_S),
         )
-        if out is None or not str(out).strip():
-            _LAST_OLLAMA_ERROR = "Empty response from Ollama cluster"
-            return None
-        return out
-    except Exception as e:
-        _LAST_OLLAMA_ERROR = str(e)
-        logger.exception(f"Ollama generate failed: {e}")
-        return None
-
-
-def _ollama_print_available_models_once() -> None:
-    """
-    Print available Ollama models from the cluster.
-    Uses /api/tags (no extra deps). Best-effort only.
-    """
-    try:
-        client = _get_ollama_client()
         print(f"[Ollama] Fetch available models via client.list() | host={OLLAMA_HOST}")
 
         active = client.ps()
@@ -1351,24 +1240,43 @@ def _ollama_print_available_models_once() -> None:
         logger.warning(f"Ollama models listing failed (non-fatal): {e}")
 
 
-def _ollama_score_batch(query_text: str, doc_contexts: list[str]) -> list[int]:
-    """Returns integer scores (1..10) for each doc_context item."""
-    print(f"[Ollama] Scoring batch: query_chars={len(query_text)} docs={len(doc_contexts)}")
-    prompt = _get_batch_scoring_prompt(query_text, doc_contexts)
-    raw = _ollama_call_generate(prompt)
-    if raw is None:
-        if OLLAMA_FAIL_FAST_ON_CONNECTION_ERROR and _LAST_OLLAMA_ERROR:
-            raise RuntimeError(f"Ollama connectivity failure: {_LAST_OLLAMA_ERROR}")
-        return [0] * len(doc_contexts)
-    if not isinstance(raw, str):
-        raw = json.dumps(raw, ensure_ascii=False)
-    ints = _parse_batch_scores(raw, expected_n=len(doc_contexts))
-    ints = _validate_and_normalize_batch_scores(ints, expected_n=len(doc_contexts))
-    print(f"[Ollama] Parsed integer scores: {ints}")
+# Backward-compatible name used by main.py.
+ollama_print_available_models_once = print_live_provider_info_once
+
+
+async def _live_score_batch(query_text: str, doc_contexts: list[str]) -> list[int]:
+    """
+    Score a batch of documents via the LLM gateway (provider + prompt in, integers 1..10 out).
+
+    The experiment does not call providers or parse raw LLM text; that is handled in
+    ``utility.llm_gateway.await_relevance_scores``.
+    """
+    label = _live_provider_display_name()
+    n = len(doc_contexts)
+    print(f"[{label}] Scoring batch: query_chars={len(query_text)} docs={n}")
+    prov = _normalize_live_provider()
+    if not _is_live_correlation_provider(prov):
+        raise RuntimeError(
+            f"Live scoring provider must be ollama or nvidia_ih, got {prov!r}"
+        )
+    try:
+        ints = await await_relevance_scores_for_documents(
+            provider=prov,
+            model=correlation_live_model_name(),
+            query=query_text,
+            doc_contexts=doc_contexts,
+        )
+    except LLMGatewayError as exc:
+        logger.exception(f"{label} scoring failed: {exc}")
+        if OLLAMA_FAIL_FAST_ON_CONNECTION_ERROR:
+            raise RuntimeError(f"{label} request failure: {exc}") from exc
+        return [0] * n
+    print(f"[{label}] Scores: {ints}")
     return ints
 
 
 def _update_llm_scores_for_docs(conn, query_idx: int, doc_ids: list[str], scores: list[float]) -> None:
+    """Write normalized llm_score values (0.0–1.0) for doc_ids of one query."""
     cur = conn.cursor()
     cur.executemany(
         "UPDATE results SET llm_score = ? WHERE query_idx = ? AND doc_id = ?",
@@ -1376,14 +1284,15 @@ def _update_llm_scores_for_docs(conn, query_idx: int, doc_ids: list[str], scores
     )
 
 
-def _score_batch_or_fail_fast(
+async def _score_batch_or_fail_fast(
     db_conn,
     q_idx: int,
     query_text: str,
     batch_contexts: list[str],
 ) -> list[int]:
+    """Score one batch via live gateway; raise on connection error if configured."""
     try:
-        return _ollama_score_batch(query_text, batch_contexts)
+        return await _live_score_batch(query_text, batch_contexts)
     except Exception as e:
         _set_experiment_meta(db_conn, "fatal_llm_error", str(e))
         _set_experiment_meta(db_conn, "fatal_llm_error_query_idx", str(int(q_idx)))
@@ -1392,6 +1301,7 @@ def _score_batch_or_fail_fast(
 
 
 def _record_fatal_llm_error(db_conn, q_idx: int, error: Exception) -> None:
+    """Persist fatal LLM error text in experiment_meta for a query."""
     _set_experiment_meta(db_conn, "fatal_llm_error", str(error))
     _set_experiment_meta(db_conn, "fatal_llm_error_query_idx", str(int(q_idx)))
     db_conn.commit()
@@ -1416,7 +1326,7 @@ async def _score_batches_parallel_for_query(
 
     async def _run_one(doc_ids: list[str], contexts: list[str]) -> tuple[list[str], list[int]]:
         async with sem:
-            ints = await asyncio.to_thread(_ollama_score_batch, query_text, contexts)
+            ints = await _live_score_batch(query_text, contexts)
             return doc_ids, ints
 
     tasks = [asyncio.create_task(_run_one(doc_ids, contexts)) for doc_ids, contexts in batches_to_score]
@@ -1433,7 +1343,7 @@ async def _score_batches_parallel_for_query(
         raise
 
 
-async def _run_global_correlation_experiment_ollama_async(
+async def _run_global_correlation_experiment_live_async(
     vector_db,
     embedding_model,
     num_queries: int,
@@ -1443,13 +1353,20 @@ async def _run_global_correlation_experiment_ollama_async(
     is_pilot: bool = False,
 ) -> None:
     """
-    Ollama live scoring: inserts placeholders and updates llm_score in SQLite immediately.
+    Live scoring (Ollama or NVIDIA IH): inserts placeholders and updates llm_score in SQLite.
 
-    is_pilot=True: always creates a new run (no resume), applies
-    CORRELATION_PILOT_MAX_DOCS_PER_QUERY, and uses a 'pilot_run_ollama_' prefix.
+    Run steps
+    ---------
+    1. Load queries and build the global document pool.
+    2. Create or resume run directory and initialize SQLite.
+    3. Per query: GT, target docs, Chroma fetch, parallel scoring via gateway.
+    4. Mark completion, compute stats and plots.
+
+    ``is_pilot=True``: always a new run, cap docs per query, no resume.
     """
-    _ollama_print_available_models_once()
+    live_prov = _normalize_live_provider()
 
+    # --- Step 1: load queries and global document pool ---
     if is_pilot:
         all_queries = load_qa_queries(200)
         queries = all_queries[:int(num_queries)]
@@ -1460,16 +1377,18 @@ async def _run_global_correlation_experiment_ollama_async(
     sorted_doc_ids = _collect_global_pool_doc_ids(vector_db, queries, embedding_model, k=k)
     global_pool_size = len(sorted_doc_ids)
 
-    run_prefix = "pilot_run_ollama" if is_pilot else "ollama_run"
+    run_prefix = _live_run_prefix(is_pilot=is_pilot, provider=live_prov)
     experiment_params = {
         "num_queries_requested": num_queries,
         "actual_num_queries": actual_num_queries,
         "global_pool_size": global_pool_size,
         "k": k,
-        "model": CORRELATION_OLLAMA_MODEL,
-        "mode": "ollama_pilot_live" if is_pilot else "ollama_live",
+        "model": correlation_live_model_name(),
+        "llm_backend": live_prov,
+        "mode": _live_mode_name(is_pilot=is_pilot, provider=live_prov),
     }
 
+    # --- Step 2: run dir, SQLite, persist pool/queries for resume ---
     run_dir = _setup_or_resume_run(
         output_dir, experiment_params, run_prefix, support_resume=not is_pilot
     )
@@ -1477,22 +1396,26 @@ async def _run_global_correlation_experiment_ollama_async(
     db_conn = _init_sqlite(db_path)
 
     sorted_doc_ids = _save_or_load_global_pool(run_dir, sorted_doc_ids)
+    if not is_pilot:
+        queries = _save_or_load_queries(run_dir, queries)
     global_pool_size = len(sorted_doc_ids)
+    actual_num_queries = len(queries)
 
-    tag = "[Ollama Pilot]" if is_pilot else "[Ollama]"
+    tag = _live_log_tag(is_pilot=is_pilot, provider=live_prov)
     logger.info(f"{tag} Dataset: {actual_num_queries} queries; global pool = {global_pool_size} ids")
 
-    ollama_conc = max(1, int(OLLAMA_MAX_CONCURRENT_REQUESTS))
-    ollama_batch_size = max(1, int(OLLAMA_DOCS_PER_REQUEST))
-    logger.info(f"{tag} Concurrency per query: {ollama_conc}, docs per request: {ollama_batch_size}")
+    live_conc = max(1, int(OLLAMA_MAX_CONCURRENT_REQUESTS))
+    live_batch_size = max(1, int(OLLAMA_DOCS_PER_REQUEST))
+    logger.info(f"{tag} Concurrency per query: {live_conc}, docs per request: {live_batch_size}")
 
+    # --- Step 3: query loop — placeholders, LLM scoring, SQLite updates ---
     for q_idx, entry in enumerate(queries, start=1):
         if _is_query_skipped(db_conn, q_idx):
             continue
 
         query_text = entry.get("question")
         state = _resolve_query_state(
-            db_conn, q_idx, entry, sorted_doc_ids, vector_db.collection, score_mode="ollama"
+            db_conn, q_idx, entry, sorted_doc_ids, vector_db.collection, score_mode="live"
         )
         if state is None:
             logger.warning(f"{tag} SKIPPED_PERMANENTLY query_idx={q_idx}: GT missing.")
@@ -1521,13 +1444,13 @@ async def _run_global_correlation_experiment_ollama_async(
 
         logger.info(f"{tag} Query {q_idx}: scoring up to {len(target_ids)} docs...")
         _fetch_docs_in_batches(
-            target_ids, vector_db.collection, gt_emb, gt_id_norm, rag_failed, ollama_batch_size, _on_batch
+            target_ids, vector_db.collection, gt_emb, gt_id_norm, rag_failed, live_batch_size, _on_batch
         )
 
         if batches_to_score:
             logger.info(
                 f"{tag} Query {q_idx}: scoring {len(batches_to_score)} batches "
-                f"(batch_size={ollama_batch_size}, concurrency={ollama_conc})"
+                f"(batch_size={live_batch_size}, concurrency={live_conc})"
             )
             try:
                 def _on_batch_scored(doc_ids: list[str], ints: list[int]) -> None:
@@ -1539,20 +1462,25 @@ async def _run_global_correlation_experiment_ollama_async(
                     q_idx=q_idx,
                     query_text=query_text,
                     batches_to_score=batches_to_score,
-                    concurrency=ollama_conc,
+                    concurrency=live_conc,
                     on_batch_scored=_on_batch_scored,
                 )
             except Exception as e:
                 _record_fatal_llm_error(db_conn, q_idx, e)
                 raise
 
+    # --- Step 4: finalize — metadata, correlation, plots ---
     _set_main_loop_completed(db_conn)
     _calculate_final_stats_and_plot_sqlite(db_conn, run_dir)
     db_conn.close()
 
 
+# Backward-compatible alias (main.py / docs may still reference the old name).
+_run_global_correlation_experiment_ollama_async = _run_global_correlation_experiment_live_async
+
+
 # ---------------------------------------------------------------------------
-# Main experiment loop
+# Gemini Batch pipeline — chunk submission, harvest, retry
 # ---------------------------------------------------------------------------
 
 
@@ -1570,6 +1498,259 @@ MAX_NETWORK_RETRIES = 5        # Max retries on transient network/connection err
 
 # States that count as "occupied" quota slots
 _ACTIVE_JOB_STATES = {"JOB_STATE_PENDING", "JOB_STATE_RUNNING", "PENDING", "RUNNING"}
+# Terminal states — job will not change further
+_ENDED_JOB_STATES = {
+    "JOB_STATE_SUCCEEDED", "JOB_STATE_FAILED", "JOB_STATE_CANCELLED",
+    "JOB_STATE_EXPIRED", "ACTIVE", "FAILED",
+}
+# Subset of ended states that produced usable output
+_SUCCEEDED_JOB_STATES = {"JOB_STATE_SUCCEEDED", "ACTIVE"}
+
+
+def _download_job_output(client, job, run_dir: str) -> str | None:
+    """
+    Download the output JSONL for a completed Gemini Batch job from the Files API.
+    Returns the local file path, or None on failure.
+    """
+    dest = getattr(job, "dest", None)
+    if dest is None:
+        logger.warning("[HARVEST] job.dest is None — cannot download output.")
+        return None
+    file_name = getattr(dest, "file_name", None)
+    if not file_name:
+        logger.warning("[HARVEST] job.dest.file_name is empty — cannot download output.")
+        return None
+
+    job_id = str(getattr(job, "name", None) or "unknown")
+    safe_id = job_id.replace("/", "_").replace(":", "_").replace(".", "_")
+    local_path = os.path.join(run_dir, f"batch_output_{safe_id}.jsonl")
+    try:
+        logger.info(f"[HARVEST] Downloading output file {file_name!r} → {os.path.basename(local_path)}")
+        data: bytes = client.files.download(file=file_name)
+        with open(local_path, "wb") as fh:
+            fh.write(data)
+        logger.info(f"[HARVEST] Saved {len(data):,} bytes → {local_path}")
+        return local_path
+    except Exception as exc:
+        logger.error(f"[HARVEST] Download failed for {file_name!r}: {exc}")
+        return None
+
+
+def _poll_and_harvest_jobs(
+    client,
+    job_ids: list[str],
+    run_dir: str,
+    db_path: str,
+    poll_interval: int = POLL_INTERVAL_SECONDS,
+) -> list[str]:
+    """
+    Poll all submitted Gemini Batch jobs until each reaches a terminal state,
+    download the output JSONL for each that succeeded, then sync scores into
+    the SQLite DB via sync_batch_results.
+
+    Returns the list of downloaded local JSONL paths.
+
+    Harvest steps
+    -------------
+    1. Poll each job_id until a terminal state.
+    2. Download output JSONL into the run directory.
+    3. Call ``sync_batch_results`` to update llm_score in SQLite.
+    """
+    if not job_ids:
+        logger.warning("[HARVEST] No job IDs to harvest.")
+        return []
+
+    # Import here to avoid a circular import at module load time.
+    from sync_batch_results import sync_batch_results as _sync
+
+    pending = list(job_ids)
+    downloaded: list[str] = []
+
+    # --- Step 1: wait for all jobs to finish ---
+    logger.info(f"[HARVEST] Waiting for {len(pending)} job(s) to complete...")
+    while pending:
+        still_pending: list[str] = []
+        for job_id in pending:
+            try:
+                job = client.batches.get(name=job_id)
+                state = str(getattr(job, "state", "") or "").upper()
+            except Exception as exc:
+                logger.warning(f"[HARVEST] Could not poll {job_id!r}: {exc} — will retry.")
+                still_pending.append(job_id)
+                continue
+
+            if not any(s in state for s in _ENDED_JOB_STATES):
+                logger.info(f"[HARVEST] {job_id!r}: state={state} (running)")
+                still_pending.append(job_id)
+                continue
+
+            if any(s in state for s in _SUCCEEDED_JOB_STATES):
+                logger.info(f"[HARVEST] {job_id!r}: SUCCEEDED — downloading output")
+                path = _download_job_output(client, job, run_dir)
+                if path:
+                    downloaded.append(path)
+            else:
+                logger.warning(f"[HARVEST] {job_id!r}: ended with state={state} — no output to download")
+
+        pending = still_pending
+        if pending:
+            logger.info(f"[HARVEST] {len(pending)} job(s) still running. Sleeping {poll_interval}s...")
+            time.sleep(poll_interval)
+
+    if not downloaded:
+        logger.warning("[HARVEST] No output files were downloaded; sync skipped.")
+        return []
+
+    # --- Steps 2–3: sync Batch responses into results table ---
+    logger.info(f"[HARVEST] Syncing {len(downloaded)} output file(s) into {db_path}")
+    _sync(db_path=db_path, output_paths_input=",".join(downloaded))
+    return downloaded
+
+
+def _index_jsonl_requests_by_custom_id(run_dir: str) -> dict[str, dict]:
+    """Load request lines from all JSONL files in a run directory (key = custom_id)."""
+    out: dict[str, dict] = {}
+    if not os.path.isdir(run_dir):
+        return out
+    for name in sorted(os.listdir(run_dir)):
+        if not name.endswith(".jsonl"):
+            continue
+        if name.startswith("batch_output_"):
+            continue
+        path = os.path.join(run_dir, name)
+        try:
+            with open(path, encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        obj = json.loads(line)
+                    except Exception:
+                        continue
+                    if not isinstance(obj, dict):
+                        continue
+                    cid = obj.get("custom_id") or obj.get("key") or obj.get("id")
+                    if cid:
+                        out[str(cid)] = obj
+        except OSError as exc:
+            logger.warning(f"[RETRY] Could not read {path!r}: {exc}")
+    return out
+
+
+def _custom_ids_needing_batch_retry(conn) -> list[str]:
+    """custom_ids whose mapped docs still lack a usable llm_score, or status is missing/failed."""
+    _ensure_batch_request_map_columns(conn)
+    cur = conn.cursor()
+    cur.execute("SELECT custom_id, query_idx, doc_ids_json, status FROM batch_request_map")
+    need: list[str] = []
+    for custom_id, q_idx, doc_ids_json, status in cur.fetchall():
+        st = str(status or BATCH_STATUS_SUBMITTED).strip().lower()
+        if st in (BATCH_STATUS_MISSING, BATCH_STATUS_FAILED, BATCH_STATUS_PENDING):
+            need.append(str(custom_id))
+            continue
+        try:
+            doc_ids = json.loads(doc_ids_json)
+        except Exception:
+            doc_ids = []
+        if not doc_ids:
+            continue
+        placeholders = ",".join(["?"] * len(doc_ids))
+        cur.execute(
+            f"SELECT COUNT(*) FROM results WHERE query_idx = ? AND doc_id IN ({placeholders}) "
+            "AND (llm_score IS NULL OR llm_score = 0.0)",
+            [int(q_idx), *[_normalize_id(d) for d in doc_ids]],
+        )
+        if int(cur.fetchone()[0]) > 0:
+            need.append(str(custom_id))
+    return sorted(set(need))
+
+
+def retry_missing_batches(
+    db_path: str,
+    *,
+    per_job_timeout_s: int | None = None,
+) -> list[str]:
+    """
+    Re-submit Gemini Batch requests for rows still missing scores.
+
+    Reuses existing request JSONL lines from the run directory when possible.
+
+    Retry steps
+    -----------
+    1. Find custom_ids with missing scores or status missing/failed.
+    2. Rebuild JSONL from original request files in the run directory.
+    3. Submit and auto-harvest.
+    """
+    del per_job_timeout_s  # reserved for future per-job harvest timeout wiring
+    if _is_live_correlation_provider():
+        raise RuntimeError(
+            "retry_missing_batches applies only to Gemini Batch mode "
+            f"(current provider={_configured_correlation_provider()!r})."
+        )
+    if not os.path.isfile(db_path):
+        raise FileNotFoundError(db_path)
+
+    run_dir = os.path.dirname(os.path.abspath(db_path))
+    conn = sqlite3.connect(db_path)
+    _ensure_batch_request_map_columns(conn)
+    # --- Step 1: identify requests needing retry ---
+    custom_ids = _custom_ids_needing_batch_retry(conn)
+    if not custom_ids:
+        logger.info("[RETRY] No missing/failed batch requests found — nothing to resubmit.")
+        conn.close()
+        return []
+
+    indexed = _index_jsonl_requests_by_custom_id(run_dir)
+    missing_lines = [cid for cid in custom_ids if cid not in indexed]
+    if missing_lines:
+        logger.warning(
+            f"[RETRY] {len(missing_lines)} custom_id(s) have no source JSONL line in {run_dir} "
+            f"(first few: {missing_lines[:5]})."
+        )
+
+    # --- Step 2: rebuild JSONL from existing request files ---
+    retry_path = os.path.join(run_dir, f"retry_missing_{int(time.time())}.jsonl")
+    written = 0
+    with open(retry_path, "w", encoding="utf-8") as out_f:
+        for cid in custom_ids:
+            obj = indexed.get(cid)
+            if obj is None:
+                continue
+            out_f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+            written += 1
+    if written == 0:
+        conn.close()
+        raise RuntimeError(
+            "[RETRY] Could not rebuild any request lines from run JSONL files."
+        )
+
+    logger.info(f"[RETRY] Wrote {written} request(s) → {retry_path}")
+    client = get_gemini_client(GEMINI_API_KEY)
+    job_id = _submit_with_backoff(client, retry_path)
+    _set_experiment_meta(conn, "last_batch_job_id", job_id)
+    prev = _get_experiment_meta(conn, "retry_job_ids") or ""
+    merged = ",".join([j for j in (prev.split(",") if prev else []) + [job_id] if j])
+    _set_experiment_meta(conn, "retry_job_ids", merged)
+    conn.close()
+
+    # --- Step 3: submit + harvest ---
+    logger.info(f"[RETRY] Submitted job_id={job_id!r}; harvesting output...")
+    _poll_and_harvest_jobs(
+        client=client,
+        job_ids=[job_id],
+        run_dir=run_dir,
+        db_path=db_path,
+    )
+    return [job_id]
+
+
+def _get_experiment_meta(conn, key: str) -> str | None:
+    """Read a single experiment_meta value by key, or None."""
+    cur = conn.cursor()
+    cur.execute("SELECT value FROM experiment_meta WHERE key = ?", (str(key),))
+    row = cur.fetchone()
+    return str(row[0]) if row and row[0] is not None else None
 
 
 def _count_active_jobs(client) -> int:
@@ -1664,7 +1845,7 @@ def _produce_chunk_jsonl(
             def _on_batch(doc_ids, contexts, placeholder_rows):
                 nonlocal request_idx
                 _insert_placeholder_rows(db_conn, q_idx, placeholder_rows)
-                prompt = _get_batch_scoring_prompt(query_text, contexts)
+                prompt = build_relevance_scoring_prompt(query_text, contexts)
                 custom_id = f"q{q_idx}_b{request_idx:08d}_{uuid.uuid4().hex[:8]}"
                 _record_batch_request_map(db_conn, custom_id, q_idx, doc_ids)
                 out_f.write(json.dumps(_make_batch_request_line(custom_id, prompt), ensure_ascii=False) + "\n")
@@ -1755,10 +1936,19 @@ async def run_global_correlation_experiment_async(
     - 429 and transient network errors in upload/submit → exponential backoff with retry.
     - After each chunk, large Python lists are explicitly cleared to prevent
       memory bloat during long runs on MPS.
+
+  Run steps (Gemini)
+  ------------------
+  1. If live provider — delegate to ``_run_global_correlation_experiment_live_async``.
+  2. Build pool + run dir + SQLite.
+  3. Split into chunks; per chunk: JSONL → wait for slot → submit with backoff.
+  4. Harvest all job_ids and write scores into SQLite.
     """
-    if str(CORRELATION_LLM_PROVIDER).lower() == "ollama":
-        logger.info("Global Correlation: using Ollama provider (live scoring).")
-        return await _run_global_correlation_experiment_ollama_async(
+    # --- Step 0: route to live path when not Gemini ---
+    if _is_live_correlation_provider():
+        label = _live_provider_display_name()
+        logger.info(f"Global Correlation: using {label} provider (live scoring).")
+        return await _run_global_correlation_experiment_live_async(
             vector_db=vector_db,
             embedding_model=embedding_model,
             num_queries=num_queries,
@@ -1768,6 +1958,7 @@ async def run_global_correlation_experiment_async(
 
     import time
 
+    # --- Step 1: queries, global pool, run directory ---
     queries = load_qa_queries(num_queries)
     actual_num_queries = len(queries)
     sorted_doc_ids = _collect_global_pool_doc_ids(vector_db, queries, embedding_model, k=k)
@@ -1781,7 +1972,8 @@ async def run_global_correlation_experiment_async(
         "actual_num_queries": actual_num_queries,
         "global_pool_size": global_pool_size,
         "k": k,
-        "model": "gemini-2.0-flash",
+        "model": CORRELATION_GEMINI_BATCH_MODEL,
+        "llm_backend": "gemini",
         "mode": "batch_pipeline_jsonl",
         "batch_size": BATCH_SIZE,
         "pipeline_chunk_size": PIPELINE_CHUNK_SIZE,
@@ -1792,16 +1984,16 @@ async def run_global_correlation_experiment_async(
     db_path = os.path.join(run_dir, "experiment_results.db")
     db_conn = _init_sqlite(db_path)
 
-    # Load the exact pool used in the original run (saves on new run; loads on all restarts)
+    # Load the exact pool and query list used in the original run.
     sorted_doc_ids = _save_or_load_global_pool(run_dir, sorted_doc_ids)
+    queries = _save_or_load_queries(run_dir, queries)
     global_pool_size = len(sorted_doc_ids)
 
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    client = get_gemini_client(GEMINI_API_KEY)
 
-    # Build indexed list of (q_idx, entry) so chunk numbering matches query indices
+    # --- Step 2: split into chunks (up to PIPELINE_CHUNK_SIZE queries each) ---
     indexed_queries = list(enumerate(queries, start=1))
 
-    # Split into pipeline chunks
     chunks = [
         indexed_queries[i: i + PIPELINE_CHUNK_SIZE]
         for i in range(0, len(indexed_queries), PIPELINE_CHUNK_SIZE)
@@ -1825,6 +2017,7 @@ async def run_global_correlation_experiment_async(
         f"Max concurrent jobs: {MAX_CONCURRENT_JOBS}. Poll interval: {POLL_INTERVAL_SECONDS}s."
     )
 
+    # --- Step 3: chunk loop — build/reuse JSONL, wait for slot, submit ---
     for chunk_num, chunk_entries in enumerate(chunks, start=1):
         first_q = chunk_entries[0][0]
         last_q = chunk_entries[-1][0]
@@ -1924,6 +2117,15 @@ async def run_global_correlation_experiment_async(
     _set_main_loop_completed(db_conn)
     db_conn.close()
 
+    # --- Step 4: wait for jobs to complete and sync results into DB ---
+    if submitted_job_ids:
+        _poll_and_harvest_jobs(
+            client=client,
+            job_ids=submitted_job_ids,
+            run_dir=run_dir,
+            db_path=db_path,
+        )
+
 
 async def run_global_correlation_pilot_batch_generator(
     vector_db,
@@ -1931,7 +2133,9 @@ async def run_global_correlation_pilot_batch_generator(
     num_queries: int = 200,
     pilot_num_queries: int = 5,
     k: int = 50,
-    output_dir: str = "results/global_exp"
+    output_dir: str = "results/global_exp",
+    pilot_batch_size: int = 20,
+    per_job_timeout_s: float | None = None,
 ):
     """
     Pilot (first N queries only): generate per-document Batch API requests.
@@ -1939,10 +2143,18 @@ async def run_global_correlation_pilot_batch_generator(
     - Writes `gemini_pilot_requests.jsonl`
     - custom_id format: q{query_idx}_d{doc_id}
     - Inserts placeholders into SQLite with llm_score=NULL (dist/is_gt/rag_failed populated)
+
+  Run steps
+  ---------
+  1. Route to live pilot when provider is not Gemini.
+  2. (Gemini) Build JSONL — one request per document, map in batch_request_map.
+  3. Submit Batch job and store job_id in meta.
     """
-    if str(CORRELATION_LLM_PROVIDER).lower() == "ollama":
-        logger.info("Global Correlation PILOT: using Ollama provider (live scoring).")
-        return await _run_global_correlation_experiment_ollama_async(
+    # --- Step 0: live pilot (Ollama / NVIDIA IH) ---
+    if _is_live_correlation_provider():
+        label = _live_provider_display_name()
+        logger.info(f"Global Correlation PILOT: using {label} provider (live scoring).")
+        return await _run_global_correlation_experiment_live_async(
             vector_db=vector_db,
             embedding_model=embedding_model,
             num_queries=pilot_num_queries,
@@ -1951,6 +2163,7 @@ async def run_global_correlation_pilot_batch_generator(
             is_pilot=True,
         )
 
+    # --- Step 1 (Gemini): pilot queries + pool + new run ---
     queries = load_qa_queries(num_queries)
     pilot_queries = queries[: int(pilot_num_queries)]
     actual_num_queries = len(pilot_queries)
@@ -1964,7 +2177,8 @@ async def run_global_correlation_pilot_batch_generator(
         "pilot_num_queries": int(pilot_num_queries),
         "global_pool_size": global_pool_size,
         "k": k,
-        "model": "gemini-2.0-flash",
+        "model": CORRELATION_GEMINI_BATCH_MODEL,
+        "llm_backend": "gemini",
     }
     run_dir = _setup_or_resume_run(output_dir, experiment_params, "pilot_run", support_resume=False)
 
@@ -1972,6 +2186,7 @@ async def run_global_correlation_pilot_batch_generator(
     db_conn = _init_sqlite(db_path)
     jsonl_path = os.path.join(run_dir, "gemini_pilot_requests.jsonl")
 
+    # --- Step 2: write JSONL (one doc per line) + SQLite placeholders ---
     written = 0
     with open(jsonl_path, "w", encoding="utf-8") as out_f:
         for q_idx, entry in enumerate(pilot_queries, start=1):
@@ -1996,7 +2211,7 @@ async def run_global_correlation_pilot_batch_generator(
             def _on_batch(doc_ids, contexts, placeholder_rows):
                 nonlocal written
                 _insert_placeholder_rows(db_conn, q_idx, placeholder_rows)
-                prompt = _get_batch_scoring_prompt(query_text, contexts)
+                prompt = build_relevance_scoring_prompt(query_text, contexts)
                 custom_id = f"q{q_idx}_d{doc_ids[0]}"
                 _record_pilot_request_map(db_conn, custom_id, q_idx, doc_ids[0])
                 out_f.write(json.dumps(_make_batch_request_line(custom_id, prompt), ensure_ascii=False) + "\n")
@@ -2005,6 +2220,7 @@ async def run_global_correlation_pilot_batch_generator(
             _fetch_docs_in_batches(target_ids, vector_db.collection, gt_emb, gt_id_norm, rag_failed, 1, _on_batch)
 
     logger.info(f"PILOT wrote {written} requests to {jsonl_path}")
+    # --- Step 3: submit job to Gemini Batch API ---
     logger.info("Submitting pilot batch job...")
     try:
         job = submit_batch_job(jsonl_path)
@@ -2023,3 +2239,761 @@ async def run_global_correlation_pilot_batch_generator(
         logger.info("Saved submission error to DB: key='last_batch_job_error'")
     _set_main_loop_completed(db_conn)
     db_conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Staged additive-pool mode — grow document pool in stages (ranked + random)
+# ---------------------------------------------------------------------------
+
+MANIFEST_FILENAME = "correlation_pool_manifest.json"
+
+
+def _manifest_path(run_dir: str) -> str:
+    """Absolute path to correlation_pool_manifest.json inside a run directory."""
+    return os.path.join(run_dir, MANIFEST_FILENAME)
+
+
+def _save_manifest(manifest: dict, run_dir: str) -> None:
+    """Atomically write the staged-run manifest JSON to disk."""
+    path = _manifest_path(run_dir)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2)
+    os.replace(tmp, path)
+
+
+def _load_manifest(run_dir: str) -> dict | None:
+    """Load staged-run manifest from disk, or None if missing."""
+    path = _manifest_path(run_dir)
+    if not os.path.exists(path):
+        return None
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _staging_spec_hash(
+    n_queries: int, stride: int, max_ranked_gt: int, max_ranked_q: int, max_random: int
+) -> str:
+    """Short hash fingerprint of staged mode parameters for resume compatibility."""
+    payload = f"{n_queries}|{stride}|{max_ranked_gt}|{max_ranked_q}|{max_random}|additive_pool_v2"
+    return hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+
+def _staged_params_compatible(old_params: dict, new_params: dict) -> bool:
+    """True if an existing staged run matches new staging parameters."""
+    if old_params.get("stage_mode") != new_params.get("stage_mode"):
+        return False
+    if old_params.get("staging_spec_hash") != new_params.get("staging_spec_hash"):
+        return False
+    if _requested_num_queries_key(old_params) != new_params.get("num_queries_requested"):
+        return False
+    old_actual = old_params.get("actual_num_queries")
+    if old_actual is not None and int(old_actual) != int(new_params["actual_num_queries"]):
+        return False
+    if old_params.get("llm_backend") != new_params.get("llm_backend"):
+        return False
+    if old_params.get("model") != new_params.get("model"):
+        return False
+    return True
+
+
+def _setup_or_resume_staged_run(output_dir: str, experiment_params: dict) -> str:
+    """Return staged run directory (resume compatible run or create new)."""
+    latest_run = _get_latest_run_dir(output_dir)
+    if latest_run and os.path.exists(os.path.join(latest_run, "experiment_config.json")):
+        try:
+            with open(os.path.join(latest_run, "experiment_config.json"), "r", encoding="utf-8") as f:
+                old_params = json.load(f)
+            if _staged_params_compatible(old_params, experiment_params):
+                logger.info(f"AUTO-RESUME staged run: {latest_run}")
+                return latest_run
+        except Exception as exc:
+            logger.warning(f"Could not resume staged run from {latest_run}: {exc}")
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run_dir = os.path.join(output_dir, f"staged_run_{timestamp}")
+    os.makedirs(run_dir, exist_ok=True)
+    with open(os.path.join(run_dir, "experiment_config.json"), "w", encoding="utf-8") as f:
+        json.dump(experiment_params, f, indent=4)
+    logger.info(f"NEW STAGED RUN: {run_dir}")
+    return run_dir
+
+
+def _get_per_query_seen(conn) -> dict[str, set[str]]:
+    """Map of query_idx -> set of doc_ids already scored for that query."""
+    cur = conn.cursor()
+    cur.execute("SELECT query_idx, doc_id FROM results")
+    per_query: dict[str, set[str]] = {}
+    for q_idx, doc_id in cur.fetchall():
+        if doc_id:
+            per_query.setdefault(str(q_idx), set()).add(_normalize_id(doc_id))
+    return per_query
+
+
+def _build_ranked_neighbor_ids(
+    vector_db,
+    *,
+    anchor_emb: np.ndarray,
+    gt_id_norm: str,
+    max_ranked: int,
+) -> list[str]:
+    """Top similar doc ids to anchor_emb, excluding GT itself."""
+    seen: set[str] = set()
+    out: list[str] = []
+    top_k = int(max_ranked) + 10
+    for hit in vector_db.retrieve(anchor_emb, top_k=top_k, prints=False):
+        nid = _normalize_id(getattr(hit.node, "id_", ""))
+        if not nid or nid == gt_id_norm or nid in seen:
+            continue
+        seen.add(nid)
+        out.append(nid)
+        if len(out) >= int(max_ranked):
+            break
+    return out
+
+
+def _interleave_ranked_ids(gt_ranked: list[str], q_ranked: list[str]) -> list[str]:
+    """Interleave GT-based and query-based neighbor lists, deduplicating."""
+    from itertools import zip_longest
+    seen: set[str] = set()
+    out: list[str] = []
+    for gt_doc, q_doc in zip_longest(gt_ranked, q_ranked, fillvalue=None):
+        if gt_doc and gt_doc not in seen:
+            seen.add(gt_doc)
+            out.append(gt_doc)
+        if q_doc and q_doc not in seen:
+            seen.add(q_doc)
+            out.append(q_doc)
+    return out
+
+
+def _fetch_all_collection_ids(vector_db) -> list[str]:
+    """Fetch and normalize every doc id from the Chroma collection (ids only, no metadata)."""
+    raw = vector_db.collection.get(include=[])
+    ids = raw.get("ids") or []
+    return sorted({_normalize_id(i) for i in ids if i})
+
+
+def _build_deterministic_random_ids(
+    *,
+    all_collection_ids: list[str],
+    gt_id_norm: str,
+    max_random: int,
+    rng: random.Random,
+) -> list[str]:
+    """Shuffled random doc ids from pre-fetched collection id list (reproducible per seed)."""
+    candidates = [i for i in all_collection_ids if i != gt_id_norm]
+    rng.shuffle(candidates)
+    return candidates[: int(max_random)]
+
+
+def _load_or_build_manifest(
+    run_dir: str,
+    queries: list[dict],
+    vector_db,
+    embedding_model,
+    *,
+    stride: int,
+    max_ranked_gt: int,
+    max_ranked_query: int,
+    max_random: int,
+) -> dict:
+    """Load staged manifest from disk or build ranked/random pools for all queries.
+
+    ranked_ids per query is the interleaved union of GT-based and query-based neighbors,
+    matching the pool that a full run would produce (minus global cross-query dedup).
+    """
+    existing = _load_manifest(run_dir)
+    if existing is not None:
+        return existing
+
+    seed = int(
+        hashlib.sha256(
+            f"{run_dir}|{len(queries)}|{stride}|{max_ranked_gt}|{max_ranked_query}|{max_random}".encode()
+        ).hexdigest()[:8],
+        16,
+    )
+    rng = random.Random(seed)
+    manifest: dict = {
+        "random_seed": seed,
+        "staging_stride": int(stride),
+        "max_ranked_per_gt": int(max_ranked_gt),
+        "max_ranked_per_query": int(max_ranked_query),
+        "max_random_per_query": int(max_random),
+        "queries": {},
+        "stages": {},
+        "staging_last_completed_stage": 0,
+    }
+
+    # Fetch all collection ids once — reused for every query's random pool.
+    logger.info("[STAGED] Pre-fetching collection ids for random pool construction...")
+    all_collection_ids = _fetch_all_collection_ids(vector_db)
+    logger.info(f"[STAGED] Collection id pool: {len(all_collection_ids)} ids")
+
+    for q_idx, entry in enumerate(queries, start=1):
+        gt_id_norm = _gt_id_str(entry)
+        gt_pmid = _gt_pmid_int_for_chroma(entry)
+        gt_emb = _get_gt_embedding_dual_path(vector_db.collection, gt_id_norm, gt_pmid)
+
+        gt_ranked: list[str] = []
+        q_ranked: list[str] = []
+        if gt_emb is not None:
+            gt_ranked = _build_ranked_neighbor_ids(
+                vector_db,
+                anchor_emb=gt_emb,
+                gt_id_norm=gt_id_norm,
+                max_ranked=max_ranked_gt,
+            )
+        if max_ranked_query > 0:
+            query_text = entry.get("question", "")
+            q_emb = np.array(embedding_model.get_text_embedding(query_text), dtype=np.float32)
+            q_ranked = _build_ranked_neighbor_ids(
+                vector_db,
+                anchor_emb=q_emb,
+                gt_id_norm=gt_id_norm,
+                max_ranked=max_ranked_query,
+            )
+
+        ranked_ids = _interleave_ranked_ids(gt_ranked, q_ranked)
+
+        random_ids = _build_deterministic_random_ids(
+            all_collection_ids=all_collection_ids,
+            gt_id_norm=gt_id_norm,
+            max_random=max_random,
+            rng=rng,
+        )
+        manifest["queries"][str(q_idx)] = {
+            "gt_id_norm": gt_id_norm,
+            "ranked_ids": ranked_ids,
+            "random_ids": random_ids,
+            "rank_cursor": 0,
+            "random_cursor": 0,
+        }
+
+    _save_manifest(manifest, run_dir)
+    logger.info(
+        f"[STAGED] Built pool manifest for {len(queries)} queries "
+        f"(max_ranked_gt={max_ranked_gt}, max_ranked_query={max_ranked_query}, "
+        f"max_random={max_random}, stride={stride})."
+    )
+    return manifest
+
+
+def _is_staged_run_complete(manifest: dict) -> bool:
+    """True when rank and random cursors reached end for every query in manifest."""
+    for qentry in manifest.get("queries", {}).values():
+        if int(qentry.get("rank_cursor", 0)) < len(qentry.get("ranked_ids") or []):
+            return False
+        if int(qentry.get("random_cursor", 0)) < len(qentry.get("random_ids") or []):
+            return False
+    return True
+
+
+def _build_stage_scoring_set(
+    manifest: dict,
+    stage: int,
+    per_query_seen: dict[str, set[str]],
+    stride: int,
+) -> tuple[set[str], dict, dict, dict]:
+    """
+    Build per-query doc lists to score in this stage.
+
+    Dedup is per-query: the same doc can appear in multiple queries' lists
+    (producing one (query, doc) pair per query), but is never added twice for
+    the same query. Cursors advance by ``stride`` regardless of how many ids
+    survive filtering.
+    """
+    scoring_union: set[str] = set()  # union across queries (for Gemini batch JSONL)
+    rank_added: dict[str, list[str]] = {}
+    rand_added: dict[str, list[str]] = {}
+    new_cursors: dict[str, dict[str, int]] = {}
+    queries = manifest.get("queries", {})
+
+    for q_idx_str, qentry in queries.items():
+        query_seen = per_query_seen.get(q_idx_str, set())
+        local_seen: set[str] = set(query_seen)  # per-query dedup (already scored + this stage)
+
+        ranked_ids = list(qentry.get("ranked_ids") or [])
+        random_ids = list(qentry.get("random_ids") or [])
+        rank_i = int(qentry.get("rank_cursor", 0))
+        rand_i = int(qentry.get("random_cursor", 0))
+
+        q_docs: list[str] = []
+
+        # Stage 1: include GT doc for this query
+        if stage == 1:
+            gt = _normalize_id(qentry.get("gt_id_norm", ""))
+            if gt and gt not in local_seen:
+                local_seen.add(gt)
+                q_docs.append(gt)
+
+        rank_slice = ranked_ids[rank_i : rank_i + stride]
+        rand_slice = random_ids[rand_i : rand_i + stride]
+
+        ra: list[str] = []
+        for doc_id in rank_slice:
+            nid = _normalize_id(doc_id)
+            if not nid or nid in local_seen:
+                continue
+            local_seen.add(nid)
+            ra.append(nid)
+
+        rb: list[str] = []
+        for doc_id in rand_slice:
+            nid = _normalize_id(doc_id)
+            if not nid or nid in local_seen:
+                continue
+            local_seen.add(nid)
+            rb.append(nid)
+
+        rank_added[q_idx_str] = ra
+        rand_added[q_idx_str] = rb
+        scoring_union.update(ra)
+        scoring_union.update(rb)
+        new_cursors[q_idx_str] = {
+            "rank": min(rank_i + stride, len(ranked_ids)),
+            "rand": min(rand_i + stride, len(random_ids)),
+        }
+
+    return scoring_union, rank_added, rand_added, new_cursors
+
+
+def _produce_stage_gemini_jsonl(
+    *,
+    stage: int,
+    scoring_union: set[str],
+    queries: list[dict],
+    vector_db,
+    embedding_model,
+    db_conn,
+    jsonl_path: str,
+) -> int:
+    """Write one stage JSONL; returns number of batch requests written."""
+    if not scoring_union:
+        return 0
+
+    scoring_list = sorted(scoring_union)
+    request_idx = 0
+    with open(jsonl_path, "w", encoding="utf-8") as out_f:
+        for q_idx, entry in enumerate(queries, start=1):
+            if _is_query_skipped(db_conn, q_idx):
+                continue
+
+            query_text = entry.get("question", "")
+            state = _resolve_query_state(
+                db_conn, q_idx, entry, scoring_list, vector_db.collection, score_mode="gemini"
+            )
+            if state is None:
+                logger.warning(f"[STAGE {stage}] SKIPPED query_idx={q_idx}: GT missing.")
+                _mark_query_skipped(db_conn, q_idx, "missing_gt_embedding_dual_path")
+                continue
+
+            gt_id_norm, gt_emb, target_ids = state
+            if not target_ids:
+                continue
+
+            query_emb = np.array(embedding_model.get_text_embedding(query_text), dtype=np.float32)
+            rag_failed = _check_rag_baseline(vector_db, query_emb, gt_id_norm)
+
+            def _on_batch(doc_ids, contexts, placeholder_rows, _q=q_idx):
+                nonlocal request_idx
+                _insert_placeholder_rows(db_conn, _q, placeholder_rows)
+                prompt = build_relevance_scoring_prompt(query_text, contexts)
+                custom_id = f"q{_q}_s{stage:04d}_b{request_idx:08d}_{uuid.uuid4().hex[:8]}"
+                _record_batch_request_map(db_conn, custom_id, _q, doc_ids)
+                out_f.write(
+                    json.dumps(_make_batch_request_line(custom_id, prompt), ensure_ascii=False) + "\n"
+                )
+                request_idx += 1
+
+            _fetch_docs_in_batches(
+                target_ids,
+                vector_db.collection,
+                gt_emb,
+                gt_id_norm,
+                rag_failed,
+                BATCH_SIZE,
+                _on_batch,
+            )
+
+    return request_idx
+
+
+async def _run_staged_live(
+    *,
+    stage: int,
+    total_stages: int,
+    scoring_union: set[str],
+    per_query_docs: dict[str, list[str]],
+    queries: list[dict],
+    vector_db,
+    embedding_model,
+    db_conn,
+    run_dir: str,
+) -> None:
+    """
+    Live scoring for one staged step (Ollama or NVIDIA IH).
+
+    Each query scores only its OWN new docs for this stage (its ranked slice +
+    random slice + GT on stage 1), not the full cross-query union.  The global
+    ``scoring_union`` is kept for logging only.
+    """
+    del run_dir, scoring_union
+    if not per_query_docs:
+        return
+
+    live_conc = max(1, int(OLLAMA_MAX_CONCURRENT_REQUESTS))
+    live_batch_size = max(1, int(OLLAMA_DOCS_PER_REQUEST))
+    tag = _live_log_tag()
+
+    for q_idx, entry in enumerate(queries, start=1):
+        if _is_query_skipped(db_conn, q_idx):
+            continue
+        query_text = entry.get("question", "")
+        query_doc_list = per_query_docs.get(str(q_idx)) or []
+        if not query_doc_list:
+            continue
+        state = _resolve_query_state(
+            db_conn, q_idx, entry, query_doc_list, vector_db.collection, score_mode="live"
+        )
+        if state is None:
+            _mark_query_skipped(db_conn, q_idx, "missing_gt_embedding_dual_path")
+            continue
+        gt_id_norm, gt_emb, target_ids = state
+        if not target_ids:
+            continue
+
+        query_emb = np.array(embedding_model.get_text_embedding(query_text), dtype=np.float32)
+        rag_failed = _check_rag_baseline(vector_db, query_emb, gt_id_norm)
+        batches_to_score: list[tuple[list[str], list[str]]] = []
+
+        def _on_batch(doc_ids, contexts, placeholder_rows, _q=q_idx):
+            _insert_placeholder_rows(db_conn, _q, placeholder_rows)
+            batches_to_score.append((doc_ids[:], contexts[:]))
+
+        _fetch_docs_in_batches(
+            target_ids,
+            vector_db.collection,
+            gt_emb,
+            gt_id_norm,
+            rag_failed,
+            live_batch_size,
+            _on_batch,
+        )
+
+        if batches_to_score:
+            try:
+                def _on_batch_scored(doc_ids: list[str], ints: list[int], _q=q_idx) -> None:
+                    scores = [float(v) / 10.0 for v in ints]
+                    _update_llm_scores_for_docs(db_conn, _q, doc_ids, scores)
+                    db_conn.commit()
+
+                await _score_batches_parallel_for_query(
+                    q_idx=q_idx,
+                    query_text=query_text,
+                    batches_to_score=batches_to_score,
+                    concurrency=live_conc,
+                    on_batch_scored=_on_batch_scored,
+                )
+            except Exception as exc:
+                _record_fatal_llm_error(db_conn, q_idx, exc)
+                raise
+
+    logger.info(f"[STAGE {stage}/{total_stages}] {tag} scoring complete")
+
+
+async def _run_staged_gemini(
+    *,
+    stage: int,
+    total_stages: int,
+    scoring_union: set[str],
+    queries: list[dict],
+    vector_db,
+    embedding_model,
+    db_conn,
+    db_path: str,
+    run_dir: str,
+) -> None:
+    """
+    Gemini Batch scoring for one staged step.
+
+    Steps: build ``stage_NNNN.jsonl`` → wait for slot → submit → harvest into SQLite.
+    """
+    if not scoring_union:
+        return
+
+    # --- Step 1: build stage JSONL ---
+    jsonl_path = os.path.join(run_dir, f"stage_{stage:04d}.jsonl")
+    n_requests = _produce_stage_gemini_jsonl(
+        stage=stage,
+        scoring_union=scoring_union,
+        queries=queries,
+        vector_db=vector_db,
+        embedding_model=embedding_model,
+        db_conn=db_conn,
+        jsonl_path=jsonl_path,
+    )
+    db_conn.commit()
+
+    if n_requests == 0:
+        logger.info(f"[STAGE {stage}/{total_stages}] No new Gemini requests — skipping submit.")
+        try:
+            if os.path.exists(jsonl_path):
+                os.remove(jsonl_path)
+        except OSError:
+            pass
+        return
+
+    # --- Step 2: wait for slot and submit Batch job ---
+    client = get_gemini_client(GEMINI_API_KEY)
+    logger.info(f"[STAGE {stage}/{total_stages}] Submitting {n_requests} requests...")
+    while True:
+        active = _count_active_jobs(client)
+        if active < MAX_CONCURRENT_JOBS:
+            break
+        logger.info(
+            f"[STAGE {stage}/{total_stages}] Waiting for batch slot "
+            f"({active}/{MAX_CONCURRENT_JOBS} active)..."
+        )
+        time.sleep(POLL_INTERVAL_SECONDS)
+
+    job_id = _submit_with_backoff(client, jsonl_path)
+    _set_experiment_meta(db_conn, f"stage_{stage:04d}_job_id", job_id)
+    db_conn.commit()
+    logger.info(f"[STAGE {stage}/{total_stages}] Submitted job_id={job_id!r}")
+
+    # --- Step 3: download output and sync scores ---
+    _poll_and_harvest_jobs(
+        client=client,
+        job_ids=[job_id],
+        run_dir=run_dir,
+        db_path=db_path,
+    )
+
+
+async def run_global_correlation_staged_async(
+    vector_db,
+    embedding_model,
+    num_queries: int = 200,
+    stride: int | None = None,
+    max_ranked: int | None = None,
+    max_ranked_query: int | None = None,
+    max_random: int | None = None,
+    output_dir: str = "results/global_exp",
+    per_job_timeout_s: int | None = None,
+) -> None:
+    """
+    Staged additive-pool global correlation experiment.
+
+    Each stage adds up to ``stride`` ranked neighbours (interleaved GT-based and
+    query-based) and random docs per query, then scores only the new delta.
+
+    Run steps
+    ---------
+    1. Compute stage count + create/load manifest (ranked/random per query).
+    2. Per stage: build scoring_union, advance cursors, score (live or Gemini batch).
+    3. Mark stage harvested; at end — stats and plots.
+    """
+    del per_job_timeout_s  # reserved for future per-job harvest timeout wiring
+
+    # --- Step 0: parameters and stage count ---
+    stride = int(stride if stride is not None else STAGING_STRIDE)
+    max_ranked = int(max_ranked if max_ranked is not None else STAGING_MAX_RANKED_PER_GT)
+    max_ranked_query = int(max_ranked_query if max_ranked_query is not None else STAGING_MAX_RANKED_PER_QUERY)
+    max_random = int(max_random if max_random is not None else STAGING_MAX_RANDOM_PER_QUERY)
+    if stride < 1:
+        raise ValueError(f"stride must be >= 1, got {stride}")
+
+    queries = load_qa_queries(num_queries)
+    n_queries = len(queries)
+    if n_queries == 0:
+        logger.error("[STAGED] No queries loaded — aborting.")
+        return
+
+    provider = _configured_correlation_provider()
+    # --- Step 1: set up run + manifest ---
+    # total ranked per query = GT-based + query-based (interleaved, with dedup)
+    max_ranked_combined = max_ranked + max_ranked_query
+    total_stages = max(
+        math.ceil(max_ranked_combined / stride) if max_ranked_combined > 0 else 0,
+        math.ceil(max_random / stride) if max_random > 0 else 0,
+    )
+    if total_stages < 1:
+        total_stages = 1
+
+    experiment_params: dict = {
+        "num_queries_requested": num_queries,
+        "actual_num_queries": n_queries,
+        "stage_mode": "additive_pool",
+        "staging_stride": stride,
+        "max_ranked_per_gt": max_ranked,
+        "max_ranked_per_query": max_ranked_query,
+        "max_random_per_query": max_random,
+        "staging_spec_hash": _staging_spec_hash(
+            n_queries, stride, max_ranked, max_ranked_query, max_random
+        ),
+        "staging_total_stages_expected": total_stages,
+        "model": (
+            CORRELATION_GEMINI_BATCH_MODEL
+            if _is_gemini_batch_provider(provider)
+            else correlation_live_model_name()
+        ),
+        "llm_backend": _normalize_live_provider(provider)
+        if _is_live_correlation_provider(provider)
+        else provider,
+    }
+
+    run_dir = _setup_or_resume_staged_run(output_dir, experiment_params)
+    db_path = os.path.join(run_dir, "experiment_results.db")
+    db_conn = _init_sqlite(db_path)
+
+    queries = _save_or_load_queries(run_dir, queries)
+    n_queries = len(queries)
+
+    manifest = _load_or_build_manifest(
+        run_dir,
+        queries,
+        vector_db,
+        embedding_model,
+        stride=stride,
+        max_ranked_gt=max_ranked,
+        max_ranked_query=max_ranked_query,
+        max_random=max_random,
+    )
+    manifest["staging_total_stages_expected"] = total_stages
+    _save_manifest(manifest, run_dir)
+
+    last_completed = int(manifest.get("staging_last_completed_stage", 0))
+    logger.info(
+        f"[STAGED] N={n_queries}, stride={stride}, max_ranked_gt={max_ranked}, "
+        f"max_ranked_query={max_ranked_query}, "
+        f"max_random={max_random}, total_stages={total_stages}, "
+        f"resume_from={last_completed + 1}, provider={provider}"
+    )
+
+    # --- Step 2: stage loop ---
+    for stage in range(last_completed + 1, total_stages + 1):
+        if _is_staged_run_complete(manifest):
+            logger.info("[STAGED] All cursors exhausted — run is complete.")
+            break
+
+        stage_entry = manifest.get("stages", {}).get(str(stage), {})
+
+        # 2a. resume pending stage, or build a new scoring_union
+        if stage_entry.get("status") == "pending":
+            scoring_union = set(_normalize_id(x) for x in (stage_entry.get("scoring_union") or []))
+            # Rebuild per-query doc sets from manifest (for live provider resume).
+            rank_added = {
+                k: [_normalize_id(d) for d in v]
+                for k, v in (stage_entry.get("rank_added") or {}).items()
+            }
+            rand_added = {
+                k: [_normalize_id(d) for d in v]
+                for k, v in (stage_entry.get("rand_added") or {}).items()
+            }
+            logger.info(
+                f"[STAGE {stage}/{total_stages}] Resuming pending stage "
+                f"({len(scoring_union)} docs in scoring set)."
+            )
+            if not scoring_union:
+                logger.info(
+                    f"[STAGE {stage}/{total_stages}] Pending stage has empty scoring set — marking harvested."
+                )
+                manifest["stages"][str(stage)]["status"] = "harvested"
+                manifest["staging_last_completed_stage"] = stage
+                _save_manifest(manifest, run_dir)
+                _set_experiment_meta(db_conn, "staging_last_completed_stage", str(stage))
+                db_conn.commit()
+                continue
+        else:
+            per_query_seen = _get_per_query_seen(db_conn)
+            scoring_union, rank_added, rand_added, new_cursors = _build_stage_scoring_set(
+                manifest, stage, per_query_seen, stride
+            )
+
+            for q_idx_str, cursors in new_cursors.items():
+                manifest["queries"][q_idx_str]["rank_cursor"] = cursors["rank"]
+                manifest["queries"][q_idx_str]["random_cursor"] = cursors["rand"]
+
+            if not scoring_union:
+                logger.info(
+                    f"[STAGE {stage}/{total_stages}] Empty scoring set after filter — "
+                    f"cursors advanced; no LLM work for this stage."
+                )
+                manifest["stages"][str(stage)] = {
+                    "rank_added": rank_added,
+                    "rand_added": rand_added,
+                    "scoring_union": [],
+                    "status": "harvested",
+                }
+                manifest["staging_last_completed_stage"] = stage
+                _save_manifest(manifest, run_dir)
+                _set_experiment_meta(db_conn, "staging_last_completed_stage", str(stage))
+                db_conn.commit()
+                continue
+
+            manifest["stages"][str(stage)] = {
+                "rank_added": rank_added,
+                "rand_added": rand_added,
+                "scoring_union": sorted(scoring_union),
+                "status": "pending",
+            }
+            _save_manifest(manifest, run_dir)
+
+        # Build per-query doc list for live providers (each query scores only its own new docs).
+        # GT docs are included in stage 1 only (one per query, added once to the scoring_union).
+        per_query_docs: dict[str, list[str]] = {}
+        for q_idx_str, qentry in manifest.get("queries", {}).items():
+            q_docs: list[str] = []
+            if stage == 1:
+                gt = _normalize_id(qentry.get("gt_id_norm", ""))
+                if gt:
+                    q_docs.append(gt)
+            q_docs.extend(rank_added.get(q_idx_str) or [])
+            q_docs.extend(rand_added.get(q_idx_str) or [])
+            if q_docs:
+                per_query_docs[q_idx_str] = q_docs
+
+        # 2b. score this stage (provider-specific)
+        if _is_gemini_batch_provider(provider):
+            await _run_staged_gemini(
+                stage=stage,
+                total_stages=total_stages,
+                scoring_union=scoring_union,
+                queries=queries,
+                vector_db=vector_db,
+                embedding_model=embedding_model,
+                db_conn=db_conn,
+                db_path=db_path,
+                run_dir=run_dir,
+            )
+        elif _is_live_correlation_provider(provider):
+            await _run_staged_live(
+                stage=stage,
+                total_stages=total_stages,
+                scoring_union=scoring_union,
+                per_query_docs=per_query_docs,
+                queries=queries,
+                vector_db=vector_db,
+                embedding_model=embedding_model,
+                db_conn=db_conn,
+                run_dir=run_dir,
+            )
+        else:
+            raise RuntimeError(
+                f"Unknown CORRELATION_LLM_PROVIDER={provider!r} "
+                f"(expected gemini, ollama, or nvidia_ih)"
+            )
+
+        manifest["stages"][str(stage)]["status"] = "harvested"
+        manifest["staging_last_completed_stage"] = stage
+        _save_manifest(manifest, run_dir)
+        _set_experiment_meta(db_conn, "staging_last_completed_stage", str(stage))
+        db_conn.commit()
+
+    # --- Step 3: finalize staged experiment ---
+    _set_experiment_meta(db_conn, "stages_complete", "1")
+    _set_main_loop_completed(db_conn)
+    _calculate_final_stats_and_plot_sqlite(db_conn, run_dir)
+    db_conn.close()
+    logger.info(f"[STAGED] Experiment complete. Output: {run_dir}")

@@ -6,7 +6,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
-from ollama import Client
+from utility.llm_gateway import complete_prompt, get_ollama_client
 
 OLLAMA_HOST = "https://cis-ollama.auth.ad.bgu.ac.il"
 DEFAULT_MODEL = "Qwen3.5:4B"
@@ -73,11 +73,8 @@ def _build_batch_prompt(call_idx: int, docs_per_batch: int) -> str:
     )
 
 
-def _extract_text(response: Any) -> str:
-    payload = response.model_dump() if hasattr(response, "model_dump") else {}
-    msg = payload.get("message", {}) if isinstance(payload, dict) else {}
-    content = msg.get("content") if isinstance(msg, dict) else None
-    return str(content or "").strip()
+def _extract_text(response: str) -> str:
+    return str(response or "").strip()
 
 
 def _parse_scores_json(text: str, expected_n: int) -> bool:
@@ -107,17 +104,16 @@ def _parse_scores_json(text: str, expected_n: int) -> bool:
 
 
 def _run_one_call(host: str, model: str, call_idx: int, docs_per_batch: int) -> dict[str, Any]:
-    client = Client(host=host, verify=False, timeout=REQUEST_TIMEOUT_S)
     prompt = _build_batch_prompt(call_idx, docs_per_batch)
     t0 = time.time()
     try:
-        response = client.chat(
+        response = complete_prompt(
+            provider="ollama",
             model=model,
-            messages=[
-                {"role": "system", "content": "Return strictly JSON only."},
-                {"role": "user", "content": prompt},
-            ],
-            think="low",
+            prompt=prompt,
+            system_prompt="Return strictly JSON only.",
+            metadata={"host": host, "verify_ssl": False, "timeout_s": REQUEST_TIMEOUT_S},
+            timeout_s=REQUEST_TIMEOUT_S,
         )
         elapsed = time.time() - t0
         text = _extract_text(response)
@@ -242,7 +238,7 @@ def run_combinations_benchmark(host: str, model: str) -> None:
 
 
 def main() -> None:
-    client = Client(host=OLLAMA_HOST, verify=False)
+    client = get_ollama_client(OLLAMA_HOST, verify_ssl=False, timeout_s=REQUEST_TIMEOUT_S)
     print(f"Connected host: {OLLAMA_HOST}")
     print_active_models(client)
     print_available_models_sorted(client)

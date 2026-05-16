@@ -35,9 +35,9 @@ from rich.text import Text
 
 # ─── Google Batch client (optional) ─────────────────────────────────────────
 try:
-    from google import genai
     from configurations.config import GEMINI_API_KEY
-    _genai_client = genai.Client(api_key=GEMINI_API_KEY)
+    from utility.llm_gateway import get_gemini_client
+    _genai_client = get_gemini_client(GEMINI_API_KEY)
 except Exception:
     _genai_client = None
 
@@ -141,7 +141,7 @@ def _read_db(db_path: str) -> dict:
                     data["main_loop_done"] = str(v).strip() in ("1", "true", "yes")
                 elif k == "all_job_ids":
                     data["all_job_ids_raw"] = str(v)
-                elif k.startswith("chunk_") and k.endswith("_job_id"):
+                elif k.startswith("chunk_") and k.endswith("_job_id") and "upload_part" not in k:
                     data["chunk_job_meta"][k] = str(v)
                 elif k.startswith("chunk_") and k.endswith("_error"):
                     data["chunk_err_meta"][k] = str(v)

@@ -33,6 +33,16 @@ PROJECT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def select_dataset_and_corpus():
     from configurations.config import QA_DATASETS
+    from utility.run_config import run_config
+    if run_config.enabled:
+        key = run_config.get_str("setup.dataset_key")
+        if key and key in QA_DATASETS:
+            corpus = QA_DATASETS[key].get("corpus_source")
+            run_config._print_config_value("setup.dataset_key", key)
+            print(f"[config]   → corpus = {corpus!r}")
+            return key, corpus
+        if key and key not in QA_DATASETS:
+            print(f"[config] ⚠  setup.dataset_key={key!r} not found in QA_DATASETS; falling back to interactive.")
     print_section_header("🎓 DATASET SELECTION")
 
     # Add manual mode at the top
@@ -364,13 +374,16 @@ def display_storing_methods():
 
 
 def get_user_storing_method(default_method: Optional[str] = None) -> str:
-    display_storing_methods()
+    from utility.run_config import run_config
     methods = StoringMethod.get_all_methods()
-    return ask_selection(
-        prompt_text=f"\nSelect a storing method (1-{len(methods)}) or press Enter for default ({default_method}): ",
-        options=methods,
-        default=default_method
-    )
+    def _interactive():
+        display_storing_methods()
+        return ask_selection(
+            prompt_text=f"\nSelect a storing method (1-{len(methods)}) or press Enter for default ({default_method}): ",
+            options=methods,
+            default=default_method,
+        )
+    return run_config.menu_str("setup.storing_method", _interactive)
 
 
 import re
@@ -393,24 +406,27 @@ def detect_source_type(source: str) -> str:
 
 
 def get_user_source_path() -> str:
-    print_section_header("📁 DATA SOURCE CONFIGURATION")
-    print("Enter the path to your data source. Supported formats:")
-    print("  • Local directory: /path/to/your/documents")
-    print("  • URL: https://example.com/data.txt")
-    print("  • HuggingFace dataset: squad:plain_text")
-    print("  • HuggingFace dataset (no config): wikitext")
-    print(f"\n🔁 Press Enter to use default as configured in config.INDEX_SOURCE_URL: {INDEX_SOURCE_URL}")
-
-    return prompt_with_validation(
-        prompt_text="🔤 Source path: ",
-        validation_fn=lambda x: detect_source_type(x) != "invalid",
-        default=INDEX_SOURCE_URL,
-        transform_fn=lambda x: x.strip().strip('"').strip("'"),
-        error_msg="❌ Invalid path format. Please try again."
-    )
+    from utility.run_config import run_config
+    def _interactive():
+        print_section_header("📁 DATA SOURCE CONFIGURATION")
+        print("Enter the path to your data source. Supported formats:")
+        print("  • Local directory: /path/to/your/documents")
+        print("  • URL: https://example.com/data.txt")
+        print("  • HuggingFace dataset: squad:plain_text")
+        print("  • HuggingFace dataset (no config): wikitext")
+        print(f"\n🔁 Press Enter to use default as configured in config.INDEX_SOURCE_URL: {INDEX_SOURCE_URL}")
+        return prompt_with_validation(
+            prompt_text="🔤 Source path: ",
+            validation_fn=lambda x: detect_source_type(x) != "invalid",
+            default=INDEX_SOURCE_URL,
+            transform_fn=lambda x: x.strip().strip('"').strip("'"),
+            error_msg="❌ Invalid path format. Please try again.",
+        )
+    return run_config.menu_str("setup.source_path", _interactive)
 
 
 def confirm_configuration(storing_method: str, source_path: str, distance_function: Optional[str] = None) -> bool:
+    from utility.run_config import run_config
     print_section_header("⚙️  CONFIGURATION SUMMARY")
     print(f"Storing Method: {storing_method}")
     print(f"Source Path:    {source_path}")
@@ -423,7 +439,10 @@ def confirm_configuration(storing_method: str, source_path: str, distance_functi
         print(f"Distance Metric: {distance_function}")
 
     print("=" * 60)
-    return ask_yes_no("Proceed with this configuration? (y/n): ", default="y")
+    return run_config.menu_bool(
+        "setup.confirm_configuration",
+        lambda: ask_yes_no("Proceed with this configuration? (y/n): ", default="y"),
+    )
 
 
 def interactive_vector_db_setup() -> Tuple[str, str, Optional[str]]:
@@ -548,23 +567,39 @@ def get_user_distance_function(storing_method: str) -> Optional[str]:
     if storing_method.lower() != "chroma":
         return None
 
-    print("\n📏 Select distance function for similarity search:")
-    print("1. Cosine")
-    print("2. Euclidean (L2)")
-    print("3. Inner Product")
+    from utility.run_config import run_config
+    _num_to_metric = {"1": "cosine", "2": "l2", "3": "ip"}
 
-    choice = input("Enter your choice [1-3]: ").strip()
+    def _interactive():
+        print("\n📏 Select distance function for similarity search:")
+        print("  1. Cosine          — recommended for sentence-transformer models (most cases)")
+        print("  2. Euclidean (L2)  — for raw distance comparisons")
+        print("  3. Inner Product   — for normalized embeddings, when cosine isn't desired")
+        choice = input("Enter your choice [1-3, default=1]: ").strip()
+        return _num_to_metric.get(choice, "cosine")
 
-    mapping = {
-        "1": "cosine",
-        "2": "l2",
-        "3": "ip"
-    }
-
-    return mapping.get(choice, "cosine")  # fallback to cosine
+    return run_config.menu_str("setup.distance_metric", _interactive)
 
 
 from utility.distance_metrics import DistanceMetric
+
+
+def _config_use_vector_db(default: str = "y") -> bool:
+    """Read setup.use_vector_db from run_config, fall back to interactive."""
+    from utility.run_config import run_config
+    def _interactive():
+        print(f"(Default: {default} - use Vector DB)")
+        return ask_yes_no("Do you want to use vector database for context retrieval? (y/n): ", default=default)
+    return run_config.menu_bool("setup.use_vector_db", _interactive)
+
+
+def _config_retry_vector_db(default: str = "y") -> bool:
+    """Auto-decide whether to retry vector DB setup after a failure."""
+    from utility.run_config import run_config
+    def _interactive():
+        print(f"(Default: {default} - retry with Vector DB)")
+        return ask_yes_no("Retry with Vector DB? (y/n): ", default=default)
+    return run_config.menu_bool("setup.retry_on_error", _interactive)
 
 
 def setup_vector_database():
@@ -579,9 +614,7 @@ def setup_vector_database():
     # If user chose manual mode (no dataset), skip corpus and go to vector DB selection
     if dataset_key is None:
         print("\n⚠️ No dataset selected. Skipping dataset/corpus loading.")
-        # Fallback to interactive or no-DB mode
-        print("(Default: y - use Vector DB)")
-        use_vector_db = ask_yes_no("Do you want to use vector database for context retrieval? (y/n): ", default='y')
+        use_vector_db = _config_use_vector_db()
         if not use_vector_db:
             print("📝 Running in simple Q&A mode (no context retrieval)")
             return None, None, None, None, None
@@ -617,8 +650,7 @@ def setup_vector_database():
         except Exception as e:
             logger.error(f"Failed to load vector DB: {e}")
             print(f"❌ Vector DB setup failed: {e}")
-            print("(Default: y - retry with Vector DB)")
-            retry = ask_yes_no("Retry with Vector DB? (y/n): ", default='y')
+            retry = _config_retry_vector_db()
             if not retry:
                 print("⚠️  Continuing without vector database...")
                 return None, None, None, None, None
@@ -628,25 +660,39 @@ def setup_vector_database():
 
     # If the dataset defines a corpus, skip vector DB prompts and use it
     if corpus_source:
-        # Use default storing method and distance metric if desired, or prompt if needed
         from configurations.config import DEFAULT_STORING_METHOD, DEFAULT_DISTANCE_METRIC
-        if DEFAULT_STORING_METHOD:
-            storing_method = DEFAULT_STORING_METHOD
-            print(f"✅ Using storing method from config: {storing_method}")
-        else:
-            print("⚙️ No storing method defined in config. Using default: chroma")
-            storing_method = "chroma"
+        from utility.run_config import run_config
 
-        if DEFAULT_DISTANCE_METRIC:
-            try:
-                distance_metric = DistanceMetric(DEFAULT_DISTANCE_METRIC.lower())
-                print(f"✅ Using distance metric from config: {DEFAULT_DISTANCE_METRIC}")
-            except ValueError:
-                print(f"⚠️ Invalid distance metric '{DEFAULT_DISTANCE_METRIC}' in config. Falling back to COSINE.")
-                distance_metric = DistanceMetric.COSINE
+        # storing_method: run_config (validated by _unwrap) > config.py > hardcoded default
+        _rc_method = run_config.get_str("setup.storing_method")
+        storing_method = _rc_method or DEFAULT_STORING_METHOD or "chroma"
+        if _rc_method:
+            run_config._print_config_value("setup.storing_method", storing_method)
+        elif DEFAULT_STORING_METHOD:
+            print(f"✅ Using storing method from config.py: {storing_method}")
         else:
-            print("⚙️ No distance metric defined in config. Using default: COSINE")
-            distance_metric = DistanceMetric.COSINE
+            print("⚙️ No storing method defined. Using default: chroma")
+
+        # distance_metric: run_config (validated by _unwrap) > config.py > COSINE fallback
+        _rc_metric = run_config.get_str("setup.distance_metric")
+        _resolved_metric = _rc_metric
+        if _resolved_metric:
+            try:
+                distance_metric = DistanceMetric(_resolved_metric)
+                run_config._print_config_value("setup.distance_metric", _resolved_metric)
+            except ValueError:
+                _resolved_metric = None
+        if not _resolved_metric:
+            if DEFAULT_DISTANCE_METRIC:
+                try:
+                    distance_metric = DistanceMetric(DEFAULT_DISTANCE_METRIC.lower())
+                    print(f"✅ Using distance metric from config.py: {DEFAULT_DISTANCE_METRIC}")
+                except ValueError:
+                    print(f"⚠️ Invalid distance metric '{DEFAULT_DISTANCE_METRIC}' in config.py. Falling back to COSINE.")
+                    distance_metric = DistanceMetric.COSINE
+            else:
+                distance_metric = DistanceMetric.COSINE
+                print("⚙️ No distance metric defined. Using default: COSINE")
         source_path = corpus_source
         print(f"\n🔄 Automatically loading vector DB for dataset '{dataset_key}' using corpus '{corpus_source}'...")
         try:
@@ -692,8 +738,7 @@ def setup_vector_database():
                     print("⚠️  Continuing without vector database...")
                     return None, None, None, None, None
             else:
-                print("(Default: y - retry with Vector DB)")
-                retry = ask_yes_no("Retry with Vector DB? (y/n): ", default='y')
+                retry = _config_retry_vector_db()
                 if not retry:
                     print("⚠️  Continuing without vector database...")
                     return None, None, None, None, None
@@ -702,8 +747,7 @@ def setup_vector_database():
                     return setup_vector_database()
     else:
         # No corpus defined: fall back to legacy interactive vector DB setup
-        print("(Default: y - use Vector DB)")
-        use_vector_db = ask_yes_no("Do you want to use vector database for context retrieval? (y/n): ", default='y')
+        use_vector_db = _config_use_vector_db()
         if not use_vector_db:
             print("📝 Running in simple Q&A mode (no context retrieval)")
             return None, None, None, None, None
@@ -739,8 +783,7 @@ def setup_vector_database():
         except Exception as e:
             logger.error(f"Failed to load vector DB: {e}")
             print(f"❌ Vector DB setup failed: {e}")
-            print("(Default: y - retry with Vector DB)")
-            retry = ask_yes_no("Retry with Vector DB? (y/n): ", default='y')
+            retry = _config_retry_vector_db()
             if not retry:
                 print("⚠️  Continuing without vector database...")
                 return None, None, None, None, None
@@ -773,29 +816,34 @@ def validate_prerequisites(mode: str, dataset_key, vector_db) -> bool:
 
 def display_main_menu(vector_db=None, dataset_key=None):
     """Display the main menu and get user choice."""
+    from utility.run_config import run_config
     print_section_header("🎯 SELECT MODE")
     eval_label = "📊 Evaluation Mode" if dataset_key and vector_db else "📊 Evaluation Mode (disabled – no dataset/DB)"
     dev_label = "🔧 Development Test Mode" if vector_db else "🔧 Development Test Mode (limited – no DB)"
 
     options = [
-        ("1", "💬 Interactive Q&A Mode"),
-        ("2", eval_label),
-        ("3", dev_label),
-        ("4", "📈 Results Analysis"),
-        ("5", "⚙️ System Information"),
-        ("6", "📥️ Download QA Dataset"),
-        ("7", "🧪 Experiments & Evaluation"),
-        ("8", "🚪 Exit"),
-        ("9", "🔄 Reset Vector DB & Embedding Model"),
-        ("10", "🧾 Print Ollama Available Models"),
+        ("1", "💬 Interactive Q&A Mode", "Ask free-form questions; requires a loaded vector DB for retrieval."),
+        ("2", eval_label, "Run automatic evaluation over the active QA dataset (enumeration / trilateration / hill-climb)."),
+        ("3", dev_label, "Quick smoke-test of model + vector DB plumbing (good first step)."),
+        ("4", "📈 Results Analysis", "Re-summarise results that are already on disk."),
+        ("5", "⚙️ System Information", "Print device info, model details, vector DB stats."),
+        ("6", "📥️ Download QA Dataset", "Fetch the active QA dataset to local disk."),
+        ("7", "🧪 Experiments & Evaluation", "Open the experiments submenu (global correlation lives here)."),
+        ("8", "🚪 Exit", "Quit the application."),
+        ("9", "🔄 Reset Vector DB & Embedding Model", "Re-run vector DB setup wizard (asks for confirmation)."),
+        ("10", "🧾 Print Ollama Available Models", "List models reachable on the BGU CIS Ollama cluster."),
     ]
 
-    for key, label in options:
-        print(f"{key}. {label}")
+    for key, label, hint in options:
+        print(f"{key:>2}. {label}")
+        print(f"     ↳ {hint}")
 
-    return ask_selection(
-        prompt_text="\nEnter your choice: ",
-        options=[(key, key) for key, _ in options]
+    return run_config.menu_str(
+        "main_menu_choice",
+        lambda: ask_selection(
+            prompt_text="\nEnter your choice (1-10): ",
+            options=[(key, key) for key, _, _ in options],
+        ),
     )
 
 
@@ -803,23 +851,37 @@ def show_experiments_menu():
     """
     Display the experiments and evaluation menu and get user choice.
     """
+    from utility.run_config import run_config
     print_section_header("🧪 EXPERIMENTS & EVALUATION")
     options = [
-        ("1", "🧪 Simple Retrieval Evaluation"),
-        ("2", "🔬 Noise Robustness Experiment"),
-        ("3", "🔧 Development Test Mode"),
-        ("4", "🧪 Compare LLM scoring to vector DB distance"),
-        ("5", "🧪 Compare Top-K Document Enumeration to distance"),
-        ("6", "🧪 Run LLM relevance scoring experiment"),
-        ("7", "🧪 Run Cross-Entropy Correlation Experiment"),
-        ("8", "🧪 Run Global correlation experiment"),
-        ("9", "🚪 Return to Main Menu")
+        ("1", "🧪 Simple Retrieval Evaluation",
+         "Per-query enumeration / scoring against the QA dataset."),
+        ("2", "🔬 Noise Robustness Experiment",
+         "Inject noise and measure stability of the retriever."),
+        ("3", "🔧 Development Test Mode",
+         "Same as main menu '3'."),
+        ("4", "🧪 Compare LLM scoring to vector DB distance",
+         "Scatter plot of LLM relevance vs cosine distance."),
+        ("5", "🧪 Compare Top-K Document Enumeration to distance",
+         "Rank-vs-distance plots."),
+        ("6", "🧪 Run LLM relevance scoring experiment",
+         "Stand-alone LLM relevance scoring run."),
+        ("7", "🧪 Run Cross-Entropy Correlation Experiment",
+         "Token-level cross-entropy vs retrieval ordering."),
+        ("8", "🧪 Run Global correlation experiment",
+         "MAIN BATCH PIPELINE (Gemini Batch API or Ollama). Pilot/Full/Sync."),
+        ("9", "🚪 Return to Main Menu", "Go back."),
     ]
-    for key, label in options:
-        print(f"{key}. {label}")
-    return ask_selection(
-        prompt_text="\nSelect experiment: ",
-        options=[(key, key) for key, _ in options]
+    for key, label, hint in options:
+        print(f"{key:>2}. {label}")
+        print(f"     ↳ {hint}")
+
+    return run_config.menu_str(
+        "experiments_menu_choice",
+        lambda: ask_selection(
+            prompt_text="\nSelect experiment (1-9): ",
+            options=[(key, key) for key, _, _ in options],
+        ),
     )
 
 
@@ -1009,11 +1071,18 @@ def run_evaluation_mode(vector_db, embedding_model, tokenizer, model, device):
     print("\n📊 EVALUATION MODE")
     print("=" * 25)
 
-    mode_choice = ask_selection(
-        prompt_text="Select mode: \n- (e)numeration \n- (t)rilateration retriever  \n- (h)ill climbing: ",
-        options=["e", "t", "h"],
-        default="e"
-    )
+    from utility.run_config import run_config
+    def _interactive_mode():
+        print("\nAvailable modes:")
+        print("  e — Enumeration:    score every retrieved document independently (baseline)")
+        print("  t — Trilateration:  use anchor-based geometric retrieval")
+        print("  h — Hill climbing:  iterative, document-by-document refinement")
+        return ask_selection(
+            prompt_text="Select mode (e/t/h) [default=e]: ",
+            options=["e", "t", "h"],
+            default="e",
+        )
+    mode_choice = run_config.menu_str("evaluation.mode_choice", _interactive_mode) or "e"
 
     results_logger = ResultsLogger(top_k=RETRIEVER_TOP_K, mode="hill" if mode_choice == "h" else "enum")
 
@@ -1137,10 +1206,14 @@ def run_noise_robustness_experiment(
     timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
     default_filename = f"{db_type}_{distance_metric}_{timestamp}.xlsx"
 
-    filename = prompt_with_validation(
-        f"Enter output Excel filename (press Enter to use default: {default_filename}):\n",
-        lambda s: s == "" or s.endswith('.xlsx'),
-        default=default_filename
+    from utility.run_config import run_config
+    filename = run_config.menu_str(
+        "noise_robustness.filename",
+        lambda: prompt_with_validation(
+            f"Enter output Excel filename (press Enter to use default: {default_filename}):\n",
+            lambda s: s == "" or s.endswith('.xlsx'),
+            default=default_filename,
+        ),
     )
 
     if not filename or not filename.endswith('.xlsx'):
@@ -1190,7 +1263,11 @@ def show_goodbye_message():
 
 def confirm_reset_vector_db() -> bool:
     """Ask user to confirm vector DB reset."""
-    return ask_yes_no("Are you sure you want to reset the Vector DB and Embedding Model? (y/n): ", default='n')
+    from utility.run_config import run_config
+    return run_config.menu_bool(
+        "setup.confirm_reset",
+        lambda: ask_yes_no("Are you sure you want to reset the Vector DB and Embedding Model? (y/n): ", default='n'),
+    )
 
 
 def show_mode_choice_banner():

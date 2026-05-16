@@ -4,42 +4,17 @@ import os
 import sqlite3
 import sys
 
-from experiments.global_correlation_experiment import _calculate_final_stats_and_plot_sqlite
+from experiments.global_correlation_experiment import (
+    _calculate_final_stats_and_plot_sqlite,
+    _snap_to_anchor,
+    BATCH_STATUS_SUCCEEDED,
+    BATCH_STATUS_MISSING,
+)
+from utility.llm_gateway import parse_relevance_scores
 
 
 def _normalize_id(x) -> str:
     return str(x).strip().lower()
-
-
-def _parse_batch_scores(text: str, expected_n: int) -> list[int]:
-    if text is None:
-        return [0] * expected_n
-    t = str(text).strip()
-    if not t:
-        return [0] * expected_n
-    import re as _re
-    m = _re.search(r"\[[\s\S]*?\]", t)
-    candidate = m.group(0).strip() if m else t
-    try:
-        arr = json.loads(candidate)
-        if isinstance(arr, list):
-            out = []
-            for x in arr:
-                try:
-                    v = int(x)
-                except Exception:
-                    v = 0
-                out.append(max(0, min(10, v)))
-            if len(out) < expected_n:
-                out.extend([0] * (expected_n - len(out)))
-            return out[:expected_n]
-    except Exception:
-        pass
-    nums = _re.findall(r"\b(10|[1-9])\b", t)
-    out = [int(n) for n in nums[:expected_n]]
-    if len(out) < expected_n:
-        out.extend([0] * (expected_n - len(out)))
-    return out
 
 
 def _get_doc_ids_for_custom_id(conn, custom_id: str) -> tuple[int, list[str]] | None:
@@ -166,6 +141,11 @@ def sync_batch_results(db_path: str, output_paths_input: str, force_overwrite: b
         if job_id:
             print(f"Associated Job ID(s): {job_id}")
 
+        # Track which custom_ids actually received a valid scored response so that
+        # batch_request_map.status can be updated precisely.
+        succeeded_custom_ids: set[str] = set()
+        bad_response_custom_ids: set[str] = set()
+
         for output_jsonl_path in all_paths:
             print(f"Processing: {os.path.basename(output_jsonl_path)}")
             total_lines = 0
@@ -189,10 +169,11 @@ def sync_batch_results(db_path: str, output_paths_input: str, force_overwrite: b
                         bad_lines += 1
                         continue
 
-                    if not isinstance(obj, dict) or "custom_id" not in obj or "response" not in obj:
+                    if not isinstance(obj, dict) or "response" not in obj:
                         bad_lines += 1
                         continue
-                    custom_id = obj.get("custom_id")
+                    # Native Gemini Batch output uses `key`; the OpenAI-compat layer uses `custom_id`.
+                    custom_id = obj.get("custom_id") or obj.get("key") or obj.get("id")
                     if not custom_id:
                         bad_lines += 1
                         continue
@@ -215,13 +196,22 @@ def sync_batch_results(db_path: str, output_paths_input: str, force_overwrite: b
                         already = int(cur.fetchone()[0])
                         if already == len(doc_ids):
                             skipped_already_set += 1
+                            succeeded_custom_ids.add(str(custom_id))
                             continue
 
                     if _is_safety_block(obj):
                         ints = [0] * len(doc_ids)
+                        bad_response_custom_ids.add(str(custom_id))
                     else:
                         text = _extract_response_text(obj)
-                        ints = _parse_batch_scores(text, expected_n=len(doc_ids))
+                        ints = parse_relevance_scores(text, expected_n=len(doc_ids))
+                        ints = [_snap_to_anchor(v) if v != 0 else 0 for v in ints]
+                        # If the parser returned all zeros it usually means the response
+                        # was unparseable (e.g. truncated or non-JSON). Mark for retry.
+                        if all(v == 0 for v in ints):
+                            bad_response_custom_ids.add(str(custom_id))
+                        else:
+                            succeeded_custom_ids.add(str(custom_id))
                     scores = [float(v) / 10.0 for v in ints]
 
                     cur = conn.cursor()
@@ -239,6 +229,33 @@ def sync_batch_results(db_path: str, output_paths_input: str, force_overwrite: b
         print(f"✅ Sync complete. Updated rows: {updated_rows}")
         print(f"Skipped already-set batches: {skipped_already_set}")
         print(f"Bad/invalid JSONL lines: {bad_lines}")
+
+        # Update per-request status: 'succeeded' for everyone we actually scored,
+        # 'missing' for any 'submitted' custom_id that didn't show up (whether the
+        # response was absent, unparseable, or safety-blocked).
+        try:
+            cur = conn.cursor()
+            if succeeded_custom_ids:
+                cur.executemany(
+                    "UPDATE batch_request_map SET status = ?, updated_at = CURRENT_TIMESTAMP "
+                    "WHERE custom_id = ?",
+                    [(BATCH_STATUS_SUCCEEDED, cid) for cid in succeeded_custom_ids],
+                )
+            if bad_response_custom_ids:
+                cur.executemany(
+                    "UPDATE batch_request_map SET status = ?, updated_at = CURRENT_TIMESTAMP "
+                    "WHERE custom_id = ?",
+                    [(BATCH_STATUS_MISSING, cid) for cid in bad_response_custom_ids],
+                )
+            # Anything still 'submitted' after sync = response simply did not arrive.
+            cur.execute(
+                "UPDATE batch_request_map SET status = ?, updated_at = CURRENT_TIMESTAMP "
+                "WHERE status = 'submitted'",
+                (BATCH_STATUS_MISSING,),
+            )
+            conn.commit()
+        except Exception as exc:
+            print(f"⚠️  Could not update batch_request_map.status: {exc}")
 
         # Recompute final stats & plots
         run_dir = os.path.dirname(os.path.abspath(db_path))

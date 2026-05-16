@@ -1,5 +1,14 @@
 # config.py - Light QA-Ready Configuration for Low-RAM/No-GPU systems
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
 from utility.distance_metrics import DistanceMetric, StoringMethod
+
+# Load project-root .env before reading os.environ-backed settings below.
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(_PROJECT_ROOT / ".env")
 
 # ==========================
 # ✅ ACTIVE MODEL CONFIGURATION (for QA on CPU / M1 / 16GB RAM)
@@ -18,7 +27,10 @@ MODEL_PATH = "Qwen/Qwen2.5-1.5B-Instruct"
 # MODEL_PATH = "openchat/openchat-3.5-0106"              # 💬 OpenChat 3.5 (3.5B) - solid QA/dialogue, quantize for better speed
 
 
-GEMINI_API_KEY = "AIzaSyC3RQ9yANLlYcIhQ65mZCeiGNgC2chKal0"  # Google Gemini API key
+GEMINI_API_KEY = os.environ.get(
+    "GEMINI_API_KEY",
+    "AIzaSyAmXU4-f853LIVpa4S66aAO6yIp9XAUCEs",
+)  # Google Gemini API key (override via .env)
 # ==========================
 # Do NOT use these unless you have 24GB+ VRAM or offloading infra
 # ==========================
@@ -108,9 +120,180 @@ LLAMA_MODEL_DIR = MODEL_PATH
 # Global Correlation LLM Provider
 # ==========================
 # Options:
-# - "gemini"  -> Gemini Batch API (offline JSONL generation + harvester)
-# - "ollama"  -> BGU cis-ollama (live scoring; no Gemini cost)
-CORRELATION_LLM_PROVIDER = "gemini"
+# - "gemini"     -> Gemini Batch API (offline JSONL generation + harvester)
+# - "ollama"     -> BGU cis-ollama (live scoring; no Gemini cost)
+# - "nvidia_ih"  -> NVIDIA Inference Hub (HTTPS generateContent; set IH_API_KEY)
+CORRELATION_LLM_PROVIDER = "nvidia_ih"
+
+# Gemini Batch model id (keep in sync with Batch API calls + LLM gateway batch limits).
+# ``gemini-2.0-flash`` is deprecated; default to 2.5 Flash-Lite (high RPM, unlimited RPD on typical tiers).
+CORRELATION_GEMINI_BATCH_MODEL = "gemini-2.5-flash-lite"
+
+# --- Gemini API rate limits (official reference) --------------------------------
+# Primary doc: https://ai.google.dev/gemini-api/docs/rate-limits
+# - Interactive traffic (e.g. generateContent): RPM, TPM (input), RPD (and model-specific caps like IPM).
+#   Limits are per *project*; RPD resets at **midnight Pacific**. Preview/experimental models are tighter.
+# - **Batch API** quotas are *separate*: concurrent batch requests, per-job input file size, Files pool,
+#   and per-model **enqueued input tokens** across all active batch jobs (Tier 1 vs Tier 2–3 columns in the doc).
+# - **Priority inference** uses ~0.3× the standard interactive limits for the same model/tier (same doc page).
+# - Concrete ceilings also appear under Batch mode in the experiment module
+#   (``GEMINI_BATCH_*`` in ``experiments/global_correlation_experiment.py``): 100 concurrent jobs, 2 GiB input, 20 GiB Files.
+#
+# The tables below copy Google's **max enqueued batch input tokens** (not enforced by ``LLMGateway`` — for planning only).
+# Keys must match the **exact** ``model`` string you pass to Batch. Tier unknown ⇒ check AI Studio; set tier for helpers.
+GEMINI_API_BILLING_TIER = int(os.environ.get("GEMINI_API_BILLING_TIER", "2"))
+# Use ``1`` for the Tier 1 batch enqueued-token table; ``2`` or ``3`` for the Tier 2–3 table.
+
+GEMINI_BATCH_ENQUEUED_INPUT_TOKENS_TIER_1: dict[str, int] = {
+    "gemini-3.1-pro-preview": 5_000_000,
+    "gemini-3.1-flash-lite": 10_000_000,
+    "gemini-3.1-flash-lite-preview": 10_000_000,
+    "gemini-3-flash-preview": 3_000_000,
+    "gemini-2.5-pro": 5_000_000,
+    "gemini-2.5-pro-preview-tts": 25_000,
+    "gemini-2.5-flash": 3_000_000,
+    "gemini-2.5-flash-preview": 3_000_000,
+    "gemini-2.5-flash-image-preview": 3_000_000,
+    "gemini-2.5-flash-preview-tts": 100_000,
+    "gemini-2.5-flash-lite": 10_000_000,
+    "gemini-2.5-flash-lite-preview": 10_000_000,
+    "gemini-2.0-flash": 10_000_000,
+    "gemini-2.0-flash-image": 3_000_000,
+    "gemini-2.0-flash-lite": 10_000_000,
+    "gemini-3.1-flash-image-preview": 1_000_000,
+    "gemini-3-pro-image-preview": 2_000_000,
+    "gemini-embedding-001": 500_000,
+}
+
+GEMINI_BATCH_ENQUEUED_INPUT_TOKENS_TIER_2_3: dict[str, int] = {
+    "gemini-3.1-pro-preview": 500_000_000,
+    "gemini-3.1-flash-lite": 500_000_000,
+    "gemini-3.1-flash-lite-preview": 500_000_000,
+    "gemini-3.1-flash-preview": 400_000_000,
+    "gemini-2.5-pro": 500_000_000,
+    "gemini-2.5-pro-preview-tts": 100_000,
+    "gemini-2.5-flash": 400_000_000,
+    "gemini-2.5-flash-preview": 400_000_000,
+    "gemini-2.5-flash-image-preview": 400_000_000,
+    "gemini-2.5-flash-preview-tts": 100_000,
+    "gemini-2.5-flash-lite": 500_000_000,
+    "gemini-2.5-flash-lite-preview": 500_000_000,
+    "gemini-2.0-flash": 1_000_000_000,
+    "gemini-2.0-flash-image": 400_000_000,
+    "gemini-2.0-flash-lite": 1_000_000_000,
+    "gemini-3.1-flash-image-preview": 250_000_000,
+    "gemini-3-pro-image-preview": 270_000_000,
+    "gemini-embedding-001": 5_000_000,
+}
+
+
+def gemini_batch_enqueued_input_token_cap(model: str) -> int | None:
+    """Return the doc max *enqueued batch input tokens* for ``model``, or ``None`` if unknown."""
+    m = str(model).strip()
+    if GEMINI_API_BILLING_TIER <= 1:
+        return GEMINI_BATCH_ENQUEUED_INPUT_TOKENS_TIER_1.get(m)
+    return GEMINI_BATCH_ENQUEUED_INPUT_TOKENS_TIER_2_3.get(m)
+
+# ==========================
+# LLM Gateway — per-provider rate limits
+# ==========================
+# ``None`` / missing ``rpm`` / missing provider or model ⇒ **no throttle** for that rule.
+#
+# Key resolution order (first match wins):
+#   1. exact model name             e.g. "gemini-2.5-flash-lite"
+#   2. "<kind>:<model>"             e.g. "regular:gemini-2.5-flash-lite"
+#   3. "<kind>:*"                   e.g. "batch:*"
+#   4. "__default__"
+#
+# Supported limit fields (pick one per entry):
+#   "rpm"              requests per minute
+#   "rps"              requests per second
+#   "min_interval_s"   exact minimum seconds between requests
+LLM_NO_RATE_LIMIT = None  # explicit documented sentinel
+
+LLM_GATEWAY_RATE_LIMITS: dict = {
+    # ------------------------------------------------------------------
+    # Ollama — BGU CIS cluster (https://cis-ollama.auth.ad.bgu.ac.il)
+    # No server-enforced rate limit; tune to observed cluster headroom.
+    # Concurrency is governed by OLLAMA_MAX_CONCURRENT_REQUESTS (async
+    # semaphore in the experiment), not by the gateway RPM below.
+    # Uncomment and lower if you see connection timeouts under load.
+    # ------------------------------------------------------------------
+    "ollama": {
+        # "__default__": {"rpm": 120},  # ~2 req/s; conservative for shared cluster
+    },
+
+    # ------------------------------------------------------------------
+    # Google Gemini API — text-out peaks (AI Studio / API “Rate limits”, 2026-05 snapshot).
+    # Source: aistudio.google.com → API → Rate limits (per model; your tier may differ).
+    #
+    # Product name (dashboard)   Model API ID (examples)          RPM    TPM      RPD
+    # Gemini 2 Flash (dep.)      gemini-2.0-flash              10 000  10 M     Unlimited
+    # Gemini 2 Flash Lite (dep.) gemini-2.0-flash-lite         20 000  10 M     Unlimited
+    # Gemini 2.5 Flash           gemini-2.5-flash               2 000   3 M     100 K
+    # Gemini 2.5 Flash Lite      gemini-2.5-flash-lite        10 000  10 M     Unlimited
+    # Gemini 2.5 Pro             gemini-2.5-pro                1 000   5 M      50 K
+    # Gemini 3 Flash             gemini-3-flash-preview        2 000   3 M     100 K
+    # Gemini 3.1 Flash Lite      gemini-3.1-flash-lite        10 000  10 M     350 K
+    # Gemini 3.1 Pro Preview     gemini-3.1-pro-preview        1 000   5 M      50 K
+    #
+    # The gateway only paces RPM / RPS / min_interval_s. TPM and RPD are not enforced here;
+    # watch the dashboard if you run very large batch jobs (especially 350K RPD caps).
+    # Batch job *submission* pacing is ``batch:*`` above; **enqueued batch input-token**
+    # ceilings per model/tier are documented in ``GEMINI_BATCH_ENQUEUED_INPUT_TOKENS_*`` (not auto-enforced).
+    #
+    # Key format "regular:<model>" applies only to live generate_content
+    # calls; "batch:*" catches all Batch API job submissions.
+    # ------------------------------------------------------------------
+    "gemini": {
+        # ── Live (regular) generate_content ────────────────────────────
+        "regular:gemini-2.0-flash":      {"rpm": 10_000},
+        "regular:gemini-2.0-flash-lite": {"rpm": 20_000},
+        "regular:gemini-2.5-flash":      {"rpm": 2_000},
+        "regular:gemini-2.5-flash-lite": {"rpm": 10_000},
+        "regular:gemini-2.5-pro":        {"rpm": 1_000},
+        "regular:gemini-3-flash-preview": {"rpm": 2_000},
+        "regular:gemini-3.1-flash-lite": {"rpm": 10_000},
+        "regular:gemini-3.1-flash-lite-preview": {"rpm": 10_000},
+        "regular:gemini-3.1-pro-preview": {"rpm": 1_000},
+        "regular:gemini-3.1-pro-preview-customtools": {"rpm": 1_000},
+        # ── Batch job submissions ────────────────────────────────────────
+        # Each submission is one POST per JSONL file, not one per row.
+        # 60 rpm is generous for job-level submits; raises on demand.
+        "batch:*": {"rpm": 60},
+        # ── Fallback for any unlisted model ─────────────────────────────
+        "__default__": {"rpm": LLM_NO_RATE_LIMIT},
+    },
+
+    # ------------------------------------------------------------------
+    # NVIDIA Inference Hub  (inference-api.nvidia.com)
+    # Free tier: 40 RPM.  Higher tiers available on request (up to 200+).
+    # Source: NVIDIA Developer forums + NIM documentation (2025).
+    # The default covers all models routed through NVIDIA_IH_MODEL.
+    # ------------------------------------------------------------------
+    "nvidia_ih": {
+        # Model key matches the full NVIDIA_IH_MODEL path, e.g.:
+        #   "gcp/google/gemini-2.5-flash-lite": {"rpm": 40},
+        "__default__": {"rpm": 40},  # free tier; raise after quota upgrade
+    },
+}
+
+# --- NVIDIA Inference Hub (Vertex-style generateContent) ---
+# Override URL entirely with NVIDIA_IH_URL_TEMPLATE env if your project path differs.
+NVIDIA_IH_MODEL = os.environ.get("IH_MODEL", "gcp/google/gemini-2.5-flash-lite")
+NVIDIA_IH_GENERATE_URL_TEMPLATE = os.environ.get(
+    "NVIDIA_IH_URL_TEMPLATE",
+    "https://inference-api.nvidia.com/vertex_ai/v1/projects/"
+    "nv-gcpllmgwit-20250411173346/locations/global/publishers/google/models/"
+    "{model}:generateContent",
+)
+NVIDIA_IH_TIMEOUT_S = float(os.environ.get("NVIDIA_IH_TIMEOUT_S", "180"))
+NVIDIA_IH_API_KEY = (
+    os.environ.get("IH_API_KEY")
+    or os.environ.get("NVIDIA_IH_API_KEY")
+    or os.environ.get("API_KEY")
+    or ""
+)
 
 # BGU CIS Ollama endpoint (see AI_ollama_Chat_ guide + your examples)
 OLLAMA_HOST = "https://cis-ollama.auth.ad.bgu.ac.il"
@@ -135,11 +318,37 @@ OLLAMA_MAX_CONCURRENT_REQUESTS = 8
 # Number of documents scored per Ollama request in global correlation experiment.
 OLLAMA_DOCS_PER_REQUEST = 10
 
+
+def correlation_live_model_name() -> str:
+    """Model id for live scoring on Ollama or NVIDIA Inference Hub (not Gemini Batch)."""
+    p = str(CORRELATION_LLM_PROVIDER).strip().lower()
+    if p in ("nvidia_ih", "nvidia", "inference_hub"):
+        return str(NVIDIA_IH_MODEL)
+    return CORRELATION_OLLAMA_MODEL
+
+
+def configured_correlation_provider() -> str:
+    """Current provider string (always reads live config, including runtime overrides)."""
+    return str(CORRELATION_LLM_PROVIDER).strip().lower()
+
+
 # ==========================
 # Global Correlation small-batch limits (Pilot)
 # ==========================
 # Limits docs per query in Pilot mode to keep validation runs fast and observable.
 CORRELATION_PILOT_MAX_DOCS_PER_QUERY = 40
+
+# ==========================
+# Staged / additive-pool run parameters
+# ==========================
+# Documents added per stream (ranked + random) per query per stage.
+STAGING_STRIDE = 5
+# Max ranked neighbours retrieved per GT embedding across all stages.
+STAGING_MAX_RANKED_PER_GT = 100
+# Max ranked neighbours retrieved per query embedding across all stages.
+STAGING_MAX_RANKED_PER_QUERY = 100
+# Max random corpus samples per query across all stages.
+STAGING_MAX_RANDOM_PER_QUERY = 100
 
 # === OPTIMIZATION PARAMETERS ===
 MAX_RETRIES = 3

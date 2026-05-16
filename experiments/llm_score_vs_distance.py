@@ -3,22 +3,20 @@ import os
 import re
 import time
 from datetime import datetime
-
 import matplotlib.pyplot as plt
 import numpy as np
-from google import genai
 
-from configurations.config import GEMINI_API_KEY, RUN_RANDOM_SCENARIO
+from configurations.config import (
+    CORRELATION_GEMINI_BATCH_MODEL,
+    CORRELATION_LLM_PROVIDER,
+    correlation_live_model_name,
+    RUN_RANDOM_SCENARIO,
+)
 from scripts.qa_data_set_loader import load_qa_queries
 from utility.distance_metrics import DistanceMetric
 from utility.logger import logger
+from utility.llm_gateway import complete_prompt, normalize_provider
 from vector_db.trilateration_retriever import cosine_distance
-
-print(f"DEBUG: GEMINI_API_KEY is loaded: {bool(GEMINI_API_KEY)}")
-if GEMINI_API_KEY:
-    print(f"DEBUG: Key starts with: {GEMINI_API_KEY[:5]}...")
-
-client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 # --------------------------------------------------------------
@@ -66,7 +64,11 @@ def sample_random_docs_by_pmid(vector_db, n):
 def gemini_score(query, document, max_retries=10):
     """
     Rates the relevance of a document to a query on a scale of 1-10 and normalizes it to 0.1-1.0.
-    Handles rate limiting (429) and server overloads (503) with exponential backoff.
+
+    Backend is selected by ``configurations.config.CORRELATION_LLM_PROVIDER``:
+    ``gemini`` (live ``generate_content``), ``ollama``, or ``nvidia_ih`` (NVIDIA Inference Hub HTTP).
+
+    Handles rate limiting (429) and server overloads (503) with exponential backoff where applicable.
 
     Args:
         query (str): The search query.
@@ -74,7 +76,7 @@ def gemini_score(query, document, max_retries=10):
         max_retries (int): Maximum number of retry attempts for API errors.
 
     Returns:
-        float: Normalized relevance score (0.0 to 1.0).
+        float: Normalized relevance score (0.0 to 1.0), or ``-1.0`` on repeated hard failure.
     """
     prompt = f"""
 ### ROLE
@@ -103,34 +105,50 @@ DOCUMENT (excerpt):
 {document[:8000]}
 """
 
+    provider = normalize_provider(CORRELATION_LLM_PROVIDER)
+    model = (
+        correlation_live_model_name()
+        if provider in ("ollama", "nvidia_ih")
+        else CORRELATION_GEMINI_BATCH_MODEL
+    )
+    system_prompt = (
+        "Return only one integer from 1 through 10. No other words, punctuation, or formatting."
+        if provider in ("ollama", "nvidia_ih", "gemini")
+        else None
+    )
+
+    def _normalized_from_text(text: str) -> float:
+        m = re.search(r"\b([1-9]|10)\b", text)
+        if m:
+            return float(int(m.group(1))) / 10.0
+        return 0.0
+
     for attempt in range(max_retries):
         try:
-            response = client.models.generate_content(
-                model='gemini-2.0-flash',
-                contents=prompt
+            text = complete_prompt(
+                provider=provider,
+                model=model,
+                prompt=prompt,
+                system_prompt=system_prompt,
             )
-            text = response.text.strip()
-
-            m = re.search(r"\b([1-9]|10)\b", text)
-            if m:
-                raw_val = int(m.group(1))
-                return float(raw_val) / 10.0
-            return 0.0
+            return _normalized_from_text(text)
 
         except Exception as e:
             if attempt == max_retries - 1:
-                logger.error("🛑 All retry attempts failed. Quota is likely exhausted for the day.")
+                logger.error("🛑 All retry attempts failed. Quota or connectivity may be exhausted.")
                 return -1.0
             err_msg = str(e).lower()
             if "429" in err_msg or "resource_exhausted" in err_msg:
                 wait_time = (attempt + 1) * 15
                 logger.warning(
-                    f"⚠️ Quota exceeded (429). Retrying in {wait_time}s... (Attempt {attempt + 1}/{max_retries})")
+                    f"⚠️ Quota exceeded (429). Retrying in {wait_time}s... (Attempt {attempt + 1}/{max_retries})"
+                )
                 time.sleep(wait_time)
             elif "503" in err_msg or "overloaded" in err_msg:
                 wait_time = (attempt + 1) * 5
                 logger.warning(
-                    f"⚠️ Server overloaded (503). Retrying in {wait_time}s... (Attempt {attempt + 1}/{max_retries})")
+                    f"⚠️ Server overloaded (503). Retrying in {wait_time}s... (Attempt {attempt + 1}/{max_retries})"
+                )
                 time.sleep(wait_time)
             else:
                 logger.error(f"⚠️ gemini_score unexpected exception: {e}")
@@ -255,7 +273,7 @@ def run_llm_score_vs_distance_scatter_experiment(
                 writer.writerows(rows)
 
             plt.figure(figsize=(8, 6))
-            plt.scatter(data_llm['x'], data_llm['y'], alpha=0.6, color=color_llm, s=15, label="Gemini Score")
+            plt.scatter(data_llm['x'], data_llm['y'], alpha=0.6, color=color_llm, s=15, label="LLM score")
 
             if data_ce['x']:
                 plt.scatter(data_ce['x'], data_ce['y'], alpha=0.6, color='orange', s=15, marker='x',
