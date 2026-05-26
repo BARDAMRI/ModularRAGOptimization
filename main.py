@@ -120,6 +120,119 @@ def download_dataset():
         logger.error(f"Dataset download error: {e}")
 
 
+def _guess_latest_global_correlation_db() -> str:
+    """Best-effort path to experiment_results.db in the newest results/global_exp run."""
+    try:
+        base = os.path.join("results", "global_exp")
+        if os.path.isdir(base):
+            dirs = [d for d in os.listdir(base) if os.path.isdir(os.path.join(base, d))]
+            dirs = sorted(dirs, reverse=True)
+            if dirs:
+                guess = os.path.join(base, dirs[0], "experiment_results.db")
+                if os.path.exists(guess):
+                    return guess
+    except Exception:
+        pass
+    return ""
+
+
+def _resolve_global_correlation_paths(rc) -> tuple[str | None, str | None]:
+    """
+    Resolve (run_dir, db_path) from run_config for analysis / sync helpers.
+    Empty strings in config are treated as unset (use latest run).
+
+    Checks the active-mode flat namespace first, then falls back to the
+    modes.analyze sub-dict so that run_dir / database_path set under
+    the analyze mode entry are honoured even when active_mode != analyze.
+    """
+    run_dir = None
+    db_path = None
+    if rc.enabled:
+        # 1. Active-mode flat namespace (works when active_mode == analyze)
+        for key in ("global_correlation.run_dir",):
+            val = rc.get_str(key)
+            if val:
+                run_dir = val
+        for key in (
+            "global_correlation.database_path",
+            "global_correlation.sync_database_path",
+        ):
+            val = rc.get_str(key)
+            if val:
+                db_path = val
+                break
+        # 2. Fallback: read directly from modes.analyze even when another mode is active
+        if not run_dir and not db_path:
+            try:
+                analyze_block = rc._get_field_raw("global_correlation.modes.analyze")
+                if isinstance(analyze_block, dict):
+                    run_dir = analyze_block.get("run_dir") or None
+                    db_path = (analyze_block.get("database_path")
+                               or analyze_block.get("sync_database_path")) or None
+            except Exception:
+                pass
+    if not db_path and not run_dir:
+        db_path = _guess_latest_global_correlation_db() or None
+    return run_dir, db_path
+
+
+def _run_global_correlation_analyze(rc) -> None:
+    """Run the unified post-run analysis pipeline (base + extended + HTML report)."""
+    from run_global_correlation_analysis import run_global_correlation_analysis
+
+    run_dir, db_path = _resolve_global_correlation_paths(rc)
+    if rc.enabled:
+        if run_dir:
+            print(f"[config] global_correlation.run_dir = {run_dir!r}")
+        if db_path:
+            print(f"[config] global_correlation.database_path = {db_path!r}")
+
+    if not run_dir and not db_path:
+        default_db = _guess_latest_global_correlation_db()
+        prompt = "Path to experiment_results.db"
+        if default_db:
+            prompt += f" [default={default_db}]"
+        db_path = input(prompt + ": ").strip() or default_db
+        if not db_path:
+            print("No db_path provided. Aborting analysis.")
+            return
+
+    # Optional: restrict to specific steps via config (base / extended / report / all)
+    steps = None
+    if rc.enabled:
+        steps = rc.get_str("global_correlation.analysis_steps") or None
+
+    print_section_header("📊 GLOBAL CORRELATION — POST-RUN ANALYSIS")
+    print(
+        "\nRuns analyze_experiment.py → analyze_experiment_extended.py → export_report.py\n"
+        "Outputs land in <run_dir>/analysis/ (CSVs, charts, report.html).\n"
+        "Override steps via global_correlation.analysis_steps in run_config.json.\n"
+    )
+    try:
+        result = run_global_correlation_analysis(db_path=db_path, run_dir=run_dir, steps=steps)
+        print(f"\n✅ Report ready: {result['report_html']}")
+    except Exception as e:
+        logger.error(f"Global correlation analysis failed: {e}")
+        print(f"❌ Analysis failed: {e}")
+
+
+def _maybe_run_post_analysis(rc) -> None:
+    """If configured, run the analysis pipeline immediately after an experiment finishes."""
+    if not rc.enabled:
+        return
+    if not rc.get_bool("global_correlation.auto_run_post_analysis", default=False):
+        return
+    print_section_header("📊 AUTO POST-RUN ANALYSIS (run_config)")
+    try:
+        run_dir, db_path = _resolve_global_correlation_paths(rc)
+        from run_global_correlation_analysis import run_global_correlation_analysis
+        result = run_global_correlation_analysis(db_path=db_path, run_dir=run_dir)
+        print(f"\n✅ Auto analysis complete. Report: {result['report_html']}")
+    except Exception as e:
+        logger.error(f"Auto post-run analysis failed: {e}")
+        print(f"❌ Auto post-run analysis failed: {e}")
+
+
 def handle_experiment_selection(experiment_choice):
     """Handle the experiment selection from the experiments menu."""
     global vector_db, embedding_model, tokenizer, model, cross_encoder_model, device, storing_method, source_path, distance_metric
@@ -170,14 +283,14 @@ def handle_experiment_selection(experiment_choice):
             "\n"
             "[staged / 4] Staged Additive-Pool Mode (Recommended)\n"
             "  Description : Builds the scoring pool incrementally, STRIDE docs per stream per stage.\n"
-            "  Mechanics   : Stage 1 seeds GT docs + first ranked+random slices; each subsequent\n"
+            "  Mechanics   : Stage 1 seeds all GT docs + first ranked_pool slice; each subsequent\n"
             "                stage appends the next slice, scores all queries vs new docs, and\n"
-            "                harvests results before proceeding. Manifest tracks cursors for safe\n"
+            "                harvests results before proceeding. Manifest tracks cursor for safe\n"
             "                resume. Equivalent to full mode once all stages complete.\n"
             "  Goal        : Full correlation data with fine-grained resumability and no large\n"
             "                single-shot submissions.\n"
             "  Config keys : global_correlation.staging_stride, .staging_max_ranked_per_gt,\n"
-            "                .staging_max_random_per_query, .queries_to_load\n"
+            "                .staging_max_ranked_per_query, .queries_to_load\n"
             "\n"
             "[pilot / 1] Pilot Mode (Test Run)\n"
             "  Description : Short run on a small number of queries (e.g., 5).\n"
@@ -206,17 +319,25 @@ def handle_experiment_selection(experiment_choice):
             "  Goal        : Close the loop after the Batch job completes.\n"
             "  Config keys : global_correlation.sync_database_path, .sync_output_path\n"
             "\n"
+            "[analyze / 5] Post-Run Analysis (Recommended after scoring)\n"
+            "  Description : Runs analyze_experiment.py → analyze_experiment_extended.py →\n"
+            "                export_report.py on experiment_results.db.\n"
+            "  Goal        : Full CSV/chart/HTML report with tie-corrected metrics and run-health banner.\n"
+            "  Config keys : global_correlation.run_dir, .database_path\n"
+            "                (empty = latest run under results/global_exp/)\n"
+            "\n"
             "[0] Back to Main Menu\n"
         )
 
         from utility.run_config import run_config as _rc
 
-        # Normalize run_mode: config supplies "pilot"/"full"/"staged"/"sync", interactive "1"/"2"/"3"/"4"
+        # Normalize run_mode: config supplies mode name or menu digit
         _RUN_MODE_MAP = {
-            "1": "pilot",  "pilot":  "pilot",
-            "2": "full",   "full":   "full",
-            "3": "sync",   "sync":   "sync",
-            "4": "staged", "staged": "staged",
+            "1": "pilot",    "pilot":    "pilot",
+            "2": "full",     "full":     "full",
+            "3": "sync",     "sync":     "sync",
+            "4": "staged",   "staged":   "staged",
+            "5": "analyze",  "analyze":  "analyze",
             "0": "back",
         }
 
@@ -234,11 +355,11 @@ def handle_experiment_selection(experiment_choice):
         _prov = str(config.CORRELATION_LLM_PROVIDER).strip().lower()
         if _prov == "ollama":
             ollama_print_available_models_once()
-        elif _prov in ("nvidia_ih", "nvidia", "inference_hub"):
-            from configurations.config import NVIDIA_IH_MODEL, NVIDIA_IH_API_KEY
-            if not (NVIDIA_IH_API_KEY or "").strip():
-                print("[NVIDIA_IH] Warning: IH_API_KEY / NVIDIA_IH_API_KEY is not set.")
-            print(f"[NVIDIA_IH] Model: {NVIDIA_IH_MODEL}")
+        elif _prov in ("inference_api", "inference_hub"):
+            from configurations.config import INFERENCE_API_MODEL, INFERENCE_API_KEY
+            if not (INFERENCE_API_KEY or "").strip():
+                print("[Inference_API] Warning: INFERENCE_API_KEY is not set.")
+            print(f"[Inference_API] Model: {INFERENCE_API_MODEL}")
 
         _cfg_mode = None
         if _rc.enabled:
@@ -247,10 +368,16 @@ def handle_experiment_selection(experiment_choice):
             _raw_mode = str(_cfg_mode).strip().lower()
             run_mode = _RUN_MODE_MAP.get(_raw_mode, _raw_mode)
         else:
-            _raw_mode = input("Select option (staged/pilot/full/sync or 4/1/2/3/0) [default=4]: ").strip() or "4"
+            _raw_mode = input(
+                "Select option (staged/pilot/full/sync/analyze or 4/1/2/3/5/0) [default=4]: "
+            ).strip() or "4"
             run_mode = _RUN_MODE_MAP.get(_raw_mode.lower(), _raw_mode.lower())
 
         if run_mode == "back":
+            return
+
+        if run_mode == "analyze":
+            _run_global_correlation_analyze(_rc)
             return
 
         if run_mode == "staged":
@@ -269,9 +396,6 @@ def handle_experiment_selection(experiment_choice):
                 if _rc.has("global_correlation.staging_max_ranked_per_query"):
                     _staged_kw["max_ranked_query"] = _rc.get_int("global_correlation.staging_max_ranked_per_query",
                                                                    int(config.STAGING_MAX_RANKED_PER_QUERY))
-                if _rc.has("global_correlation.staging_max_random_per_query"):
-                    _staged_kw["max_random"] = _rc.get_int("global_correlation.staging_max_random_per_query",
-                                                            int(config.STAGING_MAX_RANDOM_PER_QUERY))
             asyncio.run(run_global_correlation_staged_async(
                 vector_db=vector_db,
                 embedding_model=embedding_model,
@@ -279,6 +403,7 @@ def handle_experiment_selection(experiment_choice):
                 per_job_timeout_s=_per_job_timeout_s,
                 **_staged_kw,
             ))
+            _maybe_run_post_analysis(_rc)
             return
 
         if run_mode == "pilot":
@@ -309,6 +434,7 @@ def handle_experiment_selection(experiment_choice):
                 pilot_batch_size=_pilot_batch,
                 per_job_timeout_s=_per_job_timeout_s,
             ))
+            _maybe_run_post_analysis(_rc)
             return
 
         if run_mode == "full":
@@ -362,6 +488,7 @@ def handle_experiment_selection(experiment_choice):
                 per_job_timeout_s=_per_job_timeout_s,
                 **_gemini_kw,
             ))
+            _maybe_run_post_analysis(_rc)
             return
 
         if run_mode == "sync":
@@ -370,19 +497,7 @@ def handle_experiment_selection(experiment_choice):
             from sync_batch_results import sync_batch_results
             import sqlite3 as _sqlite3
 
-            # Best-effort default: latest run folder in results/global_exp
-            default_db_path = ""
-            try:
-                base = os.path.join("results", "global_exp")
-                if os.path.isdir(base):
-                    dirs = [d for d in os.listdir(base) if os.path.isdir(os.path.join(base, d))]
-                    dirs = sorted(dirs, reverse=True)
-                    if dirs:
-                        guess = os.path.join(base, dirs[0], "experiment_results.db")
-                        if os.path.exists(guess):
-                            default_db_path = guess
-            except Exception:
-                default_db_path = ""
+            default_db_path = _guess_latest_global_correlation_db()
 
             if _rc.enabled and _rc.get("global_correlation.sync_database_path"):
                 db_path = str(_rc.get("global_correlation.sync_database_path"))
@@ -434,6 +549,7 @@ def handle_experiment_selection(experiment_choice):
                     print(f"Status check failed (continuing to sync anyway): {e}")
 
             sync_batch_results(db_path=db_path, output_paths_input=output_jsonl_path)
+            _maybe_run_post_analysis(_rc)
             return
 
         if run_mode == "retry":
@@ -444,19 +560,7 @@ def handle_experiment_selection(experiment_choice):
             _timeout_min = _rc.get_int("global_correlation.auto_harvest_per_job_timeout_min", 0) if _rc.enabled else 0
             _per_job_timeout_s = (_timeout_min * 60) if _timeout_min and _timeout_min > 0 else None
 
-            # Locate run db
-            default_db_path = ""
-            try:
-                base = os.path.join("results", "global_exp")
-                if os.path.isdir(base):
-                    dirs = [d for d in os.listdir(base) if os.path.isdir(os.path.join(base, d))]
-                    dirs = sorted(dirs, reverse=True)
-                    if dirs:
-                        guess = os.path.join(base, dirs[0], "experiment_results.db")
-                        if os.path.exists(guess):
-                            default_db_path = guess
-            except Exception:
-                default_db_path = ""
+            default_db_path = _guess_latest_global_correlation_db()
 
             if _rc.enabled and _rc.get("global_correlation.sync_database_path"):
                 db_path = str(_rc.get("global_correlation.sync_database_path"))
@@ -475,6 +579,7 @@ def handle_experiment_selection(experiment_choice):
                 db_path=db_path,
                 per_job_timeout_s=_per_job_timeout_s,
             )
+            _maybe_run_post_analysis(_rc)
             return
 
         print("Invalid selection. Returning to menu.")

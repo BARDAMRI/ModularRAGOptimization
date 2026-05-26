@@ -31,8 +31,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import os
-import sqlite3
 import sys
 import textwrap
 from pathlib import Path
@@ -45,31 +43,26 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-plt.rcParams.update({"figure.dpi": 120, "font.size": 10})
-
-RESULTS_ROOT = Path("results/global_exp")
-ANALYSIS_DIR = "analysis"
+from analysis_common import (
+    ANALYSIS_DIR,
+    AnalysisLayout,
+    build_per_query_overview,
+    collect_run_health,
+    find_latest_db,
+    format_health_text_lines,
+    load_scored_dataframe,
+    resolve_artifact,
+    save_run_health,
+    write_analysis_index,
+)
 ALL_SCORE_LEVELS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
-
-def _find_latest_db() -> Path:
-    candidates = sorted(RESULTS_ROOT.glob("staged_run_*/experiment_results.db"))
-    if not candidates:
-        candidates = sorted(RESULTS_ROOT.glob("*/experiment_results.db"))
-    if not candidates:
-        raise FileNotFoundError(f"No experiment_results.db found under {RESULTS_ROOT}")
-    return candidates[-1]
+plt.rcParams.update({"figure.dpi": 120, "font.size": 10})
 
 
 def _load(db_path: Path) -> pd.DataFrame:
     print(f"Loading from {db_path} …")
-    conn = sqlite3.connect(db_path)
-    df = pd.read_sql_query(
-        "SELECT query_idx, doc_id, llm_score, dist_to_gt, is_gt, rag_failed "
-        "FROM results WHERE llm_score IS NOT NULL",
-        conn,
-    )
-    conn.close()
+    df = load_scored_dataframe(db_path)
     print(f"  {len(df):,} rows  |  {df['query_idx'].nunique()} queries  |  "
           f"{df['is_gt'].sum()} GT rows\n")
     return df
@@ -88,7 +81,7 @@ def _csv(df: pd.DataFrame, path: Path, label: str = "") -> None:
 
 # ─── A. Tie structure analysis ────────────────────────────────────────────────
 
-def section_a_tie_structure(df: pd.DataFrame, out: Path) -> dict:
+def section_a_tie_structure(df: pd.DataFrame, layout: AnalysisLayout) -> dict:
     """
     For each query: how many docs share the same score as GT?
     Surfaces the "illusory P@1" — GT is in the top tier but not uniquely identified.
@@ -113,7 +106,7 @@ def section_a_tie_structure(df: pd.DataFrame, out: Path) -> dict:
             "gt_uniquely_top": int(n_above == 0 and n_tied == 1),
         })
     tie_df = pd.DataFrame(rows)
-    _csv(tie_df, out / "tie_structure.csv", "Per-query tie structure")
+    _csv(tie_df, layout.per_query_csv("tie_structure.csv"), "Per-query tie structure")
 
     gt_in_top  = tie_df[tie_df["n_above_gt"] == 0]
     gt_not_top = tie_df[tie_df["n_above_gt"] > 0]
@@ -151,7 +144,7 @@ def section_a_tie_structure(df: pd.DataFrame, out: Path) -> dict:
     fig.suptitle("Tie Structure: Why P@1=98% Is Misleading\n"
                  "GT is in top tier but shares it with ~11 other docs on average")
     plt.tight_layout()
-    _fig(out / "tie_structure.png", "Tie structure — corrects misleading P@1")
+    _fig(layout.chart_extended("tie_structure.png"), "Tie structure — corrects misleading P@1")
 
     return {
         "n_queries_gt_in_top": len(gt_in_top),
@@ -159,12 +152,13 @@ def section_a_tie_structure(df: pd.DataFrame, out: Path) -> dict:
         "n_uniquely_top": int(n_unique),
         "mean_tier_precision": float(mean_prec),
         "median_n_tied": float(gt_in_top["n_tied_at_gt"].median()),
+        "mean_n_tied": float(gt_in_top["n_tied_at_gt"].mean()),
     }
 
 
 # ─── B. Score discretization ─────────────────────────────────────────────────
 
-def section_b_score_levels(df: pd.DataFrame, out: Path) -> None:
+def section_b_score_levels(df: pd.DataFrame, layout: AnalysisLayout) -> None:
     """
     Break down each discrete score level: doc counts, GT fraction, dist_to_gt distribution.
     The LLM uses a 1-10 integer scale (/10), so only 10 distinct values are possible.
@@ -186,7 +180,7 @@ def section_b_score_levels(df: pd.DataFrame, out: Path) -> None:
             "p90_dist":    sub["dist_to_gt"].quantile(0.90),
         })
     lvl_df = pd.DataFrame(rows)
-    _csv(lvl_df, out / "score_level_breakdown.csv", "Per-score-level stats")
+    _csv(lvl_df, layout.global_csv("score_level_breakdown.csv"), "Per-score-level stats")
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 8))
 
@@ -230,12 +224,12 @@ def section_b_score_levels(df: pd.DataFrame, out: Path) -> None:
 
     fig.suptitle("Score Discretization: LLM Uses Integer Scale 1-10 (÷ 10)")
     plt.tight_layout()
-    _fig(out / "score_level_breakdown.png", "Score levels: counts, GT fraction, distances")
+    _fig(layout.chart_extended("score_level_breakdown.png"), "Score levels: counts, GT fraction, distances")
 
 
 # ─── C. LLM as threshold filter ──────────────────────────────────────────────
 
-def section_c_threshold_filter(df: pd.DataFrame, out: Path) -> None:
+def section_c_threshold_filter(df: pd.DataFrame, layout: AnalysisLayout) -> None:
     """
     Treat LLM score as a binary filter: keep docs scoring >= threshold.
     Compute precision, recall, F1, and mean pool size at each threshold.
@@ -263,7 +257,7 @@ def section_c_threshold_filter(df: pd.DataFrame, out: Path) -> None:
             "f1":           f1,
         })
     filt_df = pd.DataFrame(rows)
-    _csv(filt_df, out / "threshold_filter_analysis.csv", "LLM filter: precision/recall at each threshold")
+    _csv(filt_df, layout.global_csv("threshold_filter_analysis.csv"), "LLM filter: precision/recall at each threshold")
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
@@ -297,12 +291,12 @@ def section_c_threshold_filter(df: pd.DataFrame, out: Path) -> None:
 
     fig.suptitle("LLM as a Threshold Filter: Precision, Recall, Pool Size")
     plt.tight_layout()
-    _fig(out / "threshold_filter.png", "LLM filter: precision/recall tradeoff by threshold")
+    _fig(layout.chart_extended("threshold_filter.png"), "LLM filter: precision/recall tradeoff by threshold")
 
 
 # ─── D. Query difficulty classification ──────────────────────────────────────
 
-def section_d_difficulty(df: pd.DataFrame, out: Path) -> dict:
+def section_d_difficulty(df: pd.DataFrame, layout: AnalysisLayout) -> dict:
     """
     Classify each query into:
       - FAILED:  GT scores < 1.0 (LLM does not rank GT at top)
@@ -335,7 +329,7 @@ def section_d_difficulty(df: pd.DataFrame, out: Path) -> dict:
             "difficulty": difficulty,
         })
     diff_df = pd.DataFrame(rows)
-    _csv(diff_df, out / "query_difficulty.csv", "Per-query difficulty classification")
+    _csv(diff_df, layout.per_query_csv("query_difficulty.csv"), "Per-query difficulty classification")
 
     counts = diff_df["difficulty"].value_counts().reindex(["EASY", "MEDIUM", "HARD", "FAILED"], fill_value=0)
 
@@ -366,14 +360,14 @@ def section_d_difficulty(df: pd.DataFrame, out: Path) -> dict:
 
     fig.suptitle("Query Difficulty: Can LLM Uniquely Identify GT?")
     plt.tight_layout()
-    _fig(out / "query_difficulty.png", "Query difficulty classification")
+    _fig(layout.chart_extended("query_difficulty.png"), "Query difficulty classification")
 
     return {k: int(v) for k, v in counts.items()}
 
 
 # ─── E. Failure deep-dive ─────────────────────────────────────────────────────
 
-def section_e_failures(df: pd.DataFrame, out: Path) -> None:
+def section_e_failures(df: pd.DataFrame, layout: AnalysisLayout) -> None:
     """
     Deep-dive into queries where GT did NOT score 1.0.
     These are the true LLM failures — it rated GT below some non-GT docs.
@@ -404,7 +398,7 @@ def section_e_failures(df: pd.DataFrame, out: Path) -> None:
     if fail_df.empty:
         print("  No LLM failures found (all GTs score 1.0).")
         return
-    _csv(fail_df, out / "failure_cases.csv", "Failure cases: GT did not score 1.0")
+    _csv(fail_df, layout.per_query_csv("failure_cases.csv"), "Failure cases: GT did not score 1.0")
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
@@ -437,7 +431,7 @@ def section_e_failures(df: pd.DataFrame, out: Path) -> None:
 
     fig.suptitle("Failure Analysis: Queries Where LLM Rated GT Below Non-GT Docs")
     plt.tight_layout()
-    _fig(out / "failure_cases.png", "Failure deep-dive")
+    _fig(layout.chart_extended("failure_cases.png"), "Failure deep-dive")
 
     print(f"  Failure summary:")
     print(fail_df[["query_idx", "gt_llm_score", "gt_rank", "n_docs_above_gt"]].to_string(index=False))
@@ -445,7 +439,7 @@ def section_e_failures(df: pd.DataFrame, out: Path) -> None:
 
 # ─── F. False positive analysis (non-GT docs scoring 1.0) ────────────────────
 
-def section_f_false_positives(df: pd.DataFrame, out: Path) -> None:
+def section_f_false_positives(df: pd.DataFrame, layout: AnalysisLayout) -> None:
     """
     2021 non-GT docs score 1.0 — the same as GT.
     Are they genuinely close to GT (low dist_to_gt) or are they false positives?
@@ -462,7 +456,7 @@ def section_f_false_positives(df: pd.DataFrame, out: Path) -> None:
         "p10_dist":    [gt_top["dist_to_gt"].quantile(0.10), ngt_top["dist_to_gt"].quantile(0.10), ngt_low["dist_to_gt"].quantile(0.10)],
         "p90_dist":    [gt_top["dist_to_gt"].quantile(0.90), ngt_top["dist_to_gt"].quantile(0.90), ngt_low["dist_to_gt"].quantile(0.90)],
     })
-    _csv(summary, out / "false_positive_analysis.csv", "Non-GT docs scoring 1.0 vs 0.1")
+    _csv(summary, layout.global_csv("false_positive_analysis.csv"), "Non-GT docs scoring 1.0 vs 0.1")
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
@@ -503,12 +497,12 @@ def section_f_false_positives(df: pd.DataFrame, out: Path) -> None:
 
     fig.suptitle("False Positive Analysis: Non-GT Docs That Score 1.0")
     plt.tight_layout()
-    _fig(out / "false_positive_analysis.png", "False positives: non-GT docs at score=1.0")
+    _fig(layout.chart_extended("false_positive_analysis.png"), "False positives: non-GT docs at score=1.0")
 
 
 # ─── G. Tie-corrected MRR / P@K ──────────────────────────────────────────────
 
-def section_g_corrected_mrr(df: pd.DataFrame, out: Path) -> dict:
+def section_g_corrected_mrr(df: pd.DataFrame, layout: AnalysisLayout) -> dict:
     """
     Compute MRR and P@K using rank(method='average') which assigns the mean
     rank to tied docs (e.g., 11 docs tied at rank 1 all get rank 6).
@@ -533,7 +527,7 @@ def section_g_corrected_mrr(df: pd.DataFrame, out: Path) -> dict:
             "n_docs":    len(grp),
         })
     rank_df = pd.DataFrame(rows)
-    _csv(rank_df, out / "tie_corrected_ranks.csv", "Min/avg/max ranks per query")
+    _csv(rank_df, layout.per_query_csv("tie_corrected_ranks.csv"), "Min/avg/max ranks per query")
 
     ks = [1, 3, 5, 10, 20, 50]
     mrr_min = (1.0 / rank_df["rank_min"]).mean()
@@ -549,7 +543,7 @@ def section_g_corrected_mrr(df: pd.DataFrame, out: Path) -> dict:
         metric_rows.append({"metric": f"P@{k} (tie-corrected, rank_avg<=k)", "value": (rank_df["rank_avg"] <= k).mean()})
         metric_rows.append({"metric": f"P@{k} (pessimistic, rank_max<=k)", "value": (rank_df["rank_max"] <= k).mean()})
     metric_df = pd.DataFrame(metric_rows)
-    _csv(metric_df, out / "corrected_mrr_at_k.csv", "Tie-corrected MRR and P@K")
+    _csv(metric_df, layout.global_csv("corrected_mrr_at_k.csv"), "Tie-corrected MRR and P@K")
 
     # Comparison bar chart
     fig, axes = plt.subplots(1, 2, figsize=(14, 4))
@@ -587,14 +581,14 @@ def section_g_corrected_mrr(df: pd.DataFrame, out: Path) -> dict:
 
     fig.suptitle("Corrected Retrieval Metrics: Why Tie-Breaking Method Matters")
     plt.tight_layout()
-    _fig(out / "corrected_mrr_at_k.png", "Tie-corrected MRR and P@K comparison")
+    _fig(layout.chart_extended("corrected_mrr_at_k.png"), "Tie-corrected MRR and P@K comparison")
 
     return {"mrr_optimistic": mrr_min, "mrr_corrected": mrr_avg, "mrr_pessimistic": mrr_max}
 
 
 # ─── H. Within-tier dist_to_gt analysis ──────────────────────────────────────
 
-def section_h_within_tier(df: pd.DataFrame, out: Path) -> None:
+def section_h_within_tier(df: pd.DataFrame, layout: AnalysisLayout) -> None:
     """
     Among docs tied at score=1.0 per query, is dist_to_gt lower for GT than for non-GT?
     If yes, dist_to_gt as a tiebreaker would help. This tests whether a hybrid
@@ -625,7 +619,7 @@ def section_h_within_tier(df: pd.DataFrame, out: Path) -> None:
     if tier_df.empty:
         print("  No tier data to analyze.")
         return
-    _csv(tier_df, out / "within_tier_dist.csv", "GT vs non-GT dist within score=1.0 tier")
+    _csv(tier_df, layout.per_query_csv("within_tier_dist.csv"), "GT vs non-GT dist within score=1.0 tier")
 
     win_rate = tier_df["gt_would_win_dist"].mean() * 100
     mean_pct_further = tier_df["pct_ngt_further"].mean()
@@ -655,14 +649,14 @@ def section_h_within_tier(df: pd.DataFrame, out: Path) -> None:
     fig.suptitle("Hybrid Re-ranking: LLM Score + Distance Tiebreaker\n"
                  "Among docs tied at score=1.0, does GT have lowest dist_to_gt?")
     plt.tight_layout()
-    _fig(out / "within_tier_dist.png", "Within-tier distance tiebreaker analysis")
+    _fig(layout.chart_extended("within_tier_dist.png"), "Within-tier distance tiebreaker analysis")
 
     print(f"  Hybrid (LLM + dist tiebreaker) win rate: {win_rate:.1f}%")
 
 
 # ─── I. Marginal value of intermediate score levels ──────────────────────────
 
-def section_i_marginal_value(df: pd.DataFrame, out: Path) -> None:
+def section_i_marginal_value(df: pd.DataFrame, layout: AnalysisLayout) -> None:
     """
     Docs scoring 0.2, 0.4, 0.6, 0.8 are 'maybes' from the LLM.
     Do they have meaningfully lower dist_to_gt than docs scoring 0.1?
@@ -685,7 +679,7 @@ def section_i_marginal_value(df: pd.DataFrame, out: Path) -> None:
             "improvement_vs_01": baseline - sub.mean(),  # positive = lower dist = better
         })
     agg_df = pd.DataFrame(agg_rows)
-    _csv(agg_df, out / "marginal_score_value.csv", "Mean dist-to-GT improvement per score level")
+    _csv(agg_df, layout.global_csv("marginal_score_value.csv"), "Mean dist-to-GT improvement per score level")
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
@@ -709,24 +703,45 @@ def section_i_marginal_value(df: pd.DataFrame, out: Path) -> None:
 
     fig.suptitle("Do Intermediate LLM Scores (0.2–0.8) Add Signal Over 0.1?")
     plt.tight_layout()
-    _fig(out / "marginal_score_value.png", "Marginal dist improvement by score level")
+    _fig(layout.chart_extended("marginal_score_value.png"), "Marginal dist improvement by score level")
 
 
 # ─── J. Corrected summary ────────────────────────────────────────────────────
 
-def write_corrected_summary(stats: dict, out: Path) -> None:
+def write_corrected_summary(
+    stats: dict,
+    layout: AnalysisLayout,
+    health: dict | None = None,
+) -> None:
+    n_queries = int(stats.get("n_queries", 0))
+    n_gt_in_top = int(stats.get("n_queries_gt_in_top", 0))
+    n_unique = int(stats.get("n_uniquely_top", 0))
+    med_tied = float(stats.get("median_n_tied", 0))
+    mean_tied = float(stats.get("mean_n_tied", med_tied))
+    gt_top_pct = (n_gt_in_top / n_queries * 100) if n_queries else 0.0
+    roc_auc = stats.get("roc_auc", 0.996)
+    avg_pool = stats.get("avg_pool_at_1", 11.0)
+    hybrid_within = stats.get("hybrid_win_within_pct", 100.0)
+    hybrid_overall = stats.get("hybrid_win_overall_pct", gt_top_pct)
+
     lines = [
         "=" * 72,
         "EXTENDED ANALYSIS SUMMARY — CORRECTED INTERPRETATION",
         "=" * 72,
         "",
-        "THE TIE PROBLEM (why base P@1=98% is misleading)",
-        f"  Queries where GT reaches top score tier : {stats.get('n_queries_gt_in_top', '?')} / 199",
-        f"  Queries where GT is UNIQUELY top-scorer : {stats.get('n_uniquely_top', '?')} / 199",
-        f"  Median # docs tied at GT's score        : {stats.get('median_n_tied', '?'):.0f}",
+    ]
+    if health:
+        lines.extend(format_health_text_lines(health, width=72))
+        lines.append("")
+    lines.extend([
+        "THE TIE PROBLEM (why base P@1 is misleading)",
+        f"  Queries where GT reaches top score tier : {n_gt_in_top} / {n_queries}",
+        f"  Queries where GT is UNIQUELY top-scorer : {n_unique} / {n_queries}",
+        f"  Median # docs tied at GT's score        : {med_tied:.0f}",
+        f"  Mean # docs tied at GT's score          : {mean_tied:.1f}",
         f"  Expected tier precision (1/n_tied)      : {stats.get('mean_tier_precision', 0):.3f}",
         "  Interpretation: LLM correctly classes GT as 'max relevance'",
-        "  but puts ~11 other docs in the same class — it cannot pinpoint GT.",
+        f"  but puts a median of {med_tied:.0f} other docs in the same class — it cannot pinpoint GT.",
         "",
         "CORRECTED RETRIEVAL METRICS (tie-aware)",
         f"  MRR (optimistic, rank_min)   : {stats.get('mrr_optimistic', 0):.4f}",
@@ -741,21 +756,25 @@ def write_corrected_summary(stats: dict, out: Path) -> None:
         "",
         "REVISED CONCLUSION",
         textwrap.fill(
-            "The LLM is excellent at binary relevance detection: it assigns score=1.0 "
-            "to the GT document in 98% of queries (ROC-AUC=0.996). "
+            f"The LLM is excellent at binary relevance detection: it assigns score=1.0 "
+            f"to the GT document in {gt_top_pct:.0f}% of queries (ROC-AUC≈{roc_auc:.3f}). "
             "However, it cannot discriminate at fine-grained level within the top tier — "
-            f"on average {stats.get('median_n_tied', 11):.0f} documents share the top score per query. "
-            f"Tie-corrected MRR drops from {stats.get('mrr_optimistic', 0):.3f} to {stats.get('mrr_corrected', 0):.3f}, "
-            "reflecting that LLM alone cannot replace the retriever — it needs a secondary signal "
-            "(e.g., dist_to_gt or cosine similarity) to break ties within the top-scoring group. "
-            "As a FILTER (keep score=1.0 docs, avg pool of ~11), the LLM is very effective. "
+            f"a median of {med_tied:.0f} documents share the top score per query "
+            f"(mean {mean_tied:.1f}). "
+            f"Tie-corrected MRR drops from {stats.get('mrr_optimistic', 0):.3f} to "
+            f"{stats.get('mrr_corrected', 0):.3f}, reflecting that LLM alone cannot replace "
+            "the retriever — it needs a secondary signal (e.g., dist_to_gt or cosine similarity) "
+            f"to break ties within the top-scoring group. As a FILTER (keep score=1.0 docs, "
+            f"avg pool of ~{avg_pool:.0f}), the LLM is very effective. "
+            f"Hybrid LLM+dist tiebreaker wins within the top tier in {hybrid_within:.1f}% of "
+            f"applicable queries ({hybrid_overall:.1f}% overall). "
             "As a RANKER (pick single top doc), it needs tie-breaking.",
             width=72,
         ),
         "",
         "=" * 72,
-    ]
-    path = out / "extended_summary.txt"
+    ])
+    path = layout.summary_txt("extended_summary.txt")
     path.write_text("\n".join(lines))
     print(f"  [txt]   {path.name}")
 
@@ -773,52 +792,83 @@ def main() -> None:
     elif args.db_path:
         db_path = Path(args.db_path)
     else:
-        db_path = _find_latest_db()
+        db_path = find_latest_db()
 
     if not db_path.exists():
         print(f"[ERROR] DB not found: {db_path}", file=sys.stderr)
         sys.exit(1)
 
     run_dir = db_path.parent
-    out_dir = run_dir / ANALYSIS_DIR
-    out_dir.mkdir(exist_ok=True)
+    layout = AnalysisLayout(run_dir / ANALYSIS_DIR).ensure()
     print(f"Run dir : {run_dir}")
-    print(f"Output  : {out_dir}\n")
+    print(f"Output  : {layout.root}\n")
+
+    health = collect_run_health(db_path)
+    save_run_health(health, layout.root)
+    if health["warnings"]:
+        print("Run health warnings:")
+        for w in health["warnings"]:
+            print(f"  • {w}")
+        print()
 
     df = _load(db_path)
-    all_stats: dict = {}
+    all_stats: dict = {"n_queries": df["query_idx"].nunique()}
 
     print("── A. Tie Structure ───────────────────────────────────")
-    all_stats.update(section_a_tie_structure(df, out_dir))
+    all_stats.update(section_a_tie_structure(df, layout))
 
     print("── B. Score Discretization ────────────────────────────")
-    section_b_score_levels(df, out_dir)
+    section_b_score_levels(df, layout)
 
     print("── C. Threshold Filter ────────────────────────────────")
-    section_c_threshold_filter(df, out_dir)
+    section_c_threshold_filter(df, layout)
 
     print("── D. Query Difficulty ────────────────────────────────")
-    all_stats.update(section_d_difficulty(df, out_dir))
+    all_stats.update(section_d_difficulty(df, layout))
 
     print("── E. Failure Deep-Dive ───────────────────────────────")
-    section_e_failures(df, out_dir)
+    section_e_failures(df, layout)
 
     print("── F. False Positives (non-GT @ score=1.0) ───────────")
-    section_f_false_positives(df, out_dir)
+    section_f_false_positives(df, layout)
 
     print("── G. Tie-Corrected MRR / P@K ─────────────────────────")
-    all_stats.update(section_g_corrected_mrr(df, out_dir))
+    all_stats.update(section_g_corrected_mrr(df, layout))
 
     print("── H. Within-Tier Distance Tiebreaker ─────────────────")
-    section_h_within_tier(df, out_dir)
+    section_h_within_tier(df, layout)
 
     print("── I. Marginal Value of Score Levels ──────────────────")
-    section_i_marginal_value(df, out_dir)
+    section_i_marginal_value(df, layout)
+
+    # Enrich summary stats from threshold / hybrid / ROC if CSVs exist from base run
+    roc_path = resolve_artifact(layout.root, "roc_pr_summary.csv")
+    if roc_path.exists():
+        roc_df = pd.read_csv(roc_path)
+        row = roc_df.loc[roc_df["metric"] == "ROC-AUC"]
+        if not row.empty:
+            all_stats["roc_auc"] = float(row["value"].iloc[0])
+    filt_path = resolve_artifact(layout.root, "threshold_filter_analysis.csv")
+    if filt_path.exists():
+        filt_df = pd.read_csv(filt_path)
+        row = filt_df.loc[filt_df["threshold"] == 1.0]
+        if not row.empty:
+            all_stats["avg_pool_at_1"] = float(row["avg_pool_size"].iloc[0])
+    wt_path = resolve_artifact(layout.root, "within_tier_dist.csv")
+    if wt_path.exists():
+        wt_df = pd.read_csv(wt_path)
+        all_stats["hybrid_win_within_pct"] = float(wt_df["gt_would_win_dist"].mean() * 100)
+        n_q = all_stats["n_queries"]
+        all_stats["hybrid_win_overall_pct"] = float(wt_df["gt_would_win_dist"].sum() / n_q * 100) if n_q else 0.0
 
     print("── J. Extended Summary ────────────────────────────────")
-    write_corrected_summary(all_stats, out_dir)
+    write_corrected_summary(all_stats, layout, health=health)
 
-    print(f"\nDone. All outputs in: {out_dir}")
+    build_per_query_overview(layout.root)
+    write_analysis_index(layout.root, health)
+
+    print(f"\nDone. All outputs in: {layout.root}")
+    print(f"  Index : {layout.index_md()}")
 
 
 if __name__ == "__main__":

@@ -130,6 +130,13 @@ def _read_db(db_path: str) -> dict:
         "scores_df": pd.DataFrame(),
         "spearman_df": pd.DataFrame(),
         "run_mode": "",
+        # staged experiment totals (from manifest)
+        "staged_total_pairs": 0,
+        "staged_ranked_pool_size": 0,
+        "staged_n_queries": 0,
+        "staged_current_stage": 0,
+        "staged_total_stages": 0,
+        "staged_ranked_cursor": 0,
     }
     try:
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
@@ -213,6 +220,30 @@ def _read_db(db_path: str) -> dict:
     except Exception:
         pass
 
+    # Read staged manifest if present (correlation_pool_manifest.json)
+    run_dir = os.path.dirname(db_path)
+    manifest_path = os.path.join(run_dir, "correlation_pool_manifest.json")
+    if os.path.exists(manifest_path):
+        try:
+            import json as _json
+            with open(manifest_path, "r", encoding="utf-8") as _f:
+                _m = _json.load(_f)
+            _pool_size = len(_m.get("ranked_pool") or []) or int(_m.get("staging_total_stages_expected", 0)) * 10 * 200
+            _n_q = len(_m.get("gt_ids") or {})
+            _cursor = int(_m.get("ranked_cursor") or 0)
+            _last_stage = int(_m.get("staging_last_completed_stage") or 0)
+            _total_stages = int(_m.get("staging_total_stages_expected") or 0)
+            # total expected pairs = (pool docs + GT docs) × n_queries
+            _total_pairs = (_pool_size + _n_q) * _n_q if _n_q else 0
+            data["staged_ranked_pool_size"] = _pool_size
+            data["staged_n_queries"] = _n_q
+            data["staged_ranked_cursor"] = _cursor
+            data["staged_current_stage"] = _last_stage
+            data["staged_total_stages"] = _total_stages
+            data["staged_total_pairs"] = _total_pairs
+        except Exception:
+            pass
+
     # Try loading pre-computed summary CSV if it exists
     run_dir = os.path.dirname(db_path)
     csv_path = os.path.join(run_dir, "summary_stats.csv")
@@ -287,6 +318,23 @@ def _build_pipeline_table(data: dict, google_rows: list[dict]) -> Table:
 
     t.add_row("Run Name",               f"[bold]{data['run_name']}[/bold]")
     t.add_row("Pipeline Loop",           loop_done)
+
+    # Staged experiment progress
+    if data["staged_total_pairs"] > 0:
+        _tp   = data["staged_total_pairs"]
+        _sc   = data["synced_rows"]
+        _pct  = f"{_sc / _tp * 100:.2f}%" if _tp else "—"
+        _pool = data["staged_ranked_pool_size"]
+        _cur  = data["staged_ranked_cursor"]
+        _pool_pct = f"{_cur / _pool * 100:.1f}%" if _pool else "—"
+        _stg  = data["staged_current_stage"]
+        _tot  = data["staged_total_stages"]
+        t.add_row("Total comparisons (scored)",
+                  f"[bold cyan]{_sc:,}[/bold cyan] / {_tp:,}  ({_pct})")
+        t.add_row("Ranked pool progress",
+                  f"{_cur:,} / {_pool:,} docs consumed  ({_pool_pct})")
+        t.add_row("Stage progress",
+                  f"{_stg} / {_tot} stages complete")
     t.add_row("Chunks Submitted",        f"{n_jobs_submitted} chunks  |  {n_errors} submission errors")
     is_ollama = "ollama" in str(data.get("run_mode", "")).lower()
     if is_ollama:
@@ -328,14 +376,13 @@ def _build_score_histogram(scores_df: pd.DataFrame) -> str:
         return "Waiting for Sync (0 local scores yet)…"
     total = scores_df["cnt"].sum()
     max_c = scores_df["cnt"].max()
-    lines = []
+    lines = [f"Total scored: {total:,}"]
     for _, row in scores_df.sort_values("llm_score").iterrows():
         raw = int(round(row["llm_score"] * 10))
         cnt = int(row["cnt"])
         pct = cnt / total * 100
         bar = "█" * int((cnt / max_c) * 32)
         lines.append(f"[{raw:>2}] {bar:<32} {cnt:>6,}  ({pct:4.1f}%)")
-    lines.append(f"\n     Total scored docs: {total:,}")
     return "\n".join(lines)
 
 

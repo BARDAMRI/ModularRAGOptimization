@@ -27,10 +27,7 @@ MODEL_PATH = "Qwen/Qwen2.5-1.5B-Instruct"
 # MODEL_PATH = "openchat/openchat-3.5-0106"              # 💬 OpenChat 3.5 (3.5B) - solid QA/dialogue, quantize for better speed
 
 
-GEMINI_API_KEY = os.environ.get(
-    "GEMINI_API_KEY",
-    "AIzaSyAmXU4-f853LIVpa4S66aAO6yIp9XAUCEs",
-)  # Google Gemini API key (override via .env)
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")  # set GEMINI_API_KEY in .env
 # ==========================
 # Do NOT use these unless you have 24GB+ VRAM or offloading infra
 # ==========================
@@ -120,10 +117,10 @@ LLAMA_MODEL_DIR = MODEL_PATH
 # Global Correlation LLM Provider
 # ==========================
 # Options:
-# - "gemini"     -> Gemini Batch API (offline JSONL generation + harvester)
-# - "ollama"     -> BGU cis-ollama (live scoring; no Gemini cost)
-# - "nvidia_ih"  -> NVIDIA Inference Hub (HTTPS generateContent; set IH_API_KEY)
-CORRELATION_LLM_PROVIDER = "nvidia_ih"
+# - "gemini"        -> Gemini Batch API (offline JSONL generation + harvester)
+# - "ollama"        -> BGU cis-ollama (live scoring; no Gemini cost)
+# - "inference_api" -> Remote inference endpoint (Vertex-style generateContent; set INFERENCE_API_KEY + INFERENCE_API_URL)
+CORRELATION_LLM_PROVIDER = "inference_api"
 
 # Gemini Batch model id (keep in sync with Batch API calls + LLM gateway batch limits).
 # ``gemini-2.0-flash`` is deprecated; default to 2.5 Flash-Lite (high RPM, unlimited RPD on typical tiers).
@@ -266,34 +263,23 @@ LLM_GATEWAY_RATE_LIMITS: dict = {
     },
 
     # ------------------------------------------------------------------
-    # NVIDIA Inference Hub  (inference-api.nvidia.com)
-    # Free tier: 40 RPM.  Higher tiers available on request (up to 200+).
-    # Source: NVIDIA Developer forums + NIM documentation (2025).
-    # The default covers all models routed through NVIDIA_IH_MODEL.
+    # Remote inference API (Vertex-style generateContent endpoint)
+    # Default rate: 40 RPM; adjust after quota upgrade.
     # ------------------------------------------------------------------
-    "nvidia_ih": {
-        # Model key matches the full NVIDIA_IH_MODEL path, e.g.:
+    "inference_api": {
+        # Model key matches the full INFERENCE_API_MODEL path, e.g.:
         #   "gcp/google/gemini-2.5-flash-lite": {"rpm": 40},
-        "__default__": {"rpm": 40},  # free tier; raise after quota upgrade
+        "__default__": {"rpm": 40},  # raise after quota upgrade
     },
 }
 
-# --- NVIDIA Inference Hub (Vertex-style generateContent) ---
-# Override URL entirely with NVIDIA_IH_URL_TEMPLATE env if your project path differs.
-NVIDIA_IH_MODEL = os.environ.get("IH_MODEL", "gcp/google/gemini-2.5-flash-lite")
-NVIDIA_IH_GENERATE_URL_TEMPLATE = os.environ.get(
-    "NVIDIA_IH_URL_TEMPLATE",
-    "https://inference-api.nvidia.com/vertex_ai/v1/projects/"
-    "nv-gcpllmgwit-20250411173346/locations/global/publishers/google/models/"
-    "{model}:generateContent",
-)
-NVIDIA_IH_TIMEOUT_S = float(os.environ.get("NVIDIA_IH_TIMEOUT_S", "180"))
-NVIDIA_IH_API_KEY = (
-    os.environ.get("IH_API_KEY")
-    or os.environ.get("NVIDIA_IH_API_KEY")
-    or os.environ.get("API_KEY")
-    or ""
-)
+# --- Remote inference API (Vertex-style generateContent) ---
+# All connection details come from environment variables so no endpoint
+# information is hard-coded in the source.
+INFERENCE_API_MODEL = os.environ.get("INFERENCE_API_MODEL", "gcp/google/gemini-2.5-flash-lite")
+INFERENCE_API_URL_TEMPLATE = os.environ.get("INFERENCE_API_URL", "")
+INFERENCE_API_TIMEOUT_S = float(os.environ.get("INFERENCE_API_TIMEOUT_S", "180"))
+INFERENCE_API_KEY = os.environ.get("INFERENCE_API_KEY", "")
 
 # BGU CIS Ollama endpoint (see AI_ollama_Chat_ guide + your examples)
 OLLAMA_HOST = "https://cis-ollama.auth.ad.bgu.ac.il"
@@ -320,10 +306,10 @@ OLLAMA_DOCS_PER_REQUEST = 10
 
 
 def correlation_live_model_name() -> str:
-    """Model id for live scoring on Ollama or NVIDIA Inference Hub (not Gemini Batch)."""
+    """Model id for live scoring on Ollama or the remote inference API (not Gemini Batch)."""
     p = str(CORRELATION_LLM_PROVIDER).strip().lower()
-    if p in ("nvidia_ih", "nvidia", "inference_hub"):
-        return str(NVIDIA_IH_MODEL)
+    if p in ("inference_api", "inference_hub"):
+        return str(INFERENCE_API_MODEL)
     return CORRELATION_OLLAMA_MODEL
 
 
@@ -341,14 +327,12 @@ CORRELATION_PILOT_MAX_DOCS_PER_QUERY = 40
 # ==========================
 # Staged / additive-pool run parameters
 # ==========================
-# Documents added per stream (ranked + random) per query per stage.
+# Docs advanced per pool per stage (batch = stride × n_queries).
 STAGING_STRIDE = 5
 # Max ranked neighbours retrieved per GT embedding across all stages.
 STAGING_MAX_RANKED_PER_GT = 100
 # Max ranked neighbours retrieved per query embedding across all stages.
 STAGING_MAX_RANKED_PER_QUERY = 100
-# Max random corpus samples per query across all stages.
-STAGING_MAX_RANDOM_PER_QUERY = 100
 
 # === OPTIMIZATION PARAMETERS ===
 MAX_RETRIES = 3
@@ -390,7 +374,7 @@ FORCE_CPU = False  # Set to True to force CPU usage
 OPTIMIZE_FOR_MPS = True  # Set to True to optimize for Apple Silicon (MPS) device
 MAX_GPU_MEMORY_GB = 8
 USE_MIXED_PRECISION = False
-# Set to True if you have a compatible NVIDIA GPU (e.g., RTX series)
+# Set to True if you have a compatible GPU with CUDA support (e.g., RTX series)
 # and experiencing out-of-memory issues or want faster training/inference.
 # Keep False for CPU/MPS as it generally offers no benefit or can cause issues if not fully supported.
 # For most consumer GPUs, float16 (half-precision) is typically used when True.

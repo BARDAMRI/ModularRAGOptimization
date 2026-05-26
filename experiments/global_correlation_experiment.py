@@ -1,37 +1,170 @@
 """
-Global correlation experiment: LLM relevance scores vs cosine distance to GT embedding.
+Global Correlation Experiment
+=============================
 
-Purpose
--------
-For each QA query: collect documents from the vector store, compute cosine distance to GT,
-and obtain an LLM relevance score (1–10). Finally: global correlation between
-``llm_score`` and ``dist_to_gt``, plus plots.
+Research question
+-----------------
+For a given query q and a set of documents D, is there a correlation between
+dist(d, GT(q)) and LLM(d, q)?
+
+  GT(q)       — the ground-truth document for query q.
+  dist(d1,d2) — cosine distance between two document embeddings.
+  LLM(d, q)   — relevance score (0.0–1.0) assigned by the LLM to document d for query q.
+
+The experiment measures whether embedding distance to the GT predicts LLM-judged relevance,
+across a large, diverse document pool.
+
+
+Terms
+-----
+GT doc          The single ground-truth document for a query. Each of the 200 queries has
+                exactly one GT doc (identified by PubMed ID).
+
+dist_to_gt      Cosine distance from a candidate document's embedding to the GT doc's
+                embedding, for the specific query being evaluated. This is the Y-axis of
+                every per-query scatter plot.
+
+llm_score       Relevance score (0.0–1.0) returned by the LLM for a (document, query) pair.
+                This is the X-axis of every per-query scatter plot.
+
+ranked_pool     A single global ordered list of unique doc IDs built once at run start.
+                Construction:
+                  1. For every query, find the top-max_ranked_per_gt nearest neighbours to
+                     the GT embedding (gt_ranked) and the top-max_ranked_per_query nearest
+                     neighbours to the query-text embedding (q_ranked).
+                  2. Interleave gt_ranked and q_ranked alternately per query →
+                     up to (max_ranked_per_gt + max_ranked_per_query) candidates per query.
+                  3. Interleave all 200 per-query lists position-by-position, deduplicating
+                     globally → one flat list of up to ~40 000 unique docs.
+
+ranked_cursor   Integer offset into ranked_pool tracking how far the current run has
+                progressed. Persisted in the manifest so runs can resume.
+
+batch           stride × n_queries docs sliced from ranked_pool per stage.
+                With stride=10 and n_queries=200, batch=2 000.
+
+scoring_union   The set of new (delta) docs added to D in the current stage.
+
+per_query_docs  For each query: scoring_union minus docs already scored for that query.
+                Used to avoid rescoring (query, doc) pairs on resume.
+
+per_query_seen  dict[query_idx → set[doc_id]] built from the SQLite results table.
+                Guards against duplicate rows on resume.
+
+manifest        JSON file (staged_manifest.json) stored in the run directory.
+                Contains gt_ids, ranked_pool list, ranked_cursor, per-stage records,
+                and run parameters. Re-loaded on resume to continue from where the
+                run left off.
+
+staging_spec_hash
+                Short SHA-256 fingerprint of (n_queries, stride, max_ranked_per_gt,
+                max_ranked_per_query). Used to detect parameter changes that would
+                make an existing manifest incompatible with a new run.
+
+
+Document set D
+--------------
+D is shared across all queries (global pool). It is built once and grown stage by stage:
+
+  1. All GT docs                        — 200 unique docs (one per query)
+  2. top-max_ranked_per_gt docs per GT  — up to 100 × 200 = 20 000 unique docs
+  3. top-max_ranked_per_query docs per query — up to 100 × 200 = 20 000 unique docs
+
+  Total unique docs in D: up to ~40 200 (exact count depends on overlap between queries).
+
+Every query is scored against every doc in D (full cross-product):
+  200 queries × ~40 200 docs ≈ 8 M (query, doc) pairs scored by the LLM.
+
+
+Configuration (run_config.json → staged mode / config.py defaults)
+------------------------------------------------------------------
+  scoring_provider          LLM backend: "inference_api" (live) or "gemini" (batch).
+  queries_to_load           Number of queries to use (default 200).
+  staging_stride            Docs advanced per pool position per stage (default 10).
+                            batch = stride × n_queries docs pulled per stage.
+  staging_max_ranked_per_gt Max GT-embedding neighbours per query (default 100).
+  staging_max_ranked_per_query
+                            Max query-text-embedding neighbours per query (default 100).
+
+  Keys read from config.py:
+    STAGING_STRIDE, STAGING_MAX_RANKED_PER_GT, STAGING_MAX_RANKED_PER_QUERY
+  API credentials loaded from .env:
+    INFERENCE_API_KEY  (inference_api provider)
+    GEMINI_API_KEY     (gemini provider)
+
+
+Experiment steps
+----------------
+1. Load queries
+   Load `queries_to_load` QA entries from the dataset. Each entry carries
+   question text and a PMID that identifies its GT doc.
+
+2. Build manifest (first run only)
+   For every query:
+     a. Retrieve top-max_ranked_per_gt neighbours of the GT embedding from Chroma.
+     b. Embed the query text; retrieve top-max_ranked_per_query neighbours.
+     c. Interleave the two lists alternately (GT-neighbour, query-neighbour, …).
+   Interleave all 200 per-query lists position-by-position and deduplicate globally
+   → ranked_pool. Save manifest with ranked_cursor=0.
+
+3. Stage loop  (repeat until ranked_cursor exhausts ranked_pool)
+
+   Stage 1
+     new docs = all 200 GT docs
+              + ranked_pool[0 : batch]
+     ≈ 200 + 2 000 = ~2 200 unique docs
+     pairs scored = 200 × ~2 200 = ~440 000
+
+   Stage N (N > 1)
+     new docs = ranked_pool[rc : rc + batch]   (rc = (N-1) × batch)
+     ≈ 2 000 unique docs
+     pairs scored = 200 × ~2 000 = ~400 000
+
+   Per stage:
+     i.   Build scoring_union (new docs for this stage).
+     ii.  Advance ranked_cursor by batch.
+     iii. For each query: send (query, doc) pairs to LLM; store (query_idx, doc_id,
+          llm_score, dist_to_gt, is_gt) in SQLite.
+     iv.  Mark stage "harvested" in manifest.
+
+   Total stages ≈ ceil(len(ranked_pool) / batch)  ≈ ceil(40 000 / 2 000) = 20.
+   Total pairs  ≈ 200 × 40 200 ≈ 8 M.
+
+4. Analysis (after all stages complete)
+   - Per-query Spearman correlation between llm_score and dist_to_gt.
+   - 200 scatter plots: X = llm_score, Y = dist(d, GT(q)).
+   - Overview bar chart: queries (X) sorted by Spearman ρ vs ρ value (Y).
+   - Summary CSV with per-query ρ, p-value, and rag_failed flag.
+
+
+Outputs (results/global_exp/<run_dir>/)
+---------------------------------------
+  experiment_results.db          SQLite database (results, experiment_meta tables).
+  staged_manifest.json           Pool + cursor state for resume.
+  query_<NNN>_global_scatter.png Per-query scatter: llm_score vs dist_to_gt.
+  global_summary_overview.png    Overview: ρ per query sorted descending.
+  summary_stats.csv              Per-query Spearman ρ and p-value.
+
 
 Entry points (from main.py)
 ---------------------------
-* ``run_global_correlation_pilot_batch_generator`` — pilot (few queries).
-* ``run_global_correlation_experiment_async`` — full run (live or Gemini pipeline).
-* ``run_global_correlation_staged_async`` — staged mode: add documents in steps.
-* ``retry_missing_batches`` — resubmit failed Batch requests (Gemini only).
-* ``check_batch_status`` / ``submit_batch_job`` — Batch API helpers.
+  run_global_correlation_staged_async       — staged mode (primary).
+  run_global_correlation_experiment_async   — full one-shot run (live / Gemini batch).
+  run_global_correlation_pilot_batch_generator — pilot (3 queries, quick check).
+  retry_missing_batches                     — resubmit failed Gemini batch jobs.
+  check_batch_status / submit_batch_job     — Gemini batch helpers.
 
-Provider selection (``config.CORRELATION_LLM_PROVIDER``)
-------------------------------------------------------
-* ``ollama`` / ``nvidia_ih`` — **live** scoring via ``utility.llm_gateway.await_relevance_scores``.
-* ``gemini`` — **batch** scoring (JSONL → Gemini Batch API → harvest → sync to SQLite).
 
-Data flow (abstract)
---------------------
-1. Load queries + build global document pool (union of top-k per query).
-2. Per query: locate GT in Chroma, compute ``rag_failed``, select target documents.
-3. Fetch text from Chroma; live path calls ``await_relevance_scores`` (gateway builds/sends/parses).
-   Batch path writes JSONL prompts and harvests via ``sync_batch_results`` (parse in gateway).
-4. Persist to SQLite: ``results``, ``batch_request_map``, ``experiment_meta``.
-5. Analysis: statistics, scatter plots, CSV.
+Provider selection (config.CORRELATION_LLM_PROVIDER)
+-----------------------------------------------------
+  inference_api — live scoring via HTTPS (Vertex-style generateContent). Requires INFERENCE_API_KEY + INFERENCE_API_URL in .env.
+  gemini        — offline batch scoring: write JSONL → submit Gemini Batch API job →
+              harvest results → sync scores to SQLite. Requires GEMINI_API_KEY in .env.
+
 
 File layout
 -----------
-  Provider helpers → IDs / prompts → SQLite → Batch API → resume/analytics
+  Provider helpers → IDs / prompts → SQLite → Batch API → resume / analytics
   → vector pool I/O → live scoring → pipeline harvest → staged mode
 """
 
@@ -39,13 +172,11 @@ import hashlib
 import json
 import math
 import os
-import random
-import re
 import sqlite3
 import time
 import uuid
 import asyncio
-from typing import Any, Callable
+from typing import Callable
 from datetime import datetime
 
 import matplotlib.pyplot as plt
@@ -63,7 +194,6 @@ from configurations.config import (
     GEMINI_API_KEY,
     STAGING_STRIDE,
     STAGING_MAX_RANKED_PER_GT,
-    STAGING_MAX_RANDOM_PER_QUERY,
     OLLAMA_FAIL_FAST_ON_CONNECTION_ERROR,
     OLLAMA_HOST,
     OLLAMA_TIMEOUT_S,
@@ -93,9 +223,8 @@ MAX_REQUESTS_PER_FILE = 50000  # Split to avoid 2GB limit (each req ~25KB * 50k 
 
 _LIVE_PROVIDER_ALIASES: dict[str, str] = {
     "ollama": "ollama",
-    "nvidia_ih": "nvidia_ih",
-    "nvidia": "nvidia_ih",
-    "inference_hub": "nvidia_ih",
+    "inference_api": "inference_api",
+    "inference_hub": "inference_api",
 }
 
 
@@ -107,27 +236,27 @@ def _configured_correlation_provider() -> str:
 
 
 def _normalize_live_provider(provider: str | None = None) -> str:
-    """Return canonical live provider id: ``ollama`` or ``nvidia_ih``."""
+    """Return canonical live provider id: ``ollama`` or ``inference_api``."""
     raw = (provider or _configured_correlation_provider()).strip().lower()
     return _LIVE_PROVIDER_ALIASES.get(raw, raw)
 
 
 def _is_live_correlation_provider(provider: str | None = None) -> bool:
-    """Return True if scoring uses a live gateway provider (Ollama or NVIDIA IH)."""
-    return _normalize_live_provider(provider) in ("ollama", "nvidia_ih")
+    """Return True if scoring uses a live gateway provider (Ollama or inference API)."""
+    return _normalize_live_provider(provider) in ("ollama", "inference_api")
 
 
 def _is_gemini_batch_provider(provider: str | None = None) -> bool:
-    """True when scoring uses Gemini Batch API (not live Ollama / NVIDIA IH)."""
+    """True when scoring uses Gemini Batch API (not live Ollama / Inference API)."""
     p = _configured_correlation_provider() if provider is None else str(provider).strip().lower()
     return p == "gemini"
 
 
 def _live_provider_display_name(provider: str | None = None) -> str:
-    """Human-readable label for logs (Ollama, NVIDIA_IH, etc.)."""
+    """Human-readable label for logs (Ollama, Inference API, etc.)."""
     p = _normalize_live_provider(provider)
-    if p == "nvidia_ih":
-        return "NVIDIA_IH"
+    if p == "inference_api":
+        return "Inference_API"
     if p == "ollama":
         return "Ollama"
     return p.upper() or "LIVE_LLM"
@@ -136,16 +265,16 @@ def _live_provider_display_name(provider: str | None = None) -> str:
 def _live_run_prefix(*, is_pilot: bool, provider: str | None = None) -> str:
     """Directory name prefix for a live run folder (pilot vs full, per provider)."""
     p = _normalize_live_provider(provider)
-    if p == "nvidia_ih":
-        return "pilot_run_nvidia_ih" if is_pilot else "nvidia_ih_run"
+    if p == "inference_api":
+        return "pilot_run_inference_api" if is_pilot else "inference_api_run"
     return "pilot_run_ollama" if is_pilot else "ollama_run"
 
 
 def _live_mode_name(*, is_pilot: bool, provider: str | None = None) -> str:
     """Value stored in experiment_config.json under ``mode`` for live runs."""
     p = _normalize_live_provider(provider)
-    if p == "nvidia_ih":
-        return "nvidia_ih_pilot_live" if is_pilot else "nvidia_ih_live"
+    if p == "inference_api":
+        return "inference_api_pilot_live" if is_pilot else "inference_api_live"
     return "ollama_pilot_live" if is_pilot else "ollama_live"
 
 
@@ -1140,12 +1269,12 @@ def _fetch_docs_in_batches(
 
 
 # ---------------------------------------------------------------------------
-# Live scoring — real-time scoring via llm_gateway (Ollama / NVIDIA IH)
+# Live scoring — real-time scoring via llm_gateway (Ollama / Inference API)
 # ---------------------------------------------------------------------------
 
 
 def _get_doc_ids_needing_score_live(conn, query_idx: int) -> set[str]:
-    """Live LLM mode (Ollama / NVIDIA IH): only NULL needs scoring (0.0 = parse/network failure)."""
+    """Live LLM mode (Ollama / Inference API): only NULL needs scoring (0.0 = parse/network failure)."""
     cur = conn.cursor()
     cur.execute(
         """
@@ -1193,15 +1322,15 @@ def _resolve_query_state(
 def print_live_provider_info_once() -> None:
     """
     Print provider/model info for the configured live backend.
-    Best-effort only (Ollama lists cluster models; NVIDIA IH prints model + key hint).
+    Best-effort only (Ollama lists cluster models; Inference API prints model + key hint).
     """
     prov = _normalize_live_provider()
-    if prov == "nvidia_ih":
-        from configurations.config import NVIDIA_IH_API_KEY, NVIDIA_IH_MODEL
+    if prov == "inference_api":
+        from configurations.config import INFERENCE_API_KEY, INFERENCE_API_MODEL
 
-        if not (NVIDIA_IH_API_KEY or "").strip():
-            print("[NVIDIA_IH] Warning: IH_API_KEY / NVIDIA_IH_API_KEY is not set.")
-        print(f"[NVIDIA_IH] Model: {NVIDIA_IH_MODEL}")
+        if not (INFERENCE_API_KEY or "").strip():
+            print("[Inference_API] Warning: INFERENCE_API_KEY is not set.")
+        print(f"[Inference_API] Model: {INFERENCE_API_MODEL}")
         return
     if prov != "ollama":
         print(f"[{_live_provider_display_name(prov)}] Live provider configured (no cluster listing).")
@@ -1257,7 +1386,7 @@ async def _live_score_batch(query_text: str, doc_contexts: list[str]) -> list[in
     prov = _normalize_live_provider()
     if not _is_live_correlation_provider(prov):
         raise RuntimeError(
-            f"Live scoring provider must be ollama or nvidia_ih, got {prov!r}"
+            f"Live scoring provider must be ollama or inference_api, got {prov!r}"
         )
     try:
         ints = await await_relevance_scores_for_documents(
@@ -1353,7 +1482,7 @@ async def _run_global_correlation_experiment_live_async(
     is_pilot: bool = False,
 ) -> None:
     """
-    Live scoring (Ollama or NVIDIA IH): inserts placeholders and updates llm_score in SQLite.
+    Live scoring (Ollama or Inference API): inserts placeholders and updates llm_score in SQLite.
 
     Run steps
     ---------
@@ -2150,7 +2279,7 @@ async def run_global_correlation_pilot_batch_generator(
   2. (Gemini) Build JSONL — one request per document, map in batch_request_map.
   3. Submit Batch job and store job_id in meta.
     """
-    # --- Step 0: live pilot (Ollama / NVIDIA IH) ---
+    # --- Step 0: live pilot (Ollama / Inference API) ---
     if _is_live_correlation_provider():
         label = _live_provider_display_name()
         logger.info(f"Global Correlation PILOT: using {label} provider (live scoring).")
@@ -2272,10 +2401,10 @@ def _load_manifest(run_dir: str) -> dict | None:
 
 
 def _staging_spec_hash(
-    n_queries: int, stride: int, max_ranked_gt: int, max_ranked_q: int, max_random: int
+    n_queries: int, stride: int, max_ranked_gt: int, max_ranked_q: int
 ) -> str:
     """Short hash fingerprint of staged mode parameters for resume compatibility."""
-    payload = f"{n_queries}|{stride}|{max_ranked_gt}|{max_ranked_q}|{max_random}|additive_pool_v2"
+    payload = f"{n_queries}|{stride}|{max_ranked_gt}|{max_ranked_q}|global_pool_v2"
     return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
 
@@ -2319,14 +2448,29 @@ def _setup_or_resume_staged_run(output_dir: str, experiment_params: dict) -> str
     return run_dir
 
 
-def _get_per_query_seen(conn) -> dict[str, set[str]]:
-    """Map of query_idx -> set of doc_ids already scored for that query."""
-    cur = conn.cursor()
-    cur.execute("SELECT query_idx, doc_id FROM results")
+def _get_per_query_seen_for_docs(conn, doc_ids: set[str]) -> dict[str, set[str]]:
+    """Map of query_idx -> set of already-scored doc_ids, restricted to doc_ids.
+
+    Loads only the rows relevant to the given doc set instead of the full results
+    table, keeping memory proportional to the stage size (~2 000 docs) not the
+    cumulative run size (~8 M rows by stage 20).
+    """
+    if not doc_ids:
+        return {}
     per_query: dict[str, set[str]] = {}
-    for q_idx, doc_id in cur.fetchall():
-        if doc_id:
-            per_query.setdefault(str(q_idx), set()).add(_normalize_id(doc_id))
+    doc_list = list(doc_ids)
+    chunk_size = 900  # stay under SQLite's 999-parameter limit
+    cur = conn.cursor()
+    for i in range(0, len(doc_list), chunk_size):
+        chunk = doc_list[i: i + chunk_size]
+        placeholders = ",".join("?" * len(chunk))
+        cur.execute(
+            f"SELECT query_idx, doc_id FROM results WHERE doc_id IN ({placeholders})",
+            chunk,
+        )
+        for q_idx, doc_id in cur.fetchall():
+            if doc_id:
+                per_query.setdefault(str(q_idx), set()).add(_normalize_id(doc_id))
     return per_query
 
 
@@ -2367,24 +2511,20 @@ def _interleave_ranked_ids(gt_ranked: list[str], q_ranked: list[str]) -> list[st
     return out
 
 
-def _fetch_all_collection_ids(vector_db) -> list[str]:
-    """Fetch and normalize every doc id from the Chroma collection (ids only, no metadata)."""
-    raw = vector_db.collection.get(include=[])
-    ids = raw.get("ids") or []
-    return sorted({_normalize_id(i) for i in ids if i})
-
-
-def _build_deterministic_random_ids(
-    *,
-    all_collection_ids: list[str],
-    gt_id_norm: str,
-    max_random: int,
-    rng: random.Random,
-) -> list[str]:
-    """Shuffled random doc ids from pre-fetched collection id list (reproducible per seed)."""
-    candidates = [i for i in all_collection_ids if i != gt_id_norm]
-    rng.shuffle(candidates)
-    return candidates[: int(max_random)]
+def _interleave_across_queries(per_query_lists: dict[str, list[str]]) -> list[str]:
+    """Build global pool by interleaving per-query lists position-by-position, deduplicating."""
+    max_len = max((len(v) for v in per_query_lists.values()), default=0)
+    seen: set[str] = set()
+    result: list[str] = []
+    for pos in range(max_len):
+        for q_idx_str in sorted(per_query_lists.keys(), key=int):
+            lst = per_query_lists[q_idx_str]
+            if pos < len(lst):
+                doc = lst[pos]
+                if doc and doc not in seen:
+                    seen.add(doc)
+                    result.append(doc)
+    return result
 
 
 def _load_or_build_manifest(
@@ -2396,41 +2536,24 @@ def _load_or_build_manifest(
     stride: int,
     max_ranked_gt: int,
     max_ranked_query: int,
-    max_random: int,
 ) -> dict:
-    """Load staged manifest from disk or build ranked/random pools for all queries.
+    """Load staged manifest from disk or build the global ranked pool.
 
-    ranked_ids per query is the interleaved union of GT-based and query-based neighbors,
-    matching the pool that a full run would produce (minus global cross-query dedup).
+    D = 200 GT docs + top-max_ranked_gt neighbours per GT embedding
+                    + top-max_ranked_query neighbours per query embedding.
+    ranked_pool is a single global deduplicated list interleaved across all queries.
+    Each stage adds stride*n_queries docs from ranked_pool and scores every query
+    against every new doc (full cross-product).
     """
     existing = _load_manifest(run_dir)
     if existing is not None:
         return existing
 
-    seed = int(
-        hashlib.sha256(
-            f"{run_dir}|{len(queries)}|{stride}|{max_ranked_gt}|{max_ranked_query}|{max_random}".encode()
-        ).hexdigest()[:8],
-        16,
-    )
-    rng = random.Random(seed)
-    manifest: dict = {
-        "random_seed": seed,
-        "staging_stride": int(stride),
-        "max_ranked_per_gt": int(max_ranked_gt),
-        "max_ranked_per_query": int(max_ranked_query),
-        "max_random_per_query": int(max_random),
-        "queries": {},
-        "stages": {},
-        "staging_last_completed_stage": 0,
-    }
-
-    # Fetch all collection ids once — reused for every query's random pool.
-    logger.info("[STAGED] Pre-fetching collection ids for random pool construction...")
-    all_collection_ids = _fetch_all_collection_ids(vector_db)
-    logger.info(f"[STAGED] Collection id pool: {len(all_collection_ids)} ids")
+    per_query_ranked: dict[str, list[str]] = {}
+    gt_ids: dict[str, str] = {}
 
     for q_idx, entry in enumerate(queries, start=1):
+        q_idx_str = str(q_idx)
         gt_id_norm = _gt_id_str(entry)
         gt_pmid = _gt_pmid_int_for_chroma(entry)
         gt_emb = _get_gt_embedding_dual_path(vector_db.collection, gt_id_norm, gt_pmid)
@@ -2439,54 +2562,43 @@ def _load_or_build_manifest(
         q_ranked: list[str] = []
         if gt_emb is not None:
             gt_ranked = _build_ranked_neighbor_ids(
-                vector_db,
-                anchor_emb=gt_emb,
-                gt_id_norm=gt_id_norm,
-                max_ranked=max_ranked_gt,
+                vector_db, anchor_emb=gt_emb, gt_id_norm=gt_id_norm, max_ranked=max_ranked_gt,
             )
         if max_ranked_query > 0:
             query_text = entry.get("question", "")
             q_emb = np.array(embedding_model.get_text_embedding(query_text), dtype=np.float32)
             q_ranked = _build_ranked_neighbor_ids(
-                vector_db,
-                anchor_emb=q_emb,
-                gt_id_norm=gt_id_norm,
-                max_ranked=max_ranked_query,
+                vector_db, anchor_emb=q_emb, gt_id_norm=gt_id_norm, max_ranked=max_ranked_query,
             )
 
-        ranked_ids = _interleave_ranked_ids(gt_ranked, q_ranked)
+        gt_ids[q_idx_str] = gt_id_norm
+        per_query_ranked[q_idx_str] = _interleave_ranked_ids(gt_ranked, q_ranked)
 
-        random_ids = _build_deterministic_random_ids(
-            all_collection_ids=all_collection_ids,
-            gt_id_norm=gt_id_norm,
-            max_random=max_random,
-            rng=rng,
-        )
-        manifest["queries"][str(q_idx)] = {
-            "gt_id_norm": gt_id_norm,
-            "ranked_ids": ranked_ids,
-            "random_ids": random_ids,
-            "rank_cursor": 0,
-            "random_cursor": 0,
-        }
+    ranked_pool = _interleave_across_queries(per_query_ranked)
+
+    manifest: dict = {
+        "staging_stride": int(stride),
+        "max_ranked_per_gt": int(max_ranked_gt),
+        "max_ranked_per_query": int(max_ranked_query),
+        "gt_ids": gt_ids,
+        "ranked_pool": ranked_pool,
+        "ranked_cursor": 0,
+        "stages": {},
+        "staging_last_completed_stage": 0,
+    }
 
     _save_manifest(manifest, run_dir)
     logger.info(
-        f"[STAGED] Built pool manifest for {len(queries)} queries "
-        f"(max_ranked_gt={max_ranked_gt}, max_ranked_query={max_ranked_query}, "
-        f"max_random={max_random}, stride={stride})."
+        f"[STAGED] Built global pool manifest: "
+        f"ranked_pool={len(ranked_pool)}, stride={stride}, n_queries={len(queries)}."
     )
     return manifest
 
 
 def _is_staged_run_complete(manifest: dict) -> bool:
-    """True when rank and random cursors reached end for every query in manifest."""
-    for qentry in manifest.get("queries", {}).values():
-        if int(qentry.get("rank_cursor", 0)) < len(qentry.get("ranked_ids") or []):
-            return False
-        if int(qentry.get("random_cursor", 0)) < len(qentry.get("random_ids") or []):
-            return False
-    return True
+    """True when the ranked_pool cursor is exhausted."""
+    rc = int(manifest.get("ranked_cursor", 0))
+    return rc >= len(manifest.get("ranked_pool", []))
 
 
 def _build_stage_scoring_set(
@@ -2494,68 +2606,55 @@ def _build_stage_scoring_set(
     stage: int,
     per_query_seen: dict[str, set[str]],
     stride: int,
-) -> tuple[set[str], dict, dict, dict]:
+) -> tuple[set[str], dict[str, list[str]], dict[str, int]]:
     """
-    Build per-query doc lists to score in this stage.
+    Build the global delta of new docs for this stage, then produce per-query
+    doc lists for cross-product scoring.
 
-    Dedup is per-query: the same doc can appear in multiple queries' lists
-    (producing one (query, doc) pair per query), but is never added twice for
-    the same query. Cursors advance by ``stride`` regardless of how many ids
-    survive filtering.
+    Each stage pulls stride*n_queries docs from ranked_pool. Every query is
+    scored against every new doc (full cross-product), filtered per-query to
+    skip already-scored (query, doc) pairs.
+
+    Returns:
+        scoring_union  — set of new doc IDs
+        per_query_docs — {q_idx_str: [doc_ids to score for this query]}
+        new_cursors    — {"ranked": new_rc}
     """
-    scoring_union: set[str] = set()  # union across queries (for Gemini batch JSONL)
-    rank_added: dict[str, list[str]] = {}
-    rand_added: dict[str, list[str]] = {}
-    new_cursors: dict[str, dict[str, int]] = {}
-    queries = manifest.get("queries", {})
+    gt_ids = manifest.get("gt_ids", {})
+    ranked_pool = manifest.get("ranked_pool", [])
+    rc = int(manifest.get("ranked_cursor", 0))
+    n_queries = len(gt_ids)
+    batch = stride * n_queries  # docs to pull from ranked_pool per stage
 
-    for q_idx_str, qentry in queries.items():
+    new_docs: list[str] = []
+    stage_seen: set[str] = set()  # dedup within new docs of this stage
+
+    # Stage 1: include GT doc for every query
+    if stage == 1:
+        for gt_id in gt_ids.values():
+            nid = _normalize_id(gt_id)
+            if nid and nid not in stage_seen:
+                stage_seen.add(nid)
+                new_docs.append(nid)
+
+    for doc_id in ranked_pool[rc : rc + batch]:
+        nid = _normalize_id(doc_id)
+        if nid and nid not in stage_seen:
+            stage_seen.add(nid)
+            new_docs.append(nid)
+
+    scoring_union: set[str] = set(new_docs)
+
+    # Cross-product: every query scores every new doc, filtered per-query
+    per_query_docs: dict[str, list[str]] = {}
+    for q_idx_str in gt_ids:
         query_seen = per_query_seen.get(q_idx_str, set())
-        local_seen: set[str] = set(query_seen)  # per-query dedup (already scored + this stage)
+        q_docs = [d for d in new_docs if d not in query_seen]
+        if q_docs:
+            per_query_docs[q_idx_str] = q_docs
 
-        ranked_ids = list(qentry.get("ranked_ids") or [])
-        random_ids = list(qentry.get("random_ids") or [])
-        rank_i = int(qentry.get("rank_cursor", 0))
-        rand_i = int(qentry.get("random_cursor", 0))
-
-        q_docs: list[str] = []
-
-        # Stage 1: include GT doc for this query
-        if stage == 1:
-            gt = _normalize_id(qentry.get("gt_id_norm", ""))
-            if gt and gt not in local_seen:
-                local_seen.add(gt)
-                q_docs.append(gt)
-
-        rank_slice = ranked_ids[rank_i : rank_i + stride]
-        rand_slice = random_ids[rand_i : rand_i + stride]
-
-        ra: list[str] = []
-        for doc_id in rank_slice:
-            nid = _normalize_id(doc_id)
-            if not nid or nid in local_seen:
-                continue
-            local_seen.add(nid)
-            ra.append(nid)
-
-        rb: list[str] = []
-        for doc_id in rand_slice:
-            nid = _normalize_id(doc_id)
-            if not nid or nid in local_seen:
-                continue
-            local_seen.add(nid)
-            rb.append(nid)
-
-        rank_added[q_idx_str] = ra
-        rand_added[q_idx_str] = rb
-        scoring_union.update(ra)
-        scoring_union.update(rb)
-        new_cursors[q_idx_str] = {
-            "rank": min(rank_i + stride, len(ranked_ids)),
-            "rand": min(rand_i + stride, len(random_ids)),
-        }
-
-    return scoring_union, rank_added, rand_added, new_cursors
+    new_cursors = {"ranked": min(rc + batch, len(ranked_pool))}
+    return scoring_union, per_query_docs, new_cursors
 
 
 def _produce_stage_gemini_jsonl(
@@ -2632,7 +2731,7 @@ async def _run_staged_live(
     run_dir: str,
 ) -> None:
     """
-    Live scoring for one staged step (Ollama or NVIDIA IH).
+    Live scoring for one staged step (Ollama or Inference API).
 
     Each query scores only its OWN new docs for this stage (its ranked slice +
     random slice + GT on stage 1), not the full cross-query union.  The global
@@ -2665,39 +2764,46 @@ async def _run_staged_live(
 
         query_emb = np.array(embedding_model.get_text_embedding(query_text), dtype=np.float32)
         rag_failed = _check_rag_baseline(vector_db, query_emb, gt_id_norm)
-        batches_to_score: list[tuple[list[str], list[str]]] = []
 
-        def _on_batch(doc_ids, contexts, placeholder_rows, _q=q_idx):
-            _insert_placeholder_rows(db_conn, _q, placeholder_rows)
-            batches_to_score.append((doc_ids[:], contexts[:]))
+        def _on_batch_scored(doc_ids: list[str], ints: list[int], _q=q_idx) -> None:
+            scores = [float(v) / 10.0 for v in ints]
+            _update_llm_scores_for_docs(db_conn, _q, doc_ids, scores)
+            db_conn.commit()
 
-        _fetch_docs_in_batches(
-            target_ids,
-            vector_db.collection,
-            gt_emb,
-            gt_id_norm,
-            rag_failed,
-            live_batch_size,
-            _on_batch,
-        )
+        # Stream: fetch one Chroma chunk → score it → release → next chunk.
+        # Peak memory = CHROMA_FETCH_CHUNK doc texts at a time, not all target_ids.
+        for chunk_start in range(0, len(target_ids), CHROMA_FETCH_CHUNK):
+            chunk_ids = target_ids[chunk_start: chunk_start + CHROMA_FETCH_CHUNK]
+            chunk_batches: list[tuple[list[str], list[str]]] = []
 
-        if batches_to_score:
-            try:
-                def _on_batch_scored(doc_ids: list[str], ints: list[int], _q=q_idx) -> None:
-                    scores = [float(v) / 10.0 for v in ints]
-                    _update_llm_scores_for_docs(db_conn, _q, doc_ids, scores)
-                    db_conn.commit()
+            def _on_batch(doc_ids, contexts, placeholder_rows, _q=q_idx):
+                _insert_placeholder_rows(db_conn, _q, placeholder_rows)
+                chunk_batches.append((doc_ids[:], contexts[:]))
 
-                await _score_batches_parallel_for_query(
-                    q_idx=q_idx,
-                    query_text=query_text,
-                    batches_to_score=batches_to_score,
-                    concurrency=live_conc,
-                    on_batch_scored=_on_batch_scored,
-                )
-            except Exception as exc:
-                _record_fatal_llm_error(db_conn, q_idx, exc)
-                raise
+            _fetch_docs_in_batches(
+                chunk_ids,
+                vector_db.collection,
+                gt_emb,
+                gt_id_norm,
+                rag_failed,
+                live_batch_size,
+                _on_batch,
+            )
+
+            if chunk_batches:
+                try:
+                    await _score_batches_parallel_for_query(
+                        q_idx=q_idx,
+                        query_text=query_text,
+                        batches_to_score=chunk_batches,
+                        concurrency=live_conc,
+                        on_batch_scored=_on_batch_scored,
+                    )
+                except Exception as exc:
+                    _record_fatal_llm_error(db_conn, q_idx, exc)
+                    raise
+                finally:
+                    chunk_batches.clear()
 
     logger.info(f"[STAGE {stage}/{total_stages}] {tag} scoring complete")
 
@@ -2778,29 +2884,29 @@ async def run_global_correlation_staged_async(
     stride: int | None = None,
     max_ranked: int | None = None,
     max_ranked_query: int | None = None,
-    max_random: int | None = None,
     output_dir: str = "results/global_exp",
     per_job_timeout_s: int | None = None,
 ) -> None:
     """
-    Staged additive-pool global correlation experiment.
+    Staged global correlation experiment.
 
-    Each stage adds up to ``stride`` ranked neighbours (interleaved GT-based and
-    query-based) and random docs per query, then scores only the new delta.
+    D = all GT docs + top-max_ranked GT-embedding neighbours per query
+                    + top-max_ranked_query query-embedding neighbours per query.
+    Each stage pulls stride*n_queries docs from the global ranked_pool and scores
+    every query against every new doc (full cross-product).
 
     Run steps
     ---------
-    1. Compute stage count + create/load manifest (ranked/random per query).
-    2. Per stage: build scoring_union, advance cursors, score (live or Gemini batch).
+    1. Create/load manifest (global ranked_pool interleaved across all queries).
+    2. Per stage: build scoring_union, advance cursor, score (live or Gemini batch).
     3. Mark stage harvested; at end — stats and plots.
     """
     del per_job_timeout_s  # reserved for future per-job harvest timeout wiring
 
-    # --- Step 0: parameters and stage count ---
+    # --- Step 0: resolve parameters ---
     stride = int(stride if stride is not None else STAGING_STRIDE)
     max_ranked = int(max_ranked if max_ranked is not None else STAGING_MAX_RANKED_PER_GT)
     max_ranked_query = int(max_ranked_query if max_ranked_query is not None else STAGING_MAX_RANKED_PER_QUERY)
-    max_random = int(max_random if max_random is not None else STAGING_MAX_RANDOM_PER_QUERY)
     if stride < 1:
         raise ValueError(f"stride must be >= 1, got {stride}")
 
@@ -2811,15 +2917,10 @@ async def run_global_correlation_staged_async(
         return
 
     provider = _configured_correlation_provider()
+
     # --- Step 1: set up run + manifest ---
-    # total ranked per query = GT-based + query-based (interleaved, with dedup)
     max_ranked_combined = max_ranked + max_ranked_query
-    total_stages = max(
-        math.ceil(max_ranked_combined / stride) if max_ranked_combined > 0 else 0,
-        math.ceil(max_random / stride) if max_random > 0 else 0,
-    )
-    if total_stages < 1:
-        total_stages = 1
+    total_stages = max(math.ceil(max_ranked_combined / stride) if max_ranked_combined > 0 else 0, 1)
 
     experiment_params: dict = {
         "num_queries_requested": num_queries,
@@ -2828,9 +2929,8 @@ async def run_global_correlation_staged_async(
         "staging_stride": stride,
         "max_ranked_per_gt": max_ranked,
         "max_ranked_per_query": max_ranked_query,
-        "max_random_per_query": max_random,
         "staging_spec_hash": _staging_spec_hash(
-            n_queries, stride, max_ranked, max_ranked_query, max_random
+            n_queries, stride, max_ranked, max_ranked_query
         ),
         "staging_total_stages_expected": total_stages,
         "model": (
@@ -2858,17 +2958,20 @@ async def run_global_correlation_staged_async(
         stride=stride,
         max_ranked_gt=max_ranked,
         max_ranked_query=max_ranked_query,
-        max_random=max_random,
     )
+
+    # Recompute total_stages from actual pool size (dedup reduces theoretical max)
+    batch = stride * n_queries
+    ranked_pool_size = len(manifest.get("ranked_pool", []))
+    total_stages = max(math.ceil(ranked_pool_size / batch) if ranked_pool_size > 0 else 0, 1)
     manifest["staging_total_stages_expected"] = total_stages
     _save_manifest(manifest, run_dir)
 
     last_completed = int(manifest.get("staging_last_completed_stage", 0))
     logger.info(
-        f"[STAGED] N={n_queries}, stride={stride}, max_ranked_gt={max_ranked}, "
-        f"max_ranked_query={max_ranked_query}, "
-        f"max_random={max_random}, total_stages={total_stages}, "
-        f"resume_from={last_completed + 1}, provider={provider}"
+        f"[STAGED] N={n_queries}, stride={stride}, "
+        f"ranked_pool={ranked_pool_size}, batch_per_stage={batch}, "
+        f"total_stages={total_stages}, resume_from={last_completed + 1}, provider={provider}"
     )
 
     # --- Step 2: stage loop ---
@@ -2879,26 +2982,23 @@ async def run_global_correlation_staged_async(
 
         stage_entry = manifest.get("stages", {}).get(str(stage), {})
 
-        # 2a. resume pending stage, or build a new scoring_union
+        # 2a. resume pending stage, or build new scoring set
         if stage_entry.get("status") == "pending":
             scoring_union = set(_normalize_id(x) for x in (stage_entry.get("scoring_union") or []))
-            # Rebuild per-query doc sets from manifest (for live provider resume).
-            rank_added = {
-                k: [_normalize_id(d) for d in v]
-                for k, v in (stage_entry.get("rank_added") or {}).items()
+            # Rebuild per_query_docs scoped to only this stage's docs — avoids
+            # loading the full results table (grows to ~8 M rows by stage 20).
+            per_query_seen = _get_per_query_seen_for_docs(db_conn, scoring_union)
+            new_docs = sorted(scoring_union)
+            per_query_docs = {
+                q_idx_str: [d for d in new_docs if d not in per_query_seen.get(q_idx_str, set())]
+                for q_idx_str in manifest.get("gt_ids", {})
             }
-            rand_added = {
-                k: [_normalize_id(d) for d in v]
-                for k, v in (stage_entry.get("rand_added") or {}).items()
-            }
+            per_query_docs = {k: v for k, v in per_query_docs.items() if v}
             logger.info(
                 f"[STAGE {stage}/{total_stages}] Resuming pending stage "
-                f"({len(scoring_union)} docs in scoring set)."
+                f"({len(scoring_union)} docs × {len(per_query_docs)} queries)."
             )
             if not scoring_union:
-                logger.info(
-                    f"[STAGE {stage}/{total_stages}] Pending stage has empty scoring set — marking harvested."
-                )
                 manifest["stages"][str(stage)]["status"] = "harvested"
                 manifest["staging_last_completed_stage"] = stage
                 _save_manifest(manifest, run_dir)
@@ -2906,23 +3006,20 @@ async def run_global_correlation_staged_async(
                 db_conn.commit()
                 continue
         else:
-            per_query_seen = _get_per_query_seen(db_conn)
-            scoring_union, rank_added, rand_added, new_cursors = _build_stage_scoring_set(
-                manifest, stage, per_query_seen, stride
+            # Fresh stage: new docs from the pool are guaranteed unseen.
+            # Pass empty seen-set; _resolve_query_state handles per-query
+            # crash recovery via its own targeted DB lookup.
+            scoring_union, per_query_docs, new_cursors = _build_stage_scoring_set(
+                manifest, stage, {}, stride
             )
 
-            for q_idx_str, cursors in new_cursors.items():
-                manifest["queries"][q_idx_str]["rank_cursor"] = cursors["rank"]
-                manifest["queries"][q_idx_str]["random_cursor"] = cursors["rand"]
+            manifest["ranked_cursor"] = new_cursors["ranked"]
 
             if not scoring_union:
                 logger.info(
-                    f"[STAGE {stage}/{total_stages}] Empty scoring set after filter — "
-                    f"cursors advanced; no LLM work for this stage."
+                    f"[STAGE {stage}/{total_stages}] Empty scoring set — cursors advanced."
                 )
                 manifest["stages"][str(stage)] = {
-                    "rank_added": rank_added,
-                    "rand_added": rand_added,
                     "scoring_union": [],
                     "status": "harvested",
                 }
@@ -2933,26 +3030,14 @@ async def run_global_correlation_staged_async(
                 continue
 
             manifest["stages"][str(stage)] = {
-                "rank_added": rank_added,
-                "rand_added": rand_added,
                 "scoring_union": sorted(scoring_union),
                 "status": "pending",
             }
             _save_manifest(manifest, run_dir)
-
-        # Build per-query doc list for live providers (each query scores only its own new docs).
-        # GT docs are included in stage 1 only (one per query, added once to the scoring_union).
-        per_query_docs: dict[str, list[str]] = {}
-        for q_idx_str, qentry in manifest.get("queries", {}).items():
-            q_docs: list[str] = []
-            if stage == 1:
-                gt = _normalize_id(qentry.get("gt_id_norm", ""))
-                if gt:
-                    q_docs.append(gt)
-            q_docs.extend(rank_added.get(q_idx_str) or [])
-            q_docs.extend(rand_added.get(q_idx_str) or [])
-            if q_docs:
-                per_query_docs[q_idx_str] = q_docs
+            logger.info(
+                f"[STAGE {stage}/{total_stages}] New docs: {len(scoring_union)} "
+                f"→ ~{len(scoring_union) * len(manifest.get('gt_ids', {}))} pairs."
+            )
 
         # 2b. score this stage (provider-specific)
         if _is_gemini_batch_provider(provider):
@@ -2982,16 +3067,22 @@ async def run_global_correlation_staged_async(
         else:
             raise RuntimeError(
                 f"Unknown CORRELATION_LLM_PROVIDER={provider!r} "
-                f"(expected gemini, ollama, or nvidia_ih)"
+                f"(expected gemini, ollama, or inference_api)"
             )
 
-        manifest["stages"][str(stage)]["status"] = "harvested"
+        stage_entry = manifest["stages"][str(stage)]
+        stage_entry["status"] = "harvested"
+        stage_entry.pop("scoring_union", None)  # no longer needed; frees manifest RAM
         manifest["staging_last_completed_stage"] = stage
         _save_manifest(manifest, run_dir)
         _set_experiment_meta(db_conn, "staging_last_completed_stage", str(stage))
         db_conn.commit()
 
     # --- Step 3: finalize staged experiment ---
+    # Release the ranked_pool list (no longer needed after all stages complete)
+    manifest.pop("ranked_pool", None)
+    _save_manifest(manifest, run_dir)
+
     _set_experiment_meta(db_conn, "stages_complete", "1")
     _set_main_loop_completed(db_conn)
     _calculate_final_stats_and_plot_sqlite(db_conn, run_dir)

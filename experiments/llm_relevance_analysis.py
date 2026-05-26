@@ -138,7 +138,7 @@ def run_llm_relevance_experiment(vector_db, embedding_model, num_queries=200, ou
 
             gt_node = TextNode(text=gt_data['documents'][0], embedding=np.array(gt_data['embeddings'][0]))
             gt_node.id_ = gt_id
-            # Score the GT document with the configured LLM backend (Gemini, Ollama, or NVIDIA IH).
+            # Score the GT document with the configured LLM backend (Gemini, Ollama, or Inference API).
             gt_score = gemini_score(query, gt_node.text)
 
             if gt_score == -1.0:

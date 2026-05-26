@@ -1,4 +1,0 @@
-metric,value
-ROC-AUC,0.9959973948698331
-Average Precision (PR-AUC),0.0867805106468183
-Baseline (random) PR,0.00019817953671798753

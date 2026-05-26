@@ -28,8 +28,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable
-
 import requests
+from utility.logger import logger
 
 # ---------------------------------------------------------------------------
 # Public types
@@ -63,9 +63,8 @@ class LLMGatewayError(RuntimeError):
 
 _PROVIDER_ALIASES: dict[str, str] = {
     "ollama": "ollama",
-    "nvidia_ih": "nvidia_ih",
-    "nvidia": "nvidia_ih",
-    "inference_hub": "nvidia_ih",
+    "inference_api": "inference_api",
+    "inference_hub": "inference_api",
     "gemini": "gemini",
     "google": "gemini",
 }
@@ -244,7 +243,6 @@ def _send_ollama(req: LLMRequest) -> str:
     text = _parse_ollama_text(gen_resp)
     if text:
         return text
-
     try:
         chat_resp = client.chat(model=req.model, messages=messages, think="low")
     except TypeError:
@@ -255,22 +253,26 @@ def _send_ollama(req: LLMRequest) -> str:
     raise LLMGatewayError("Ollama returned empty content from generate and chat")
 
 
-def _send_nvidia_ih(req: LLMRequest) -> str:
+def _send_inference_api(req: LLMRequest) -> str:
     from configurations.config import (
-        NVIDIA_IH_API_KEY,
-        NVIDIA_IH_GENERATE_URL_TEMPLATE,
-        NVIDIA_IH_TIMEOUT_S,
+        INFERENCE_API_KEY,
+        INFERENCE_API_URL_TEMPLATE,
+        INFERENCE_API_TIMEOUT_S,
     )
 
-    api_key = str(req.metadata.get("api_key") or NVIDIA_IH_API_KEY or "").strip()
+    api_key = str(req.metadata.get("api_key") or INFERENCE_API_KEY or "").strip()
     if not api_key:
         raise LLMGatewayError(
-            "NVIDIA Inference Hub: set IH_API_KEY or NVIDIA_IH_API_KEY in the environment."
+            "Inference API: INFERENCE_API_KEY is not set in the environment."
         )
     url_template = str(
-        req.metadata.get("url_template") or NVIDIA_IH_GENERATE_URL_TEMPLATE
+        req.metadata.get("url_template") or INFERENCE_API_URL_TEMPLATE
     )
-    timeout_s = float(req.metadata.get("timeout_s", NVIDIA_IH_TIMEOUT_S))
+    if not url_template:
+        raise LLMGatewayError(
+            "Inference API: INFERENCE_API_URL is not set in the environment."
+        )
+    timeout_s = float(req.metadata.get("timeout_s", INFERENCE_API_TIMEOUT_S))
     temperature = float(req.metadata.get("temperature", 0.0))
     max_output_tokens = int(req.metadata.get("max_output_tokens", 512))
     top_p = float(req.metadata.get("top_p", 0.1))
@@ -299,14 +301,14 @@ def _send_nvidia_ih(req: LLMRequest) -> str:
     cands = data.get("candidates") or []
     if not cands:
         raise LLMGatewayError(
-            f"NVIDIA IH: no candidates in response: {json.dumps(data)[:800]}"
+            f"Inference API: no candidates in response: {json.dumps(data)[:800]}"
         )
     parts = (cands[0].get("content") or {}).get("parts") or []
     if not parts:
-        raise LLMGatewayError("NVIDIA IH: empty content.parts")
+        raise LLMGatewayError("Inference API: empty content.parts")
     text = parts[0].get("text")
     if text is None or not str(text).strip():
-        raise LLMGatewayError("NVIDIA IH: empty text in first part")
+        raise LLMGatewayError("Inference API: empty text in first part")
     return str(text).strip()
 
 
@@ -326,9 +328,13 @@ def _send_gemini(req: LLMRequest) -> str:
 
 _PROVIDER_SENDERS: dict[str, Callable[[LLMRequest], str]] = {
     "ollama": _send_ollama,
-    "nvidia_ih": _send_nvidia_ih,
+    "inference_api": _send_inference_api,
     "gemini": _send_gemini,
 }
+
+
+_RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
+_RETRY_DELAYS_S = [5, 15, 30]  # wait between attempts 1→2, 2→3, 3→4
 
 
 def _execute_request(req: LLMRequest) -> str:
@@ -336,7 +342,34 @@ def _execute_request(req: LLMRequest) -> str:
     sender = _PROVIDER_SENDERS.get(prov)
     if sender is None:
         raise LLMGatewayError(f"Unsupported LLM provider: {req.provider!r}")
-    return sender(req)
+
+    last_exc: Exception | None = None
+    for attempt, delay in enumerate([0] + _RETRY_DELAYS_S, start=1):
+        if delay:
+            logger.warning(
+                f"[gateway] retry {attempt}/{len(_RETRY_DELAYS_S) + 1} "
+                f"after {delay}s — prev error: {last_exc}"
+            )
+            time.sleep(delay)
+        try:
+            return sender(req)
+        except Exception as exc:
+            status: int | None = None
+            if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
+                status = exc.response.status_code
+            is_retryable = (
+                status in _RETRYABLE_HTTP_CODES
+                or isinstance(exc, (requests.exceptions.ReadTimeout,
+                                    requests.exceptions.ConnectTimeout,
+                                    requests.exceptions.ConnectionError))
+            )
+            if is_retryable:
+                last_exc = exc
+                continue
+            raise
+    raise LLMGatewayError(
+        f"Request failed after {len(_RETRY_DELAYS_S) + 1} attempts: {last_exc}"
+    ) from last_exc
 
 
 # ---------------------------------------------------------------------------
@@ -823,7 +856,7 @@ def ollama_chat(
     )
 
 
-def nvidia_inference_hub_generate(
+def inference_api_generate(
     *,
     model: str,
     prompt: str,
@@ -837,7 +870,7 @@ def nvidia_inference_hub_generate(
     system_instruction: str | None = None,
 ) -> str:
     return complete_prompt(
-        provider="nvidia_ih",
+        provider="inference_api",
         model=model,
         prompt=prompt,
         system_prompt=system_instruction,

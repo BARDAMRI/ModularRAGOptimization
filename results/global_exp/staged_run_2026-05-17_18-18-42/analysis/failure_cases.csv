@@ -1,5 +1,0 @@
-query_idx,gt_llm_score,gt_dist_to_gt,n_docs_above_gt,gt_rank,max_score_in_query,n_docs_at_max,n_docs_total
-43,0.8,0.0,5,6,1.0,5,6000
-87,0.6,0.0,27,28,1.0,26,6000
-107,0.1,0.0,280,281,1.0,3,4000
-140,0.8,0.0,8,9,1.0,8,4000

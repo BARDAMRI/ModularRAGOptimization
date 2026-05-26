@@ -92,13 +92,11 @@ def collect_run_health(db_path: Path) -> dict:
         """,
         conn,
     )
+    unique_docs = int(conn.execute("SELECT COUNT(DISTINCT doc_id) FROM results").fetchone()[0])
     conn.close()
 
     n_queries_in_db = len(per_query)
     n_queries_scored = int((per_query["null_scores"] < per_query["n_rows"]).sum())
-    unique_docs = int(
-        pd.read_sql_query("SELECT COUNT(DISTINCT doc_id) AS n FROM results", sqlite3.connect(db_path))["n"].iloc[0]
-    )
 
     pool_sizes = per_query["n_rows"]
     max_pool = int(pool_sizes.max()) if len(pool_sizes) else 0
@@ -259,3 +257,237 @@ def format_health_html(health: dict) -> str:
         f'<div class="callout {kind}"><span class="icon">{icon}</span>'
         f"<b>{title}</b><br>{body}</div>"
     )
+
+
+# ── Structured output layout ──────────────────────────────────────────────────
+
+class AnalysisLayout:
+    """
+    Canonical folder layout under ``<run_dir>/analysis/``:
+
+        analysis/
+          INDEX.md                 ← catalog (global vs per-query)
+          run_health.json
+          report.html
+          summaries/               ← text summaries
+          csv/global/              ← pool-level aggregates (one table per file)
+          csv/per_query/           ← one row per query_idx
+          charts/base/             ← charts from analyze_experiment.py
+          charts/extended/         ← charts from analyze_experiment_extended.py
+    """
+
+    def __init__(self, root: Path | str):
+        self.root = Path(root)
+        self.summaries = self.root / "summaries"
+        self.csv_global = self.root / "csv" / "global"
+        self.csv_per_query = self.root / "csv" / "per_query"
+        self.charts_base = self.root / "charts" / "base"
+        self.charts_extended = self.root / "charts" / "extended"
+
+    def ensure(self) -> "AnalysisLayout":
+        for d in (
+            self.root,
+            self.summaries,
+            self.csv_global,
+            self.csv_per_query,
+            self.charts_base,
+            self.charts_extended,
+        ):
+            d.mkdir(parents=True, exist_ok=True)
+        return self
+
+    def global_csv(self, name: str) -> Path:
+        return self.csv_global / name
+
+    def per_query_csv(self, name: str) -> Path:
+        return self.csv_per_query / name
+
+    def chart_base(self, name: str) -> Path:
+        return self.charts_base / name
+
+    def chart_extended(self, name: str) -> Path:
+        return self.charts_extended / name
+
+    def summary_txt(self, name: str) -> Path:
+        return self.summaries / name
+
+    def report_html(self) -> Path:
+        return self.root / "report.html"
+
+    def run_health_json(self) -> Path:
+        return self.root / "run_health.json"
+
+    def index_md(self) -> Path:
+        return self.root / "INDEX.md"
+
+
+# Legacy flat paths (pre-subfolder layout) — checked by resolve_artifact()
+_LEGACY_FLAT = {
+    "correlation_summary.csv", "llm_recovery_at_k.csv", "mrr_and_precision_at_k.csv",
+    "roc_pr_summary.csv", "score_distribution_summary.csv", "distance_quantile_analysis.csv",
+    "topk_jaccard_summary.csv", "threshold_filter_analysis.csv", "score_level_breakdown.csv",
+    "false_positive_analysis.csv", "marginal_score_value.csv", "corrected_mrr_at_k.csv",
+    "per_query_correlation.csv", "gt_llm_rank.csv", "gt_score_percentile.csv", "score_gap.csv",
+    "topk_jaccard.csv", "tie_structure.csv", "query_difficulty.csv", "tie_corrected_ranks.csv",
+    "within_tier_dist.csv", "failure_cases.csv", "per_query_overview.csv",
+    "analysis_summary.txt", "extended_summary.txt",
+}
+
+
+def resolve_artifact(root: Path, filename: str) -> Path:
+    """
+    Resolve an analysis artifact path. Prefer the structured layout; fall back to
+    legacy flat ``analysis/<filename>`` from older runs.
+    """
+    layout = AnalysisLayout(root)
+    candidates: list[Path] = []
+
+    if filename.endswith(".csv"):
+        if filename in {
+            "per_query_correlation.csv", "gt_llm_rank.csv", "gt_score_percentile.csv",
+            "score_gap.csv", "topk_jaccard.csv", "tie_structure.csv", "query_difficulty.csv",
+            "tie_corrected_ranks.csv", "within_tier_dist.csv", "failure_cases.csv",
+            "per_query_overview.csv",
+        }:
+            candidates.append(layout.per_query_csv(filename))
+        else:
+            candidates.append(layout.global_csv(filename))
+    elif filename.endswith(".txt"):
+        candidates.append(layout.summary_txt(filename))
+    elif filename.endswith(".png"):
+        # try both chart dirs
+        candidates.append(layout.charts_base / filename)
+        candidates.append(layout.charts_extended / filename)
+    elif filename == "report.html":
+        candidates.append(layout.report_html())
+    elif filename == "run_health.json":
+        candidates.append(layout.run_health_json())
+
+    candidates.append(root / filename)
+
+    for p in candidates:
+        if p.exists():
+            return p
+    return candidates[0]
+
+
+_PER_QUERY_OVERVIEW_JOINS: tuple[tuple[str, str, list[str]], ...] = (
+    ("gt_llm_rank.csv", "csv/per_query", [
+        "gt_llm_rank", "gt_llm_score", "gt_rank_pct", "n_docs", "rag_failed",
+    ]),
+    ("per_query_correlation.csv", "csv/per_query", ["spearman_r", "pearson_r", "kendall_tau"]),
+    ("query_difficulty.csv", "csv/per_query", ["difficulty", "gt_score", "n_at_top"]),
+    ("tie_structure.csv", "csv/per_query", ["n_tied_at_gt", "tier_precision", "gt_uniquely_top"]),
+    ("tie_corrected_ranks.csv", "csv/per_query", ["rank_min", "rank_avg", "rank_max"]),
+    ("score_gap.csv", "csv/per_query", ["score_gap", "best_ngt_score"]),
+    ("within_tier_dist.csv", "csv/per_query", ["pct_ngt_further", "gt_would_win_dist"]),
+)
+
+
+def build_per_query_overview(root: Path) -> Path | None:
+    """Merge key per-query CSVs into one master table for human review."""
+    layout = AnalysisLayout(root)
+    layout.ensure()
+
+    base_path = resolve_artifact(root, "gt_llm_rank.csv")
+    if not base_path.exists():
+        return None
+
+    overview = pd.read_csv(base_path)
+    if "query_idx" not in overview.columns:
+        return None
+
+    for filename, _subdir, cols in _PER_QUERY_OVERVIEW_JOINS[1:]:
+        path = resolve_artifact(root, filename)
+        if not path.exists():
+            continue
+        extra = pd.read_csv(path)
+        if "query_idx" not in extra.columns:
+            continue
+        use_cols = ["query_idx"] + [c for c in cols if c in extra.columns and c not in overview.columns]
+        if len(use_cols) > 1:
+            overview = overview.merge(extra[use_cols], on="query_idx", how="left")
+
+    out = layout.per_query_csv("per_query_overview.csv")
+    overview.sort_values("query_idx").to_csv(out, index=False)
+    return out
+
+
+def write_analysis_index(root: Path, health: dict | None = None) -> Path:
+    """Write INDEX.md explaining global vs per-query artifacts."""
+    layout = AnalysisLayout(root)
+    layout.ensure()
+
+    n_q = health.get("n_queries_analyzed", "?") if health else "?"
+    lines = [
+        "# Analysis Output Index",
+        "",
+        f"Run analysis folder. **{n_q} queries** in DB (see `run_health.json`).",
+        "",
+        "## How to read these files",
+        "",
+        "| Scope | Meaning | Example |",
+        "|-------|---------|---------|",
+        "| **Global** | One metric summarising the **entire pool** (all queries × all docs combined, or aggregated across queries) | `MRR`, `Recovery@K`, ROC-AUC |",
+        "| **Per-query** | One **row per `query_idx`** — filter/sort in Excel to inspect individual queries | `gt_llm_rank`, `difficulty` |",
+        "",
+        "> **Start here for per-query review:** `csv/per_query/per_query_overview.csv`",
+        "> (merged view of rank, correlation, difficulty, ties, hybrid win).",
+        "",
+        "## Summaries (text)",
+        "",
+        "| File | Description |",
+        "|------|-------------|",
+        "| `summaries/analysis_summary.txt` | Base run summary + run health |",
+        "| `summaries/extended_summary.txt` | Tie-corrected conclusions |",
+        "| `report.html` | Full interactive report (global + per-query sections) |",
+        "",
+        "## CSV — global (pool-level)",
+        "",
+        "| File | Description |",
+        "|------|-------------|",
+        "| `correlation_summary.csv` | Median/mean correlation across queries |",
+        "| `llm_recovery_at_k.csv` | GT in top-K by LLM (all queries) |",
+        "| `mrr_and_precision_at_k.csv` | Optimistic MRR / P@K |",
+        "| `corrected_mrr_at_k.csv` | Tie-corrected MRR / P@K (min/avg/max rank) |",
+        "| `roc_pr_summary.csv` | Global ROC-AUC / average precision |",
+        "| `score_distribution_summary.csv` | GT vs non-GT score stats |",
+        "| `distance_quantile_analysis.csv` | LLM score by dist decile (non-GT) |",
+        "| `topk_jaccard_summary.csv` | LLM vs dist top-K agreement (aggregated) |",
+        "| `threshold_filter_analysis.csv` | Precision/recall at each score threshold |",
+        "| `score_level_breakdown.csv` | Stats per discrete LLM score level |",
+        "| `false_positive_analysis.csv` | Non-GT docs at score=1.0 vs 0.1 |",
+        "| `marginal_score_value.csv` | dist improvement per score level |",
+        "",
+        "## CSV — per-query (one row per query_idx)",
+        "",
+        "| File | Key columns |",
+        "|------|-------------|",
+        "| **`per_query_overview.csv`** | **Master merge — start here** |",
+        "| `per_query_correlation.csv` | spearman_r, pearson_r, kendall_tau |",
+        "| `gt_llm_rank.csv` | gt_llm_rank, gt_llm_score, gt_rank_pct |",
+        "| `query_difficulty.csv` | EASY / MEDIUM / HARD / FAILED |",
+        "| `tie_structure.csv` | n_tied_at_gt, tier_precision |",
+        "| `tie_corrected_ranks.csv` | rank_min, rank_avg, rank_max |",
+        "| `score_gap.csv` | GT score − best non-GT |",
+        "| `within_tier_dist.csv` | Hybrid dist tiebreaker per query |",
+        "| `failure_cases.csv` | Queries where GT did not score 1.0 |",
+        "| `topk_jaccard.csv` | Jaccard vs dist ranking per query × K |",
+        "",
+        "## Charts",
+        "",
+        "| Folder | Source script |",
+        "|--------|---------------|",
+        "| `charts/base/` | analyze_experiment.py |",
+        "| `charts/extended/` | analyze_experiment_extended.py |",
+        "",
+        "## Re-running analysis",
+        "",
+        "- Re-running **replaces** files in this folder (same paths, no versioning).",
+        "- Safe to run after a partial run — each step overwrites only its own outputs.",
+        "- Use `python run_global_correlation_analysis.py --steps extended,report` to skip base.",
+        "",
+    ]
+    path = layout.index_md()
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path

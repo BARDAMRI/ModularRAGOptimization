@@ -25,8 +25,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import os
-import sqlite3
 import sys
 import textwrap
 from pathlib import Path
@@ -39,6 +37,18 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from analysis_common import (
+    ANALYSIS_DIR,
+    AnalysisLayout,
+    build_per_query_overview,
+    collect_run_health,
+    find_latest_db,
+    format_health_text_lines,
+    load_scored_dataframe,
+    save_run_health,
+    write_analysis_index,
+)
+
 # optional sklearn — gracefully degrade if missing
 try:
     from sklearn.metrics import roc_auc_score, roc_curve, precision_recall_curve, average_precision_score
@@ -49,29 +59,11 @@ except ImportError:
 
 plt.rcParams.update({"figure.dpi": 120, "font.size": 10})
 
-RESULTS_ROOT = Path("results/global_exp")
-ANALYSIS_DIR = "analysis"
-
 # ── helpers ──────────────────────────────────────────────────────────────────
-
-def _find_latest_db() -> Path:
-    candidates = sorted(RESULTS_ROOT.glob("staged_run_*/experiment_results.db"))
-    if not candidates:
-        candidates = sorted(RESULTS_ROOT.glob("*/experiment_results.db"))
-    if not candidates:
-        raise FileNotFoundError(f"No experiment_results.db found under {RESULTS_ROOT}")
-    return candidates[-1]
-
 
 def _load_dataframe(db_path: Path) -> pd.DataFrame:
     print(f"Loading data from {db_path} …")
-    conn = sqlite3.connect(db_path)
-    df = pd.read_sql_query(
-        "SELECT query_idx, doc_id, llm_score, dist_to_gt, is_gt, rag_failed "
-        "FROM results WHERE llm_score IS NOT NULL",
-        conn,
-    )
-    conn.close()
+    df = load_scored_dataframe(db_path)
     print(f"  {len(df):,} scored rows, {df['query_idx'].nunique()} queries, "
           f"{df['is_gt'].sum()} GT rows")
     return df
@@ -97,7 +89,7 @@ def _build_per_query_stats(df: pd.DataFrame) -> pd.DataFrame:
     """
     Compute GT rank (by llm_score DESC) and GT score per query.
     Returns DataFrame indexed by query_idx with:
-        n_docs, gt_llm_score, gt_dist_to_gt, gt_llm_rank,
+        n_docs,         gt_llm_score, gt_dist_to_gt, gt_llm_rank, gt_llm_rank_avg,
         gt_rank_pct (percentile 0–100, 100 = best),
         rag_failed, spearman_r, spearman_p, pearson_r, pearson_p,
         best_ngt_score, score_gap, gt_score_percentile
@@ -117,7 +109,9 @@ def _build_per_query_stats(df: pd.DataFrame) -> pd.DataFrame:
         # rank by llm_score DESC (1 = highest)
         grp = grp.copy()
         grp["_rank"] = grp["llm_score"].rank(method="min", ascending=False)
-        gt_rank = int(gt_row["_rank"].iloc[0])
+        grp["_rank_avg"] = grp["llm_score"].rank(method="average", ascending=False)
+        gt_rank = int(grp.loc[gt_row.index[0], "_rank"])
+        gt_rank_avg = float(grp.loc[gt_row.index[0], "_rank_avg"])
 
         # GT score percentile among all docs in this query
         gt_pct = float(stats.percentileofscore(grp["llm_score"].values, gt_score, kind="rank"))
@@ -127,27 +121,37 @@ def _build_per_query_stats(df: pd.DataFrame) -> pd.DataFrame:
         best_ngt = float(ngt.max()) if len(ngt) > 0 else float("nan")
         score_gap = gt_score - best_ngt
 
-        # correlation between llm_score and dist_to_gt (expect negative)
+        # correlations — four methods
+        x_score = grp["llm_score"].values
+        y_dist  = grp["dist_to_gt"].values
+        y_gt    = grp["is_gt"].values.astype(float)
         if n_docs >= 5:
-            sp_r, sp_p = stats.spearmanr(grp["llm_score"], grp["dist_to_gt"])
-            pe_r, pe_p = stats.pearsonr(grp["llm_score"], grp["dist_to_gt"])
+            sp_r,  sp_p  = stats.spearmanr(x_score, y_dist)
+            pe_r,  pe_p  = stats.pearsonr(x_score, y_dist)
+            kt_r,  kt_p  = stats.kendalltau(x_score, y_dist, variant="b")
+            pb_r,  pb_p  = stats.pointbiserialr(y_gt, x_score)   # score separates GT from non-GT
         else:
-            sp_r = sp_p = pe_r = pe_p = float("nan")
+            sp_r = sp_p = pe_r = pe_p = kt_r = kt_p = pb_r = pb_p = float("nan")
 
         rows.append({
-            "query_idx": qidx,
-            "n_docs": n_docs,
+            "query_idx":    qidx,
+            "n_docs":       n_docs,
             "gt_llm_score": gt_score,
             "gt_dist_to_gt": gt_dist,
-            "gt_llm_rank": gt_rank,
-            "gt_rank_pct": gt_pct,
-            "rag_failed": rag_fail,
-            "spearman_r": sp_r,
-            "spearman_p": sp_p,
-            "pearson_r": pe_r,
-            "pearson_p": pe_p,
+            "gt_llm_rank":     gt_rank,
+            "gt_llm_rank_avg": gt_rank_avg,
+            "gt_rank_pct":     gt_pct,
+            "rag_failed":   rag_fail,
+            "spearman_r":   sp_r,
+            "spearman_p":   sp_p,
+            "pearson_r":    pe_r,
+            "pearson_p":    pe_p,
+            "kendall_tau":  kt_r,
+            "kendall_p":    kt_p,
+            "pointbiserial_r": pb_r,
+            "pointbiserial_p": pb_p,
             "best_ngt_score": best_ngt,
-            "score_gap": score_gap,
+            "score_gap":    score_gap,
         })
 
     return pd.DataFrame(rows)
@@ -155,45 +159,97 @@ def _build_per_query_stats(df: pd.DataFrame) -> pd.DataFrame:
 
 # ── section 1: per-query correlation ─────────────────────────────────────────
 
-def section_correlation(pqs: pd.DataFrame, out: Path) -> dict:
-    corr = pqs[["query_idx", "n_docs", "spearman_r", "spearman_p", "pearson_r", "pearson_p"]].copy()
-    _save_csv(corr, out / "per_query_correlation.csv", "Spearman/Pearson per query")
+# Four correlation methods used:
+#   Spearman r     — rank-based, monotonic; llm_score vs dist_to_gt
+#   Pearson r      — linear; llm_score vs dist_to_gt
+#   Kendall tau-b  — rank-based, robust to ties; llm_score vs dist_to_gt
+#   Point-biserial — continuous vs binary; llm_score vs is_gt
+#
+# Spearman/Pearson/Kendall answer: "does higher LLM score predict lower distance to GT?"
+# Point-biserial answers: "does LLM score separate the GT doc from all others?"
+# Expected sign: negative for the first three (high score → low dist); positive for PB (GT scores higher).
+
+def section_correlation(pqs: pd.DataFrame, layout: AnalysisLayout) -> dict:
+    cols = ["query_idx", "n_docs",
+            "spearman_r", "spearman_p",
+            "pearson_r",  "pearson_p",
+            "kendall_tau", "kendall_p",
+            "pointbiserial_r", "pointbiserial_p"]
+    corr = pqs[cols].copy()
+    _save_csv(corr, layout.per_query_csv("per_query_correlation.csv"),
+              "Spearman / Pearson / Kendall-tau / Point-biserial per query")
 
     valid = corr.dropna(subset=["spearman_r"])
-    sig = (valid["spearman_p"] < 0.05).mean() * 100
-    median_r = valid["spearman_r"].median()
-    neg_frac  = (valid["spearman_r"] < 0).mean() * 100
 
-    # histogram of Spearman r
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
-    axes[0].hist(valid["spearman_r"], bins=30, color="steelblue", edgecolor="white")
-    axes[0].axvline(median_r, color="red", linestyle="--", label=f"median={median_r:.3f}")
-    axes[0].axvline(0, color="black", linestyle=":", alpha=0.5)
-    axes[0].set_xlabel("Spearman r (llm_score vs dist_to_gt)")
-    axes[0].set_ylabel("Queries")
-    axes[0].set_title(f"Per-Query Spearman r  [negative = LLM agrees with proximity]")
-    axes[0].legend()
+    # per-method summary stats
+    methods = [
+        ("spearman_r",       "spearman_p",       "Spearman r\n(score vs dist_to_gt)",     "steelblue",     True),
+        ("pearson_r",        "pearson_p",         "Pearson r\n(score vs dist_to_gt)",      "darkorange",    True),
+        ("kendall_tau",      "kendall_p",         "Kendall τ-b\n(score vs dist_to_gt)",    "mediumseagreen",True),
+        ("pointbiserial_r",  "pointbiserial_p",   "Point-biserial r\n(score vs is_gt)",    "mediumpurple",  False),
+    ]
 
-    axes[1].hist(valid["pearson_r"], bins=30, color="darkorange", edgecolor="white")
-    axes[1].axvline(valid["pearson_r"].median(), color="red", linestyle="--",
-                    label=f"median={valid['pearson_r'].median():.3f}")
-    axes[1].axvline(0, color="black", linestyle=":", alpha=0.5)
-    axes[1].set_xlabel("Pearson r (llm_score vs dist_to_gt)")
-    axes[1].set_ylabel("Queries")
-    axes[1].set_title("Per-Query Pearson r")
-    axes[1].legend()
-    fig.suptitle("Correlation: LLM Score vs Distance-to-GT (negative = good)")
-    _save_fig(fig, out / "correlation_histograms.png", "Spearman/Pearson histograms")
+    summary_rows = []
+    for col_r, col_p, label, _, expect_neg in methods:
+        v = valid[col_r].dropna()
+        p = valid[col_p].dropna()
+        summary_rows.append({
+            "method":         label.replace("\n", " "),
+            "median":         v.median(),
+            "mean":           v.mean(),
+            "pct_negative":   (v < 0).mean() * 100,
+            "pct_positive":   (v > 0).mean() * 100,
+            "pct_sig_p05":    (p < 0.05).mean() * 100,
+            "expected_sign":  "negative" if expect_neg else "positive",
+        })
+    summary_df = pd.DataFrame(summary_rows)
+    _save_csv(summary_df, layout.global_csv("correlation_summary.csv"), "Cross-method correlation summary")
 
-    return {"median_spearman_r": median_r, "pct_negative_r": neg_frac, "pct_significant_r": sig}
+    # 2 × 2 histogram grid
+    fig, axes = plt.subplots(2, 2, figsize=(13, 8))
+    axes = axes.ravel()
+    for ax, (col_r, col_p, label, color, expect_neg) in zip(axes, methods):
+        v = valid[col_r].dropna()
+        ax.hist(v, bins=30, color=color, edgecolor="white", alpha=0.85)
+        median_v = v.median()
+        ax.axvline(median_v, color="red", linestyle="--",
+                   label=f"median={median_v:.3f}")
+        ax.axvline(0, color="black", linestyle=":", alpha=0.5)
+        sig_pct = (valid[col_p].dropna() < 0.05).mean() * 100
+        neg_pct = (v < 0).mean() * 100
+        expected = "← expect negative" if expect_neg else "expect positive →"
+        ax.set_xlabel(f"{label.split(chr(10))[0]}")
+        ax.set_ylabel("Queries")
+        ax.set_title(f"{label}\n"
+                     f"neg={neg_pct:.1f}%  sig(p<.05)={sig_pct:.1f}%  {expected}")
+        ax.legend(fontsize=8)
+
+    fig.suptitle(
+        "Per-Query Correlation: LLM Score vs Distance-to-GT  &  LLM Score vs is_GT\n"
+        "Spearman / Pearson / Kendall τ-b / Point-biserial",
+        fontsize=11,
+    )
+    plt.tight_layout()
+    _save_fig(fig, layout.chart_base("correlation_histograms.png"),
+              "4-method correlation histograms")
+
+    # global (pooled) correlations across all 1M rows — summary only
+    return {
+        "median_spearman_r":  valid["spearman_r"].median(),
+        "median_pearson_r":   valid["pearson_r"].median(),
+        "median_kendall_tau": valid["kendall_tau"].median(),
+        "median_pb_r":        valid["pointbiserial_r"].median(),
+        "pct_negative_r":     (valid["spearman_r"] < 0).mean() * 100,
+        "pct_significant_r":  (valid["spearman_p"] < 0.05).mean() * 100,
+    }
 
 
 # ── section 2: LLM rank of GT ────────────────────────────────────────────────
 
-def section_gt_rank(pqs: pd.DataFrame, out: Path) -> dict:
+def section_gt_rank(pqs: pd.DataFrame, layout: AnalysisLayout) -> dict:
     rank_df = pqs[["query_idx", "gt_llm_rank", "gt_llm_score", "n_docs", "gt_rank_pct",
                     "rag_failed"]].copy()
-    _save_csv(rank_df, out / "gt_llm_rank.csv", "GT rank by LLM score per query")
+    _save_csv(rank_df, layout.per_query_csv("gt_llm_rank.csv"), "GT rank by LLM score per query")
 
     ranks = rank_df["gt_llm_rank"].dropna().astype(int)
     p_at_1  = (ranks == 1).mean() * 100
@@ -223,14 +279,14 @@ def section_gt_rank(pqs: pd.DataFrame, out: Path) -> dict:
     axes[1].set_xlim(left=0)
     axes[1].legend(fontsize=8)
     fig.suptitle("LLM Ability to Identify GT (rank 1 = perfect)")
-    _save_fig(fig, out / "gt_llm_rank.png", "GT rank distribution + CDF")
+    _save_fig(fig, layout.chart_base("gt_llm_rank.png"), "GT rank distribution + CDF")
 
     return {"p_at_1": p_at_1, "p_at_3": p_at_3, "p_at_5": p_at_5, "p_at_10": p_at_10}
 
 
 # ── section 3: LLM recovery rates ────────────────────────────────────────────
 
-def section_recovery(pqs: pd.DataFrame, out: Path) -> dict:
+def section_recovery(pqs: pd.DataFrame, layout: AnalysisLayout) -> dict:
     ks = [1, 3, 5, 10, 20, 50, 100, 200]
     ranks = pqs["gt_llm_rank"].dropna().astype(int)
     rows = []
@@ -240,7 +296,7 @@ def section_recovery(pqs: pd.DataFrame, out: Path) -> dict:
         rows.append({"K": k, "recovered": recovered, "total": total,
                      "recovery_rate_pct": recovered / total * 100})
     rec_df = pd.DataFrame(rows)
-    _save_csv(rec_df, out / "llm_recovery_at_k.csv", "LLM recovery rate at K")
+    _save_csv(rec_df, layout.global_csv("llm_recovery_at_k.csv"), "LLM recovery rate at K")
 
     fig, ax = plt.subplots(figsize=(9, 4))
     ax.bar([str(k) for k in rec_df["K"]], rec_df["recovery_rate_pct"], color="steelblue", edgecolor="white")
@@ -251,7 +307,7 @@ def section_recovery(pqs: pd.DataFrame, out: Path) -> dict:
     for i, row in rec_df.iterrows():
         ax.text(i, row["recovery_rate_pct"] + 0.5, f"{row['recovery_rate_pct']:.1f}%",
                 ha="center", va="bottom", fontsize=8)
-    _save_fig(fig, out / "llm_recovery_at_k.png", "Recovery rate bar chart")
+    _save_fig(fig, layout.chart_base("llm_recovery_at_k.png"), "Recovery rate bar chart")
 
     return {"recovery_at_1": rec_df[rec_df["K"] == 1]["recovery_rate_pct"].iloc[0],
             "recovery_at_5": rec_df[rec_df["K"] == 5]["recovery_rate_pct"].iloc[0],
@@ -260,7 +316,7 @@ def section_recovery(pqs: pd.DataFrame, out: Path) -> dict:
 
 # ── section 4: score distributions (GT vs non-GT) ────────────────────────────
 
-def section_score_distribution(df: pd.DataFrame, out: Path) -> dict:
+def section_score_distribution(df: pd.DataFrame, layout: AnalysisLayout) -> dict:
     gt_scores  = df[df["is_gt"] == 1]["llm_score"]
     ngt_scores = df[df["is_gt"] == 0]["llm_score"]
 
@@ -275,7 +331,7 @@ def section_score_distribution(df: pd.DataFrame, out: Path) -> dict:
         "p90": [gt_scores.quantile(0.90), ngt_scores.quantile(0.90)],
         "p99": [gt_scores.quantile(0.99), ngt_scores.quantile(0.99)],
     })
-    _save_csv(summary, out / "score_distribution_summary.csv", "GT vs non-GT score summary")
+    _save_csv(summary, layout.global_csv("score_distribution_summary.csv"), "GT vs non-GT score summary")
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
@@ -307,7 +363,7 @@ def section_score_distribution(df: pd.DataFrame, out: Path) -> dict:
     axes[2].set_ylabel("LLM Score")
     axes[2].set_title("Violin: GT vs non-GT")
     fig.suptitle("LLM Score Distribution: GT vs All Other Docs")
-    _save_fig(fig, out / "score_distributions.png", "GT vs non-GT score distributions")
+    _save_fig(fig, layout.chart_base("score_distributions.png"), "GT vs non-GT score distributions")
 
     return {"gt_mean_score": float(gt_scores.mean()), "ngt_mean_score": float(ngt_scores.mean()),
             "gt_median_score": float(gt_scores.median())}
@@ -315,9 +371,9 @@ def section_score_distribution(df: pd.DataFrame, out: Path) -> dict:
 
 # ── section 5: GT score percentile ───────────────────────────────────────────
 
-def section_gt_percentile(pqs: pd.DataFrame, out: Path) -> dict:
+def section_gt_percentile(pqs: pd.DataFrame, layout: AnalysisLayout) -> dict:
     pct_df = pqs[["query_idx", "gt_rank_pct"]].dropna().copy()
-    _save_csv(pct_df, out / "gt_score_percentile.csv", "GT score percentile per query")
+    _save_csv(pct_df, layout.per_query_csv("gt_score_percentile.csv"), "GT score percentile per query")
 
     vals = pct_df["gt_rank_pct"]
     above_50 = (vals >= 50).mean() * 100
@@ -332,7 +388,7 @@ def section_gt_percentile(pqs: pd.DataFrame, out: Path) -> dict:
     ax.set_title(f"GT Score Percentile Among All Docs Per Query\n"
                  f"above 50th: {above_50:.1f}%  above 75th: {above_75:.1f}%  above 90th: {above_90:.1f}%")
     ax.legend()
-    _save_fig(fig, out / "gt_score_percentile.png", "GT score percentile histogram")
+    _save_fig(fig, layout.chart_base("gt_score_percentile.png"), "GT score percentile histogram")
 
     return {"gt_pct_median": float(vals.median()), "pct_above_50": above_50,
             "pct_above_75": above_75, "pct_above_90": above_90}
@@ -340,7 +396,7 @@ def section_gt_percentile(pqs: pd.DataFrame, out: Path) -> dict:
 
 # ── section 6: ROC / PR curves ───────────────────────────────────────────────
 
-def section_roc_pr(df: pd.DataFrame, out: Path) -> dict:
+def section_roc_pr(df: pd.DataFrame, layout: AnalysisLayout) -> dict:
     if not HAS_SKLEARN:
         return {}
 
@@ -360,7 +416,7 @@ def section_roc_pr(df: pd.DataFrame, out: Path) -> dict:
         "metric": ["ROC-AUC", "Average Precision (PR-AUC)", "Baseline (random) PR"],
         "value": [roc_auc, ap, baseline_pr],
     })
-    _save_csv(summary, out / "roc_pr_summary.csv", "Global ROC/PR summary")
+    _save_csv(summary, layout.global_csv("roc_pr_summary.csv"), "Global ROC/PR summary")
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
@@ -379,14 +435,14 @@ def section_roc_pr(df: pd.DataFrame, out: Path) -> dict:
     axes[1].set_title("Precision-Recall Curve — LLM as GT Detector")
     axes[1].legend()
     fig.suptitle("LLM Score as Binary GT Classifier (global, all queries)")
-    _save_fig(fig, out / "roc_pr_curves.png", "ROC and PR curves")
+    _save_fig(fig, layout.chart_base("roc_pr_curves.png"), "ROC and PR curves")
 
     return {"roc_auc": roc_auc, "average_precision": ap, "baseline_pr": baseline_pr}
 
 
 # ── section 7: scatter (dist_to_gt vs llm_score) ─────────────────────────────
 
-def section_scatter(df: pd.DataFrame, out: Path) -> None:
+def section_scatter(df: pd.DataFrame, layout: AnalysisLayout) -> None:
     sample_n = 10_000
     ngt = df[df["is_gt"] == 0]
     gt  = df[df["is_gt"] == 1]
@@ -402,12 +458,12 @@ def section_scatter(df: pd.DataFrame, out: Path) -> None:
     ax.set_title(f"LLM Score vs Distance to GT\n"
                  f"(non-GT sample n={len(ngt_sample):,}, GT n={len(gt)})")
     ax.legend()
-    _save_fig(fig, out / "scatter_score_vs_dist.png", "Scatter: LLM score vs dist-to-GT")
+    _save_fig(fig, layout.chart_base("scatter_score_vs_dist.png"), "Scatter: LLM score vs dist-to-GT")
 
 
 # ── section 8: distance quantile analysis ────────────────────────────────────
 
-def section_distance_quantiles(df: pd.DataFrame, out: Path) -> None:
+def section_distance_quantiles(df: pd.DataFrame, layout: AnalysisLayout) -> None:
     n_bins = 10
     ngt = df[df["is_gt"] == 0].copy()
     ngt["dist_bin"] = pd.qcut(ngt["dist_to_gt"], q=n_bins, labels=False, duplicates="drop")
@@ -418,7 +474,7 @@ def section_distance_quantiles(df: pd.DataFrame, out: Path) -> None:
                .reset_index())
     labels = ngt.groupby("dist_bin")["dist_bin_label"].first().reset_index()
     agg = agg.merge(labels, on="dist_bin")
-    _save_csv(agg, out / "distance_quantile_analysis.csv", "LLM score by dist quantile bucket")
+    _save_csv(agg, layout.global_csv("distance_quantile_analysis.csv"), "LLM score by dist quantile bucket")
 
     fig, ax = plt.subplots(figsize=(11, 4))
     xs = np.arange(len(agg))
@@ -431,12 +487,12 @@ def section_distance_quantiles(df: pd.DataFrame, out: Path) -> None:
     ax.set_title("Mean/Median LLM Score by Distance-to-GT Decile\n"
                  "(non-GT docs only; expect decline from Q1→Q10 if LLM is useful)")
     ax.legend()
-    _save_fig(fig, out / "distance_quantile_analysis.png", "LLM score by distance bucket")
+    _save_fig(fig, layout.chart_base("distance_quantile_analysis.png"), "LLM score by distance bucket")
 
 
 # ── section 9: top-K Jaccard overlap ─────────────────────────────────────────
 
-def section_topk_jaccard(df: pd.DataFrame, out: Path) -> None:
+def section_topk_jaccard(df: pd.DataFrame, layout: AnalysisLayout) -> None:
     ks = [5, 10, 20, 50, 100]
     rows = []
     for qidx, grp in df.groupby("query_idx"):
@@ -452,10 +508,10 @@ def section_topk_jaccard(df: pd.DataFrame, out: Path) -> None:
             rows.append({"query_idx": qidx, "K": k, "jaccard": jaccard,
                          "intersection": inter})
     jac_df = pd.DataFrame(rows)
-    _save_csv(jac_df, out / "topk_jaccard.csv", "Top-K Jaccard overlap per query")
+    _save_csv(jac_df, layout.per_query_csv("topk_jaccard.csv"), "Top-K Jaccard overlap per query")
 
     agg = jac_df.groupby("K")["jaccard"].describe().reset_index()
-    _save_csv(agg, out / "topk_jaccard_summary.csv", "Top-K Jaccard summary")
+    _save_csv(agg, layout.global_csv("topk_jaccard_summary.csv"), "Top-K Jaccard summary")
 
     fig, ax = plt.subplots(figsize=(9, 4))
     data_by_k = [jac_df[jac_df["K"] == k]["jaccard"].values for k in ks]
@@ -465,14 +521,14 @@ def section_topk_jaccard(df: pd.DataFrame, out: Path) -> None:
     ax.set_ylabel("Jaccard Similarity")
     ax.set_title("Top-K Agreement: LLM Ranking vs Distance-to-GT Ranking\n"
                  "(Jaccard between top-K sets; 1.0 = perfect agreement)")
-    _save_fig(fig, out / "topk_jaccard.png", "Top-K Jaccard box plot")
+    _save_fig(fig, layout.chart_base("topk_jaccard.png"), "Top-K Jaccard box plot")
 
 
 # ── section 10: score gap ────────────────────────────────────────────────────
 
-def section_score_gap(pqs: pd.DataFrame, out: Path) -> dict:
+def section_score_gap(pqs: pd.DataFrame, layout: AnalysisLayout) -> dict:
     gap_df = pqs[["query_idx", "gt_llm_score", "best_ngt_score", "score_gap"]].dropna().copy()
-    _save_csv(gap_df, out / "score_gap.csv", "GT score gap vs best non-GT per query")
+    _save_csv(gap_df, layout.per_query_csv("score_gap.csv"), "GT score gap vs best non-GT per query")
 
     gap = gap_df["score_gap"]
     pos_frac = (gap > 0).mean() * 100
@@ -489,7 +545,7 @@ def section_score_gap(pqs: pd.DataFrame, out: Path) -> dict:
                  f"GT is highest scorer in {pos_frac:.1f}% of queries | "
                  f"Tied in {zero_frac:.1f}%")
     ax.legend()
-    _save_fig(fig, out / "score_gap.png", "Score gap histogram")
+    _save_fig(fig, layout.chart_base("score_gap.png"), "Score gap histogram")
 
     return {"pct_gt_highest": pos_frac, "median_gap": float(gap.median()),
             "mean_gap": float(gap.mean())}
@@ -497,7 +553,7 @@ def section_score_gap(pqs: pd.DataFrame, out: Path) -> dict:
 
 # ── section 11: per-query LLM score heatmap (top queries) ────────────────────
 
-def section_per_query_heatmap(pqs: pd.DataFrame, out: Path) -> None:
+def section_per_query_heatmap(pqs: pd.DataFrame, layout: AnalysisLayout) -> None:
     """Heatmap: each row = query, columns = LLM rank bucket, color = GT rank."""
     rank_df = pqs[["query_idx", "gt_llm_rank", "n_docs"]].dropna().copy()
     rank_df["gt_rank_norm"] = rank_df["gt_llm_rank"] / rank_df["n_docs"]
@@ -516,12 +572,12 @@ def section_per_query_heatmap(pqs: pd.DataFrame, out: Path) -> None:
     ax.set_xlabel("GT LLM Rank (capped at 200)")
     ax.set_ylabel("Query Index")
     ax.set_title("Per-Query GT LLM Rank\n(green = GT near top, red = GT near bottom)")
-    _save_fig(fig, out / "per_query_gt_rank_scatter.png", "Per-query GT rank scatter")
+    _save_fig(fig, layout.chart_base("per_query_gt_rank_scatter.png"), "Per-query GT rank scatter")
 
 
 # ── section 12: LLM score vs query-level statistics ──────────────────────────
 
-def section_query_level_overview(pqs: pd.DataFrame, out: Path) -> None:
+def section_query_level_overview(pqs: pd.DataFrame, layout: AnalysisLayout) -> None:
     fig, axes = plt.subplots(2, 2, figsize=(13, 9))
     axes = axes.ravel()
 
@@ -558,12 +614,12 @@ def section_query_level_overview(pqs: pd.DataFrame, out: Path) -> None:
 
     fig.suptitle("Query-Level Overview Scatter Plots")
     plt.tight_layout()
-    _save_fig(fig, out / "query_level_overview.png", "4-panel query-level overview")
+    _save_fig(fig, layout.chart_base("query_level_overview.png"), "4-panel query-level overview")
 
 
 # ── section 13: MRR and P@K table ────────────────────────────────────────────
 
-def section_mrr(pqs: pd.DataFrame, out: Path) -> dict:
+def section_mrr(pqs: pd.DataFrame, layout: AnalysisLayout) -> dict:
     ranks = pqs["gt_llm_rank"].dropna().astype(float)
     mrr = (1.0 / ranks).mean()
     ks = [1, 3, 5, 10, 20, 50, 100]
@@ -571,13 +627,13 @@ def section_mrr(pqs: pd.DataFrame, out: Path) -> dict:
     for k in ks:
         rows.append({"metric": f"P@{k}", "value": (ranks <= k).mean()})
     mrr_df = pd.DataFrame(rows)
-    _save_csv(mrr_df, out / "mrr_and_precision_at_k.csv", "MRR and P@K")
+    _save_csv(mrr_df, layout.global_csv("mrr_and_precision_at_k.csv"), "MRR and P@K")
     return {"mrr": mrr}
 
 
 # ── section 14: dist_to_gt distribution for GT docs ─────────────────────────
 
-def section_gt_dist_sanity(df: pd.DataFrame, out: Path) -> None:
+def section_gt_dist_sanity(df: pd.DataFrame, layout: AnalysisLayout) -> None:
     gt = df[df["is_gt"] == 1]
     fig, ax = plt.subplots(figsize=(7, 3))
     ax.hist(gt["dist_to_gt"], bins=30, color="crimson", edgecolor="white")
@@ -585,12 +641,12 @@ def section_gt_dist_sanity(df: pd.DataFrame, out: Path) -> None:
     ax.set_ylabel("Count")
     ax.set_title(f"GT Doc Distance to GT Embedding (should be ~0)\n"
                  f"mean={gt['dist_to_gt'].mean():.4f}  max={gt['dist_to_gt'].max():.4f}")
-    _save_fig(fig, out / "gt_dist_sanity.png", "GT doc distance sanity check")
+    _save_fig(fig, layout.chart_base("gt_dist_sanity.png"), "GT doc distance sanity check")
 
 
 # ── section 15: score by dist_to_gt for GT docs across queries ──────────────
 
-def section_gt_scores_scatter(pqs: pd.DataFrame, out: Path) -> None:
+def section_gt_scores_scatter(pqs: pd.DataFrame, layout: AnalysisLayout) -> None:
     valid = pqs.dropna(subset=["gt_llm_score", "gt_dist_to_gt"])
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.scatter(valid["gt_llm_score"], valid["gt_dist_to_gt"],
@@ -599,21 +655,51 @@ def section_gt_scores_scatter(pqs: pd.DataFrame, out: Path) -> None:
     ax.set_ylabel("GT dist_to_gt (should be ~0)")
     ax.set_title("Per-Query GT: LLM Score vs Distance\n"
                  "(distance should cluster near 0; score variation shows LLM confidence in GT)")
-    _save_fig(fig, out / "gt_score_vs_dist.png", "GT LLM score vs GT distance")
+    _save_fig(fig, layout.chart_base("gt_score_vs_dist.png"), "GT LLM score vs GT distance")
 
 
 # ── summary report ───────────────────────────────────────────────────────────
 
-def write_summary(stats_dict: dict, pqs: pd.DataFrame, df: pd.DataFrame, out: Path) -> None:
+def write_summary(
+    stats_dict: dict,
+    pqs: pd.DataFrame,
+    df: pd.DataFrame,
+    layout: AnalysisLayout,
+    health: dict | None = None,
+) -> None:
     n_queries = pqs["query_idx"].nunique()
     n_rows = len(df)
     rag_fail_pct = (pqs["rag_failed"] == 1).mean() * 100 if "rag_failed" in pqs.columns else 100.0
+
+    ranks_min = pqs["gt_llm_rank"].dropna().astype(float)
+    ranks_avg = pqs["gt_llm_rank_avg"].dropna().astype(float)
+    mrr_optimistic = (1.0 / ranks_min).mean()
+    mrr_corrected = (1.0 / ranks_avg).mean()
+    p1_optimistic = (ranks_min == 1).mean() * 100
+    p1_corrected = (ranks_avg <= 1).mean() * 100
+    n_tied_median = float(stats_dict.get("median_n_tied_at_gt", float("nan")))
+    if n_tied_median != n_tied_median:  # NaN — compute quick tie estimate
+        tie_sizes = []
+        for _, grp in df.groupby("query_idx"):
+            gt_row = grp[grp["is_gt"] == 1]
+            if gt_row.empty:
+                continue
+            gt_score = float(gt_row["llm_score"].iloc[0])
+            if (grp["llm_score"] > gt_score).any():
+                continue
+            tie_sizes.append(int((grp["llm_score"] == gt_score).sum()))
+        n_tied_median = float(np.median(tie_sizes)) if tie_sizes else float("nan")
 
     lines = [
         "=" * 70,
         "GLOBAL CORRELATION EXPERIMENT — ANALYSIS SUMMARY",
         "=" * 70,
         "",
+    ]
+    if health:
+        lines.extend(format_health_text_lines(health))
+        lines.append("")
+    lines.extend([
         "DATASET",
         f"  Scored pairs      : {n_rows:,}",
         f"  Queries           : {n_queries}",
@@ -622,24 +708,29 @@ def write_summary(stats_dict: dict, pqs: pd.DataFrame, df: pd.DataFrame, out: Pa
         f"  Avg LLM score     : {df['llm_score'].mean():.4f}",
         f"  Avg dist_to_gt    : {df['dist_to_gt'].mean():.4f}",
         "",
-        "CORRELATION (llm_score vs dist_to_gt, expect negative)",
-        f"  Median Spearman r : {stats_dict.get('median_spearman_r', 'n/a'):.4f}",
-        f"  % negative r      : {stats_dict.get('pct_negative_r', 0):.1f}%",
-        f"  % significant r   : {stats_dict.get('pct_significant_r', 0):.1f}%  (p<0.05)",
+        "CORRELATION (llm_score vs dist_to_gt, expect negative; vs is_gt, expect positive)",
+        f"  Median Spearman r     : {stats_dict.get('median_spearman_r', 'n/a'):.4f}",
+        f"  Median Pearson r      : {stats_dict.get('median_pearson_r', 'n/a'):.4f}",
+        f"  Median Kendall tau-b  : {stats_dict.get('median_kendall_tau', 'n/a'):.4f}",
+        f"  Median Point-biserial : {stats_dict.get('median_pb_r', 'n/a'):.4f}  (score vs is_gt)",
+        f"  % negative Spearman r : {stats_dict.get('pct_negative_r', 0):.1f}%",
+        f"  % significant r       : {stats_dict.get('pct_significant_r', 0):.1f}%  (p<0.05)",
         "",
         "LLM AS GT DETECTOR",
         f"  ROC-AUC           : {stats_dict.get('roc_auc', 'n/a (sklearn missing)')}",
         f"  Avg Precision     : {stats_dict.get('average_precision', 'n/a')}",
         "",
         "LLM RANK OF GT (rank by llm_score DESC; 1 = best)",
-        f"  MRR               : {stats_dict.get('mrr', 0):.4f}",
-        f"  P@1               : {stats_dict.get('p_at_1', 0):.1f}%",
+        f"  MRR (optimistic)      : {mrr_optimistic:.4f}  (rank_min — ties share rank 1)",
+        f"  MRR (tie-corrected)   : {mrr_corrected:.4f}  (rank_avg — see extended analysis)",
+        f"  P@1 (optimistic)      : {p1_optimistic:.1f}%",
+        f"  P@1 (tie-corrected)   : {p1_corrected:.1f}%",
         f"  P@3               : {stats_dict.get('p_at_3', 0):.1f}%",
         f"  P@5               : {stats_dict.get('p_at_5', 0):.1f}%",
         f"  P@10              : {stats_dict.get('p_at_10', 0):.1f}%",
         "",
-        "LLM RECOVERY (retriever missed GT; can LLM find it?)",
-        f"  Recovery@1        : {stats_dict.get('recovery_at_1', 0):.1f}%",
+        "LLM RECOVERY (same as P@K when rag_failed=100%; retriever missed GT on all queries)",
+        f"  Recovery@1        : {stats_dict.get('recovery_at_1', 0):.1f}%  (GT in top tier, not unique)",
         f"  Recovery@5        : {stats_dict.get('recovery_at_5', 0):.1f}%",
         f"  Recovery@10       : {stats_dict.get('recovery_at_10', 0):.1f}%",
         "",
@@ -662,21 +753,22 @@ def write_summary(stats_dict: dict, pqs: pd.DataFrame, df: pd.DataFrame, out: Pa
         "CONCLUSION",
         textwrap.fill(
             "When the retriever fails to rank GT at position 1 (which happens in "
-            f"{rag_fail_pct:.0f}% of queries), the LLM can serve as a re-ranker. "
-            f"P@1={stats_dict.get('p_at_1', 0):.1f}% means the LLM would fully recover "
-            "the retrieval in that fraction of queries by picking GT as its top-1. "
-            f"At P@10={stats_dict.get('p_at_10', 0):.1f}%, the LLM places GT in its "
-            "top-10 results — a reasonable re-ranking window. "
-            f"The Spearman median r={stats_dict.get('median_spearman_r', 0):.3f} "
-            "quantifies how consistently LLM scores align with proximity to GT "
-            "(negative = aligned, positive = misaligned).",
+            f"{rag_fail_pct:.0f}% of queries here), the LLM is a strong coarse filter but "
+            "not a precise ranker. Optimistic P@1="
+            f"{p1_optimistic:.1f}% only means GT reaches the top score tier (often tied "
+            f"with a median of {n_tied_median:.0f} other docs); tie-corrected P@1="
+            f"{p1_corrected:.1f}% is the honest single-doc pick rate. "
+            f"MRR drops from {mrr_optimistic:.3f} (optimistic) to {mrr_corrected:.3f} "
+            "(tie-corrected). Run analyze_experiment_extended.py for full tie analysis. "
+            f"Spearman median r={stats_dict.get('median_spearman_r', 0):.3f} shows LLM score "
+            "aligns with proximity to GT (negative = aligned).",
             width=70,
         ),
         "",
         "=" * 70,
-    ]
+    ])
 
-    report_path = out / "analysis_summary.txt"
+    report_path = layout.summary_txt("analysis_summary.txt")
     report_path.write_text("\n".join(lines))
     print(f"  [txt]   {report_path.name}")
 
@@ -694,18 +786,25 @@ def main() -> None:
     elif args.db_path:
         db_path = Path(args.db_path)
     else:
-        db_path = _find_latest_db()
+        db_path = find_latest_db()
 
     if not db_path.exists():
         print(f"[ERROR] DB not found: {db_path}", file=sys.stderr)
         sys.exit(1)
 
     run_dir = db_path.parent
-    out_dir = run_dir / ANALYSIS_DIR
-    out_dir.mkdir(exist_ok=True)
+    layout = AnalysisLayout(run_dir / ANALYSIS_DIR).ensure()
     print(f"Run dir : {run_dir}")
-    print(f"Output  : {out_dir}")
+    print(f"Output  : {layout.root}")
     print()
+
+    health = collect_run_health(db_path)
+    save_run_health(health, layout.root)
+    if health["warnings"]:
+        print("Run health warnings:")
+        for w in health["warnings"]:
+            print(f"  • {w}")
+        print()
 
     df = _load_dataframe(db_path)
     print("\nBuilding per-query statistics …")
@@ -715,54 +814,58 @@ def main() -> None:
     all_stats: dict = {}
 
     print("── Section 1: Correlation ─────────────────────────────")
-    all_stats.update(section_correlation(pqs, out_dir))
+    all_stats.update(section_correlation(pqs, layout))
 
     print("── Section 2: GT LLM Rank ─────────────────────────────")
-    all_stats.update(section_gt_rank(pqs, out_dir))
+    all_stats.update(section_gt_rank(pqs, layout))
 
     print("── Section 3: Recovery Rate ───────────────────────────")
-    all_stats.update(section_recovery(pqs, out_dir))
+    all_stats.update(section_recovery(pqs, layout))
 
     print("── Section 4: Score Distributions ────────────────────")
-    all_stats.update(section_score_distribution(df, out_dir))
+    all_stats.update(section_score_distribution(df, layout))
 
     print("── Section 5: GT Score Percentile ────────────────────")
-    all_stats.update(section_gt_percentile(pqs, out_dir))
+    all_stats.update(section_gt_percentile(pqs, layout))
 
     print("── Section 6: ROC / PR Curves ────────────────────────")
-    all_stats.update(section_roc_pr(df, out_dir))
+    all_stats.update(section_roc_pr(df, layout))
 
     print("── Section 7: Scatter (score vs dist) ────────────────")
-    section_scatter(df, out_dir)
+    section_scatter(df, layout)
 
     print("── Section 8: Distance Quantile Analysis ─────────────")
-    section_distance_quantiles(df, out_dir)
+    section_distance_quantiles(df, layout)
 
     print("── Section 9: Top-K Jaccard Overlap ──────────────────")
-    section_topk_jaccard(df, out_dir)
+    section_topk_jaccard(df, layout)
 
     print("── Section 10: Score Gap ──────────────────────────────")
-    all_stats.update(section_score_gap(pqs, out_dir))
+    all_stats.update(section_score_gap(pqs, layout))
 
     print("── Section 11: Per-Query GT Rank Scatter ─────────────")
-    section_per_query_heatmap(pqs, out_dir)
+    section_per_query_heatmap(pqs, layout)
 
     print("── Section 12: Query-Level Overview ──────────────────")
-    section_query_level_overview(pqs, out_dir)
+    section_query_level_overview(pqs, layout)
 
     print("── Section 13: MRR and P@K ───────────────────────────")
-    all_stats.update(section_mrr(pqs, out_dir))
+    all_stats.update(section_mrr(pqs, layout))
 
     print("── Section 14: GT Distance Sanity ────────────────────")
-    section_gt_dist_sanity(df, out_dir)
+    section_gt_dist_sanity(df, layout)
 
     print("── Section 15: GT Score vs Distance ──────────────────")
-    section_gt_scores_scatter(pqs, out_dir)
+    section_gt_scores_scatter(pqs, layout)
 
     print("── Summary Report ────────────────────────────────────")
-    write_summary(all_stats, pqs, df, out_dir)
+    write_summary(all_stats, pqs, df, layout, health=health)
 
-    print(f"\nDone. All outputs in: {out_dir}")
+    build_per_query_overview(layout.root)
+    write_analysis_index(layout.root, health)
+
+    print(f"\nDone. All outputs in: {layout.root}")
+    print(f"  Index : {layout.index_md()}")
 
 
 if __name__ == "__main__":

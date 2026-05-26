@@ -556,7 +556,7 @@ def display_startup_banner():
     if device.type == "mps":
         print("🍎 Apple Silicon GPU Detected - MPS Enabled")
     elif device.type == "cuda":
-        print("🔥 NVIDIA GPU Detected - CUDA Enabled")
+        print("🔥 CUDA GPU Detected - CUDA Enabled")
     else:
         print("💻 CPU Mode - No GPU Acceleration")
     print("=" * 60)
@@ -869,7 +869,7 @@ def show_experiments_menu():
         ("7", "🧪 Run Cross-Entropy Correlation Experiment",
          "Token-level cross-entropy vs retrieval ordering."),
         ("8", "🧪 Run Global correlation experiment",
-         "MAIN BATCH PIPELINE (Gemini Batch API or Ollama). Pilot/Full/Sync."),
+         "Batch pipeline: staged / pilot / full / sync / analyze post-run."),
         ("9", "🚪 Return to Main Menu", "Go back."),
     ]
     for key, label, hint in options:

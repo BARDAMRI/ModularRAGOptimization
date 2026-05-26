@@ -72,15 +72,17 @@ class _RunConfig:
             "global_correlation": {
                 "active_mode": "pilot",
                 "modes": {
-                    "pilot":  {"scoring_provider": "nvidia_ih", "queries_to_load": 3, ...},
+                    "pilot":  {"scoring_provider": "inference_api", "queries_to_load": 3, ...},
                     "full":   {"scoring_provider": "gemini",    "queries_to_load": 200, ...},
                     "staged": {...},
-                    "sync":   {...}
+                    "sync":   {...},
+                    "analyze": {...}
                 }
             }
 
         After merging, ``global_correlation.run_mode`` resolves to ``"pilot"``
         and all mode-specific fields are available as flat keys.
+        Mode keys: pilot | full | staged | sync | analyze
         """
         for section_name, section in list(self._data.items()):
             if not isinstance(section, dict):

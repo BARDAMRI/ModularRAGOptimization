@@ -66,7 +66,7 @@ def gemini_score(query, document, max_retries=10):
     Rates the relevance of a document to a query on a scale of 1-10 and normalizes it to 0.1-1.0.
 
     Backend is selected by ``configurations.config.CORRELATION_LLM_PROVIDER``:
-    ``gemini`` (live ``generate_content``), ``ollama``, or ``nvidia_ih`` (NVIDIA Inference Hub HTTP).
+    ``gemini`` (live ``generate_content``), ``ollama``, or ``inference_api`` (remote HTTP endpoint).
 
     Handles rate limiting (429) and server overloads (503) with exponential backoff where applicable.
 
@@ -108,12 +108,12 @@ DOCUMENT (excerpt):
     provider = normalize_provider(CORRELATION_LLM_PROVIDER)
     model = (
         correlation_live_model_name()
-        if provider in ("ollama", "nvidia_ih")
+        if provider in ("ollama", "inference_api")
         else CORRELATION_GEMINI_BATCH_MODEL
     )
     system_prompt = (
         "Return only one integer from 1 through 10. No other words, punctuation, or formatting."
-        if provider in ("ollama", "nvidia_ih", "gemini")
+        if provider in ("ollama", "inference_api", "gemini")
         else None
     )
 
