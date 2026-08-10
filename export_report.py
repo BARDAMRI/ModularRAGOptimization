@@ -261,7 +261,7 @@ thead tr { background: #f1f5f9; }
 th { text-align: left; padding: 8px 12px; font-weight: 600; color: #475569;
      border-bottom: 2px solid #e2e8f0; font-size: 12px; white-space: nowrap; }
 td { padding: 7px 12px; border-bottom: 1px solid #f1f5f9; color: #374151;
-     word-break: break-word; max-width: 320px; }
+     overflow-wrap: break-word; max-width: 320px; }
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: #f8fafc; }
 td.hl { font-weight: 600; color: #1d4ed8; }
@@ -278,7 +278,7 @@ figcaption { font-size: 11px; color: #64748b; margin-top: 6px; font-style: itali
 /* callouts */
 .callout { display: flex; align-items: flex-start; gap: 10px; border-radius: 7px;
            padding: 12px 16px; margin: 14px 0; font-size: 13px; line-height: 1.5;
-           overflow-wrap: break-word; word-break: break-word; }
+           overflow-wrap: break-word; }
 .callout .icon { flex-shrink: 0; font-size: 16px; margin-top: 1px; }
 .callout.info  { background: #eff6ff; color: #1e40af; }
 .callout.warn  { background: #fffbeb; color: #92400e; }
@@ -295,7 +295,7 @@ p { margin: 8px 0; color: #475569; font-size: 13px; }
 hr { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
 
 pre { font-size: 12px; color: #475569; white-space: pre-wrap; overflow-wrap: break-word;
-      word-break: break-word; overflow-x: auto; background: #f8fafc;
+      overflow-x: auto; background: #f8fafc;
       border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 16px; }
 
 /* section intro */
@@ -306,23 +306,24 @@ pre { font-size: 12px; color: #475569; white-space: pre-wrap; overflow-wrap: bre
 
 /* ── print / PDF layout ───────────────────────────────────────────────────── */
 @media print {
+  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   #toc-sidebar { display: none !important; }
   main { margin-left: 0 !important; padding: 20px 28px !important; max-width: 100% !important; }
   #report-header { margin-left: 0 !important; padding: 24px 28px !important; }
   #report-header .meta { flex-wrap: wrap; gap: 18px; }
-  section { box-shadow: none !important; border: 1px solid #e2e8f0;
-            break-inside: avoid-page; margin-bottom: 18px; }
+  section { box-shadow: none !important; border: 1px solid #e2e8f0; margin-bottom: 18px; }
   .table-wrap { overflow-x: visible; }
   table { font-size: 11px; }
   th, td { padding: 5px 8px; }
   .cards { flex-wrap: wrap; }
   .card { flex: 1 1 120px; }
-  figure { break-inside: avoid-page; }
+  figure { break-inside: avoid; }
   figure img { max-width: 100% !important; }
-  .callout { break-inside: avoid-page; }
+  .callout { break-inside: avoid; }
   pre { font-size: 10px; white-space: pre-wrap; overflow: visible; }
   a { color: inherit; text-decoration: none; }
-  h2 { break-after: avoid-page; }
+  h2 { break-after: avoid; }
+  h3 { break-after: avoid; }
 }
 """
 
@@ -565,14 +566,32 @@ whole experiment vs a single query:</p>
             "query_idx", "gt_llm_rank", "gt_llm_score", "difficulty",
             "n_tied_at_gt", "rank_avg", "spearman_r", "gt_would_win_dist",
         ] if c in overview.columns]
-        tbl = "<h3>Per-Query Overview (sample)</h3>" + _table(
-            overview[show_cols].head(15),
+        legend_rows = [
+            ("query_idx",        "Unique integer ID for the query (0-based)"),
+            ("gt_llm_rank",      "Rank of the ground-truth document by LLM score (1 = top-scored). Lower is better."),
+            ("gt_llm_score",     "Raw LLM relevance score assigned to the GT document (1–10 scale, normalised to 0.1–1.0)"),
+            ("difficulty",       "Query tier: EASY = GT uniquely top-scored · MEDIUM = 2–10 docs tied with GT · HARD = 11+ tied · FAILED = GT outscored"),
+            ("n_tied_at_gt",     "Number of documents that share the same LLM score as the GT doc (including GT itself). Large values indicate the LLM could not discriminate."),
+            ("rank_avg",         "Tie-corrected average rank of the GT doc: (rank_min + rank_max) / 2. Accounts for ties; lower = better."),
+            ("spearman_r",       "Spearman rank correlation between LLM score and distance-to-GT for this query (range −1 to +1). Strong negative = LLM score tracks proximity well."),
+            ("gt_would_win_dist","1 if the GT doc has a shorter embedding distance to itself (trivially 0) than the closest non-GT in the same score tier — i.e. whether a distance tiebreaker would promote GT to rank 1. 0 otherwise."),
+        ]
+        legend_rows = [(col, desc) for col, desc in legend_rows if col in show_cols]
+        legend_html = """<h3>Column guide</h3>
+<table>
+  <thead><tr><th>Column</th><th>Meaning</th></tr></thead>
+  <tbody>""" + "".join(
+            f"<tr><td><code>{col}</code></td><td>{desc}</td></tr>"
+            for col, desc in legend_rows
+        ) + "</tbody></table>"
+
+        tbl = "<h3>Per-Query Overview (all queries)</h3>" + legend_html + _table(
+            overview[show_cols],
             col_formats={"spearman_r": "{:.3f}", "gt_llm_score": "{:.1f}", "rank_avg": "{:.1f}"},
             highlight_col="query_idx",
-            max_rows=15,
+            max_rows=len(overview),
         )
-        if len(overview) > 15:
-            tbl += f"<p class='muted'>Showing 15 of {len(overview)} queries — full table in CSV.</p>"
+        tbl += f"<p class='muted'>All {len(overview)} queries shown. Full table also available in CSV.</p>"
 
     folder_tbl = f"""
 <h3>Folder layout</h3>

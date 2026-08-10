@@ -20,6 +20,7 @@ import asyncio
 import json
 import logging
 import queue
+import random
 import re
 import threading
 import time
@@ -254,6 +255,7 @@ def _send_ollama(req: LLMRequest) -> str:
 
 
 def _send_inference_api(req: LLMRequest) -> str:
+    """OpenAI-compatible inference endpoint (NVIDIA Inference Hub)."""
     from configurations.config import (
         INFERENCE_API_KEY,
         INFERENCE_API_URL_TEMPLATE,
@@ -262,35 +264,29 @@ def _send_inference_api(req: LLMRequest) -> str:
 
     api_key = str(req.metadata.get("api_key") or INFERENCE_API_KEY or "").strip()
     if not api_key:
-        raise LLMGatewayError(
-            "Inference API: INFERENCE_API_KEY is not set in the environment."
-        )
-    url_template = str(
-        req.metadata.get("url_template") or INFERENCE_API_URL_TEMPLATE
-    )
+        raise LLMGatewayError("Inference API: INFERENCE_API_KEY is not set in the environment.")
+    url_template = str(req.metadata.get("url_template") or INFERENCE_API_URL_TEMPLATE)
     if not url_template:
-        raise LLMGatewayError(
-            "Inference API: INFERENCE_API_URL is not set in the environment."
-        )
+        raise LLMGatewayError("Inference API: INFERENCE_API_URL is not set in the environment.")
+
     timeout_s = float(req.metadata.get("timeout_s", INFERENCE_API_TIMEOUT_S))
     temperature = float(req.metadata.get("temperature", 0.0))
     max_output_tokens = int(req.metadata.get("max_output_tokens", 512))
-    top_p = float(req.metadata.get("top_p", 0.1))
-    top_k = int(req.metadata.get("top_k", 1))
 
     url = url_template.format(model=req.model)
-    payload: dict[str, Any] = {
-        "contents": [{"role": "user", "parts": [{"text": req.prompt}]}],
-        "generationConfig": {
-            "temperature": temperature,
-            "maxOutputTokens": max_output_tokens,
-            "topP": top_p,
-            "topK": top_k,
-        },
-    }
+
+    messages: list[dict] = []
     si = (req.system_prompt or "").strip()
     if si:
-        payload["systemInstruction"] = {"parts": [{"text": si}]}
+        messages.append({"role": "system", "content": si})
+    messages.append({"role": "user", "content": req.prompt})
+
+    payload: dict[str, Any] = {
+        "model": req.model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_output_tokens,
+    }
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -298,28 +294,32 @@ def _send_inference_api(req: LLMRequest) -> str:
     resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
     resp.raise_for_status()
     data = resp.json()
-    cands = data.get("candidates") or []
-    if not cands:
-        raise LLMGatewayError(
-            f"Inference API: no candidates in response: {json.dumps(data)[:800]}"
-        )
-    parts = (cands[0].get("content") or {}).get("parts") or []
-    if not parts:
-        raise LLMGatewayError("Inference API: empty content.parts")
-    text = parts[0].get("text")
-    if text is None or not str(text).strip():
-        raise LLMGatewayError("Inference API: empty text in first part")
+    choices = data.get("choices") or []
+    if not choices:
+        raise LLMGatewayError(f"Inference API: no choices in response: {json.dumps(data)[:800]}")
+    text = (choices[0].get("message") or {}).get("content", "")
+    if not str(text).strip():
+        raise LLMGatewayError("Inference API: empty content in response")
     return str(text).strip()
 
 
 def _send_gemini(req: LLMRequest) -> str:
     from configurations.config import GEMINI_API_KEY
+    from google.genai import types as _gtypes
 
     api_key = str(req.metadata.get("api_key") or GEMINI_API_KEY or "").strip()
     if not api_key:
         raise LLMGatewayError("Gemini: GEMINI_API_KEY is not configured.")
     client = get_gemini_client(api_key)
-    response = client.models.generate_content(model=req.model, contents=req.prompt)
+    gen_cfg: dict = {}
+    si = (req.system_prompt or "").strip()
+    if si:
+        gen_cfg["system_instruction"] = si
+    config = _gtypes.GenerateContentConfig(**gen_cfg) if gen_cfg else None
+    kwargs: dict = {"model": req.model, "contents": req.prompt}
+    if config is not None:
+        kwargs["config"] = config
+    response = client.models.generate_content(**kwargs)
     text = getattr(response, "text", None)
     if text is None or not str(text).strip():
         raise LLMGatewayError("Gemini returned empty text")
@@ -334,7 +334,11 @@ _PROVIDER_SENDERS: dict[str, Callable[[LLMRequest], str]] = {
 
 
 _RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
-_RETRY_DELAYS_S = [5, 15, 30]  # wait between attempts 1→2, 2→3, 3→4
+_MAX_RETRIES      = 6      # total attempts = 1 + 6 = 7
+_BACKOFF_BASE_S   = 10.0   # initial wait after first failure
+_BACKOFF_MULT     = 2.0    # double each retry
+_BACKOFF_MAX_S    = 120.0  # cap at 2 minutes
+_BACKOFF_JITTER   = 0.25   # ±25% jitter to break synchronisation
 
 
 def _execute_request(req: LLMRequest) -> str:
@@ -344,13 +348,29 @@ def _execute_request(req: LLMRequest) -> str:
         raise LLMGatewayError(f"Unsupported LLM provider: {req.provider!r}")
 
     last_exc: Exception | None = None
-    for attempt, delay in enumerate([0] + _RETRY_DELAYS_S, start=1):
-        if delay:
+    backoff = _BACKOFF_BASE_S
+
+    for attempt in range(1, _MAX_RETRIES + 2):   # attempts 1 … _MAX_RETRIES+1
+        if attempt > 1:
+            wait = backoff * (1 + random.uniform(-_BACKOFF_JITTER, _BACKOFF_JITTER))
+
+            # Respect Retry-After header (takes precedence when longer than backoff)
+            if (isinstance(last_exc, requests.exceptions.HTTPError)
+                    and last_exc.response is not None
+                    and last_exc.response.status_code == 429):
+                hdr = last_exc.response.headers.get("Retry-After", "")
+                try:
+                    wait = max(wait, float(hdr))
+                except (ValueError, TypeError):
+                    pass
+
             logger.warning(
-                f"[gateway] retry {attempt}/{len(_RETRY_DELAYS_S) + 1} "
-                f"after {delay}s — prev error: {last_exc}"
+                f"[gateway] retry {attempt - 1}/{_MAX_RETRIES} "
+                f"after {wait:.1f}s — prev error: {last_exc}"
             )
-            time.sleep(delay)
+            time.sleep(wait)
+            backoff = min(backoff * _BACKOFF_MULT, _BACKOFF_MAX_S)
+
         try:
             return sender(req)
         except Exception as exc:
@@ -367,8 +387,9 @@ def _execute_request(req: LLMRequest) -> str:
                 last_exc = exc
                 continue
             raise
+
     raise LLMGatewayError(
-        f"Request failed after {len(_RETRY_DELAYS_S) + 1} attempts: {last_exc}"
+        f"Request failed after {_MAX_RETRIES + 1} attempts: {last_exc}"
     ) from last_exc
 
 
@@ -434,8 +455,15 @@ class LLMGatewayService:
                     item.request.model,
                     item.request.request_kind,
                 )
-                result = self._executor.submit(_execute_request, item.request).result()
-                item.future.set_result(result)
+                pool_fut = self._executor.submit(_execute_request, item.request)
+
+                def _settle(done: ConcurrentFuture, _item: _QueuedWork = item) -> None:
+                    try:
+                        _item.future.set_result(done.result())
+                    except Exception as _exc:
+                        _item.future.set_exception(_exc)
+
+                pool_fut.add_done_callback(_settle)
             except Exception as exc:
                 item.future.set_exception(exc)
 

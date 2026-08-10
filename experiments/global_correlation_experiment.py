@@ -225,6 +225,8 @@ _LIVE_PROVIDER_ALIASES: dict[str, str] = {
     "ollama": "ollama",
     "inference_api": "inference_api",
     "inference_hub": "inference_api",
+    "gemini": "gemini",
+    "google": "gemini",
 }
 
 
@@ -424,6 +426,20 @@ BATCH_STATUS_FAILED = "failed"
 BATCH_STATUS_PENDING = "pending"
 
 
+def _ensure_results_timestamp_columns(conn) -> None:
+    """Add timestamp columns to results on existing DBs (idempotent)."""
+    cur = conn.cursor()
+    cur.execute("PRAGMA table_info(results)")
+    cols = {str(row[1]) for row in cur.fetchall()}
+    if "created_at" not in cols:
+        cur.execute("ALTER TABLE results ADD COLUMN created_at TEXT DEFAULT NULL")
+    if "scored_at" not in cols:
+        cur.execute("ALTER TABLE results ADD COLUMN scored_at TEXT DEFAULT NULL")
+    if "batch_latency_ms" not in cols:
+        cur.execute("ALTER TABLE results ADD COLUMN batch_latency_ms INTEGER DEFAULT NULL")
+    conn.commit()
+
+
 def _init_sqlite(db_path):
     """Open (or create) experiment_results.db with results, meta, and batch map tables."""
     conn = sqlite3.connect(db_path)
@@ -436,10 +452,23 @@ def _init_sqlite(db_path):
             dist_to_gt REAL,
             is_gt BOOLEAN,
             rag_failed BOOLEAN,
+            created_at TEXT DEFAULT NULL,
+            scored_at TEXT DEFAULT NULL,
+            batch_latency_ms INTEGER DEFAULT NULL,
             PRIMARY KEY (query_idx, doc_id)
         )
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_query ON results (query_idx)")
+    _ensure_results_timestamp_columns(conn)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS scoring_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            started_at TEXT NOT NULL,
+            ended_at TEXT DEFAULT NULL,
+            docs_scored INTEGER DEFAULT 0,
+            provider TEXT DEFAULT NULL
+        )
+    """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS experiment_meta (
             key TEXT PRIMARY KEY,
@@ -482,6 +511,27 @@ def _ensure_batch_request_map_columns(conn) -> None:
         cur.execute(
             "ALTER TABLE batch_request_map ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP"
         )
+    conn.commit()
+
+
+def _start_scoring_session(conn, provider: str | None = None) -> int:
+    """Record that a scoring run started. Returns the session id."""
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO scoring_sessions (started_at, provider) VALUES (CURRENT_TIMESTAMP, ?)",
+        (provider,),
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def _end_scoring_session(conn, session_id: int, docs_scored: int) -> None:
+    """Record that a scoring run ended."""
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE scoring_sessions SET ended_at = CURRENT_TIMESTAMP, docs_scored = ? WHERE id = ?",
+        (docs_scored, session_id),
+    )
     conn.commit()
 
 
@@ -581,8 +631,8 @@ def _save_to_db(conn, rows):
     cursor.executemany(
         """
         INSERT OR IGNORE INTO results
-        (query_idx, doc_id, llm_score, dist_to_gt, is_gt, rag_failed)
-        VALUES (?, ?, ?, ?, ?, ?)
+        (query_idx, doc_id, llm_score, dist_to_gt, is_gt, rag_failed, created_at, scored_at)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """,
         [
             (
@@ -624,8 +674,9 @@ def _insert_placeholder_rows(conn, query_idx: int, rows: list[dict]) -> None:
     cur = conn.cursor()
     cur.executemany(
         """
-        INSERT OR IGNORE INTO results (query_idx, doc_id, llm_score, dist_to_gt, is_gt, rag_failed)
-        VALUES (?, ?, NULL, ?, ?, ?)
+        INSERT OR IGNORE INTO results
+            (query_idx, doc_id, llm_score, dist_to_gt, is_gt, rag_failed, created_at)
+        VALUES (?, ?, NULL, ?, ?, ?, CURRENT_TIMESTAMP)
         """,
         [
             (
@@ -972,11 +1023,18 @@ def _setup_or_resume_run(
 
 
 def _check_rag_baseline(vector_db, query_emb, gt_id, prints=False):
-    """True when top-1 retrieval does not return the ground-truth document."""
+    """True when top-1 retrieval does not return the ground-truth document.
+
+    Chroma stores documents with UUID internal IDs, not PMIDs.  Comparing the
+    raw node id_ against the PMID always fails.  Instead we read the PMID from
+    the node metadata (same approach used in retrieval_experiment.py).
+    """
     initial_retrieval = vector_db.retrieve(query_emb, top_k=1, prints=prints)
     if not initial_retrieval:
         return True
-    top_hit_id = _normalize_id(getattr(initial_retrieval[0].node, "id_", ""))
+    node = initial_retrieval[0].node
+    meta_pmid = node.metadata.get("PMID") or node.metadata.get("pubid") or ""
+    top_hit_id = _normalize_id(meta_pmid) if meta_pmid else _normalize_id(getattr(node, "id_", ""))
     return top_hit_id != _normalize_id(gt_id)
 
 
@@ -1404,12 +1462,23 @@ async def _live_score_batch(query_text: str, doc_contexts: list[str]) -> list[in
     return ints
 
 
-def _update_llm_scores_for_docs(conn, query_idx: int, doc_ids: list[str], scores: list[float]) -> None:
+def _update_llm_scores_for_docs(
+    conn,
+    query_idx: int,
+    doc_ids: list[str],
+    scores: list[float],
+    batch_latency_ms: int | None = None,
+) -> None:
     """Write normalized llm_score values (0.0–1.0) for doc_ids of one query."""
     cur = conn.cursor()
     cur.executemany(
-        "UPDATE results SET llm_score = ? WHERE query_idx = ? AND doc_id = ?",
-        [(float(scores[i]), int(query_idx), _normalize_id(doc_ids[i])) for i in range(len(doc_ids))],
+        """UPDATE results
+           SET llm_score = ?, scored_at = CURRENT_TIMESTAMP, batch_latency_ms = ?
+           WHERE query_idx = ? AND doc_id = ?""",
+        [
+            (float(scores[i]), batch_latency_ms, int(query_idx), _normalize_id(doc_ids[i]))
+            for i in range(len(doc_ids))
+        ],
     )
 
 
@@ -1441,11 +1510,11 @@ async def _score_batches_parallel_for_query(
     query_text: str,
     batches_to_score: list[tuple[list[str], list[str]]],
     concurrency: int,
-    on_batch_scored: Callable[[list[str], list[int]], None],
+    on_batch_scored: Callable[[list[str], list[int], int], None],
 ) -> None:
     """
     Score query batches in parallel with bounded concurrency.
-    Calls on_batch_scored(doc_ids, int_scores) as each batch completes.
+    Calls on_batch_scored(doc_ids, int_scores, latency_ms) as each batch completes.
     """
     if not batches_to_score:
         return
@@ -1453,16 +1522,18 @@ async def _score_batches_parallel_for_query(
     conc = max(1, int(concurrency))
     sem = asyncio.Semaphore(conc)
 
-    async def _run_one(doc_ids: list[str], contexts: list[str]) -> tuple[list[str], list[int]]:
+    async def _run_one(doc_ids: list[str], contexts: list[str]) -> tuple[list[str], list[int], int]:
         async with sem:
+            t0 = time.monotonic()
             ints = await _live_score_batch(query_text, contexts)
-            return doc_ids, ints
+            latency_ms = int((time.monotonic() - t0) * 1000)
+            return doc_ids, ints, latency_ms
 
     tasks = [asyncio.create_task(_run_one(doc_ids, contexts)) for doc_ids, contexts in batches_to_score]
     try:
         for fut in asyncio.as_completed(tasks):
-            doc_ids, ints = await fut
-            on_batch_scored(doc_ids, ints)
+            doc_ids, ints, latency_ms = await fut
+            on_batch_scored(doc_ids, ints, latency_ms)
         return
     except Exception:
         for t in tasks:
@@ -1582,9 +1653,9 @@ async def _run_global_correlation_experiment_live_async(
                 f"(batch_size={live_batch_size}, concurrency={live_conc})"
             )
             try:
-                def _on_batch_scored(doc_ids: list[str], ints: list[int]) -> None:
+                def _on_batch_scored(doc_ids: list[str], ints: list[int], latency_ms: int = 0) -> None:
                     scores = [float(v) / 10.0 for v in ints]
-                    _update_llm_scores_for_docs(db_conn, q_idx, doc_ids, scores)
+                    _update_llm_scores_for_docs(db_conn, q_idx, doc_ids, scores, batch_latency_ms=latency_ms)
                     db_conn.commit()
 
                 await _score_batches_parallel_for_query(
@@ -2053,6 +2124,9 @@ async def run_global_correlation_experiment_async(
         output_dir="results/global_exp",
 ):
     """
+    This experiment runs a global correlation analysis using the Gemini Batch API with an adaptive
+    chunk-based submission strategy. Its porpose is to evaluate LLM relevance scoring across a large set of queries, 
+    and documents while respecting API rate limits and maximizing throughput.  
     PIPELINE / Batch API generator (chunk-based adaptive submission):
 
     - Splits queries into chunks of PIPELINE_CHUNK_SIZE (default 25).
@@ -2744,6 +2818,9 @@ async def _run_staged_live(
     live_conc = max(1, int(OLLAMA_MAX_CONCURRENT_REQUESTS))
     live_batch_size = max(1, int(OLLAMA_DOCS_PER_REQUEST))
     tag = _live_log_tag()
+    provider = _normalize_live_provider()
+    session_id = _start_scoring_session(db_conn, provider=provider)
+    session_docs = 0
 
     for q_idx, entry in enumerate(queries, start=1):
         if _is_query_skipped(db_conn, q_idx):
@@ -2765,9 +2842,11 @@ async def _run_staged_live(
         query_emb = np.array(embedding_model.get_text_embedding(query_text), dtype=np.float32)
         rag_failed = _check_rag_baseline(vector_db, query_emb, gt_id_norm)
 
-        def _on_batch_scored(doc_ids: list[str], ints: list[int], _q=q_idx) -> None:
+        def _on_batch_scored(doc_ids: list[str], ints: list[int], latency_ms: int = 0, _q=q_idx) -> None:
+            nonlocal session_docs
             scores = [float(v) / 10.0 for v in ints]
-            _update_llm_scores_for_docs(db_conn, _q, doc_ids, scores)
+            _update_llm_scores_for_docs(db_conn, _q, doc_ids, scores, batch_latency_ms=latency_ms)
+            session_docs += len(doc_ids)
             db_conn.commit()
 
         # Stream: fetch one Chroma chunk → score it → release → next chunk.
@@ -2805,6 +2884,7 @@ async def _run_staged_live(
                 finally:
                     chunk_batches.clear()
 
+    _end_scoring_session(db_conn, session_id, session_docs)
     logger.info(f"[STAGE {stage}/{total_stages}] {tag} scoring complete")
 
 

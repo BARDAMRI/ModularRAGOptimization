@@ -15,6 +15,14 @@ def run_retrieval_base_algorithm_experiment(
         embedding_model: HuggingFaceEmbedding,
         evaluator_model: torch.nn.Module
 ):
+    """Run the Retrieval Baseline experiment with the specified vector database and embedding model.
+    This experiment evaluates the performance of a simple retrieval-based approach on a sample of queries from the active QA dataset.
+    This function performs the following steps:
+    1. Validates prerequisites for the experiment.
+    2. Loads a sample of queries from the specified QA dataset.
+    3. Prompts the user for an output filename, with a default suggestion based on the vector database and embedding model.
+    4. Executes the retrieval baseline experiment and saves results to the specified CSV file.
+    """
     # Validate prerequisites
     if not validate_prerequisites("retrieval_base", ACTIVE_QA_DATASET, vector_db):
         return

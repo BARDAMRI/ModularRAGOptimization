@@ -267,9 +267,7 @@ LLM_GATEWAY_RATE_LIMITS: dict = {
     # Default rate: 40 RPM; adjust after quota upgrade.
     # ------------------------------------------------------------------
     "inference_api": {
-        # Model key matches the full INFERENCE_API_MODEL path, e.g.:
-        #   "gcp/google/gemini-2.5-flash-lite": {"rpm": 40},
-        "__default__": {"rpm": 40},  # raise after quota upgrade
+        "__default__": {"rpm": 80},
     },
 }
 
@@ -306,10 +304,12 @@ OLLAMA_DOCS_PER_REQUEST = 10
 
 
 def correlation_live_model_name() -> str:
-    """Model id for live scoring on Ollama or the remote inference API (not Gemini Batch)."""
+    """Model id for live scoring on Ollama, Gemini, or the remote inference API."""
     p = str(CORRELATION_LLM_PROVIDER).strip().lower()
     if p in ("inference_api", "inference_hub"):
         return str(INFERENCE_API_MODEL)
+    if p in ("gemini", "google"):
+        return str(CORRELATION_GEMINI_BATCH_MODEL)
     return CORRELATION_OLLAMA_MODEL
 
 
@@ -386,3 +386,6 @@ TRILATERATION_CONVERGENCE_TOL = 1e-4  # Convergence tolerance for x* movement be
 
 DEFAULT_STORING_METHOD = StoringMethod.CHROMA
 DEFAULT_DISTANCE_METRIC = DistanceMetric.COSINE
+
+# === EXPERIMENT OUTPUT PATHS ===
+GLOBAL_EXPERIMENT_OUTPUT_DIR = "results/global_exp"

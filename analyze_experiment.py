@@ -257,28 +257,31 @@ def section_gt_rank(pqs: pd.DataFrame, layout: AnalysisLayout) -> dict:
     p_at_5  = (ranks <= 5).mean() * 100
     p_at_10 = (ranks <= 10).mean() * 100
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 4))
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
     # rank distribution (cap at 100 for readability)
     rank_cap = ranks.clip(upper=100)
     axes[0].hist(rank_cap, bins=50, color="steelblue", edgecolor="white")
     axes[0].set_xlabel("GT LLM Rank (capped at 100)")
     axes[0].set_ylabel("Queries")
-    axes[0].set_title(f"GT Rank by LLM Score\nP@1={p_at_1:.1f}%  P@5={p_at_5:.1f}%  P@10={p_at_10:.1f}%")
+    axes[0].set_title(
+        f"GT Rank by LLM Score\nP@1={p_at_1:.1f}%  P@5={p_at_5:.1f}%  P@10={p_at_10:.1f}%"
+    )
 
     # CDF
     sorted_r = np.sort(ranks)
     cdf = np.arange(1, len(sorted_r) + 1) / len(sorted_r)
-    axes[1].plot(sorted_r, cdf * 100, color="darkorange")
+    axes[1].plot(sorted_r, cdf * 100, color="darkorange", lw=2)
     for k, c in [(1, "red"), (5, "green"), (10, "purple"), (50, "gray")]:
         pct = (sorted_r <= k).mean() * 100
-        axes[1].axvline(k, linestyle="--", color=c, alpha=0.6, label=f"K={k}: {pct:.1f}%")
+        axes[1].axvline(k, linestyle="--", color=c, alpha=0.7, label=f"K={k}: {pct:.1f}%")
     axes[1].set_xlabel("GT LLM Rank")
     axes[1].set_ylabel("Cumulative % of Queries")
     axes[1].set_title("CDF of GT LLM Rank")
     axes[1].set_xlim(left=0)
     axes[1].legend(fontsize=8)
-    fig.suptitle("LLM Ability to Identify GT (rank 1 = perfect)")
+    fig.suptitle("LLM Ability to Identify GT (rank 1 = perfect)", y=1.01, fontsize=12, fontweight="bold")
+    plt.tight_layout()
     _save_fig(fig, layout.chart_base("gt_llm_rank.png"), "GT rank distribution + CDF")
 
     return {"p_at_1": p_at_1, "p_at_3": p_at_3, "p_at_5": p_at_5, "p_at_10": p_at_10}
@@ -420,20 +423,28 @@ def section_roc_pr(df: pd.DataFrame, layout: AnalysisLayout) -> dict:
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
-    axes[0].plot(fpr, tpr, color="steelblue", label=f"ROC-AUC={roc_auc:.4f}")
+    axes[0].plot(fpr, tpr, color="steelblue", lw=2, label="ROC curve")
     axes[0].plot([0, 1], [0, 1], "k--", alpha=0.4, label="random")
     axes[0].set_xlabel("False Positive Rate")
     axes[0].set_ylabel("True Positive Rate")
     axes[0].set_title("ROC Curve — LLM as GT Detector")
-    axes[0].legend()
+    axes[0].text(0.56, 0.12, f"AUC = {roc_auc:.4f}", transform=axes[0].transAxes,
+                 fontsize=13, fontweight="bold", color="steelblue",
+                 bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
+                           edgecolor="steelblue", alpha=0.9))
+    axes[0].legend(loc="lower right")
 
-    axes[1].plot(rec, prec, color="darkorange", label=f"AP={ap:.4f}")
+    axes[1].plot(rec, prec, color="darkorange", lw=2, label="PR curve")
     axes[1].axhline(baseline_pr, color="k", linestyle="--", alpha=0.4,
-                    label=f"baseline={baseline_pr:.5f}")
+                    label=f"random baseline={baseline_pr:.5f}")
     axes[1].set_xlabel("Recall")
     axes[1].set_ylabel("Precision")
     axes[1].set_title("Precision-Recall Curve — LLM as GT Detector")
-    axes[1].legend()
+    axes[1].text(0.38, 0.75, f"AP (PR-AUC) = {ap:.4f}", transform=axes[1].transAxes,
+                 fontsize=13, fontweight="bold", color="darkorange",
+                 bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
+                           edgecolor="darkorange", alpha=0.9))
+    axes[1].legend(loc="upper right")
     fig.suptitle("LLM Score as Binary GT Classifier (global, all queries)")
     _save_fig(fig, layout.chart_base("roc_pr_curves.png"), "ROC and PR curves")
 
@@ -773,32 +784,40 @@ def write_summary(
     print(f"  [txt]   {report_path.name}")
 
 
-# ── main ─────────────────────────────────────────────────────────────────────
+# ── public API (callable from score_from_queue.py) ────────────────────────────
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Analyze global correlation experiment DB")
-    parser.add_argument("db_path", nargs="?", help="Path to experiment_results.db")
-    parser.add_argument("--run-dir", help="Path to run directory (DB auto-located inside)")
-    args = parser.parse_args()
+def run_analysis(run_dir: str | None = None, db_path: str | None = None) -> None:
+    """
+    Run the full analysis pipeline programmatically.
 
-    if args.run_dir:
-        db_path = Path(args.run_dir) / "experiment_results.db"
-    elif args.db_path:
-        db_path = Path(args.db_path)
+    Called automatically by score_from_queue.py after Phase 2 scoring completes.
+    Can also be invoked directly for re-analysis without re-scoring.
+
+    Parameters
+    ----------
+    run_dir : str or None
+        Path to the staged_run / session directory. DB is inferred as <run_dir>/experiment_results.db.
+    db_path : str or None
+        Direct path to experiment_results.db. Ignored when run_dir is provided.
+    """
+    if run_dir is not None:
+        _db = Path(run_dir) / "experiment_results.db"
+    elif db_path is not None:
+        _db = Path(db_path)
     else:
-        db_path = find_latest_db()
+        _db = find_latest_db()
 
-    if not db_path.exists():
-        print(f"[ERROR] DB not found: {db_path}", file=sys.stderr)
-        sys.exit(1)
+    if not _db.exists():
+        print(f"[ERROR] DB not found: {_db}", file=sys.stderr)
+        return
 
-    run_dir = db_path.parent
-    layout = AnalysisLayout(run_dir / ANALYSIS_DIR).ensure()
-    print(f"Run dir : {run_dir}")
+    _run_dir = _db.parent
+    layout = AnalysisLayout(_run_dir / ANALYSIS_DIR).ensure()
+    print(f"Run dir : {_run_dir}")
     print(f"Output  : {layout.root}")
     print()
 
-    health = collect_run_health(db_path)
+    health = collect_run_health(_db)
     save_run_health(health, layout.root)
     if health["warnings"]:
         print("Run health warnings:")
@@ -806,7 +825,7 @@ def main() -> None:
             print(f"  • {w}")
         print()
 
-    df = _load_dataframe(db_path)
+    df = _load_dataframe(_db)
     print("\nBuilding per-query statistics …")
     pqs = _build_per_query_stats(df)
     print(f"  {len(pqs)} queries processed\n")
@@ -866,6 +885,22 @@ def main() -> None:
 
     print(f"\nDone. All outputs in: {layout.root}")
     print(f"  Index : {layout.index_md()}")
+
+
+# ── CLI entry point ───────────────────────────────────────────────────────────
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Analyze global correlation experiment DB")
+    parser.add_argument("db_path", nargs="?", help="Path to experiment_results.db")
+    parser.add_argument("--run-dir", help="Path to run directory (DB auto-located inside)")
+    args = parser.parse_args()
+
+    if args.run_dir:
+        run_analysis(run_dir=args.run_dir)
+    elif args.db_path:
+        run_analysis(db_path=args.db_path)
+    else:
+        run_analysis()
 
 
 if __name__ == "__main__":

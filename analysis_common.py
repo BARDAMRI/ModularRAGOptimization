@@ -16,22 +16,43 @@ RESULTS_ROOT = Path("results/global_exp")
 ANALYSIS_DIR = "analysis"
 META_KEY_MAIN_LOOP_COMPLETED = "main_loop_completed"
 
+# Additional result roots searched by find_latest_db / find_latest_run_dir.
+# Cloud sessions land here after run_cloud_phase1.py downloads artifacts.
+_EXTRA_ROOTS = [Path("results/cloud_runs")]
+
 
 def find_latest_db(results_root: Path = RESULTS_ROOT) -> Path:
-    candidates = sorted(results_root.glob("staged_run_*/experiment_results.db"))
+    """Return the most recently modified experiment_results.db across all known result roots."""
+    search_roots = [results_root] + _EXTRA_ROOTS
+    candidates: list[Path] = []
+    for root in search_roots:
+        candidates += sorted(root.glob("staged_run_*/experiment_results.db"))
+        candidates += sorted(root.glob("session_*/experiment_results.db"))
+        candidates += sorted(root.glob("*/experiment_results.db"))
+    candidates = sorted(set(candidates), key=lambda p: p.stat().st_mtime if p.exists() else 0)
     if not candidates:
-        candidates = sorted(results_root.glob("*/experiment_results.db"))
-    if not candidates:
-        raise FileNotFoundError(f"No experiment_results.db found under {results_root}")
+        raise FileNotFoundError(
+            f"No experiment_results.db found under: {', '.join(str(r) for r in search_roots)}"
+        )
     return candidates[-1]
 
 
 def find_latest_run_dir(results_root: Path = RESULTS_ROOT) -> Path:
-    candidates = sorted(results_root.glob("staged_run_*"))
+    """Return the most recently modified run directory across all known result roots."""
+    search_roots = [results_root] + _EXTRA_ROOTS
+    candidates: list[Path] = []
+    for root in search_roots:
+        candidates += sorted(root.glob("staged_run_*"))
+        candidates += sorted(root.glob("session_*"))
+        candidates += sorted(p.parent for p in root.glob("*/experiment_results.db"))
+    candidates = sorted(
+        set(candidates),
+        key=lambda p: p.stat().st_mtime if p.exists() else 0,
+    )
     if not candidates:
-        candidates = sorted(p.parent for p in results_root.glob("*/experiment_results.db"))
-    if not candidates:
-        raise FileNotFoundError(f"No run directories found under {results_root}")
+        raise FileNotFoundError(
+            f"No run directories found under: {', '.join(str(r) for r in search_roots)}"
+        )
     return candidates[-1]
 
 

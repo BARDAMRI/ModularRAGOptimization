@@ -30,3 +30,5 @@ __pycache__/
 
 # Local environment secrets
 .env
+# Oversized data files (>100MB GitHub limit)
+expanded_scoring_queue.parquet

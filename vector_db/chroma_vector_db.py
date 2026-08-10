@@ -107,7 +107,20 @@ class ChromaVectorDB(VectorDBInterface):
             )
         else:
             import json
-            documents = load_local_dataset(parsed_name)
+            try:
+                documents = load_local_dataset(parsed_name)
+            except (ValueError, FileNotFoundError):
+                logger.warning(
+                    f"Collection '{collection_name}' is empty and no local dataset found "
+                    f"for '{parsed_name}'. Creating empty index "
+                    "(populate with embed_full_pubmed.py before querying)."
+                )
+                self.vector_db = VectorStoreIndex.from_vector_store(
+                    vector_store=self.chroma_store,
+                    embed_model=self.embedding_model,
+                    storage_context=storage_context,
+                )
+                return
             total_docs = len(documents)
             logger.info(f"Starting indexing the documents into Chroma. Total documents to index: {total_docs}")
             batch_size = 10000

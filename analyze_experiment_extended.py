@@ -579,7 +579,7 @@ def section_g_corrected_mrr(df: pd.DataFrame, layout: AnalysisLayout) -> dict:
     axes[1].legend(fontsize=8)
     axes[1].yaxis.set_major_formatter(mticker.PercentFormatter())
 
-    fig.suptitle("Corrected Retrieval Metrics: Why Tie-Breaking Method Matters")
+    fig.suptitle("Corrected Retrieval Metrics: Why Tie-Breaking Method Matters", y=1.01, fontsize=12, fontweight="bold")
     plt.tight_layout()
     _fig(layout.chart_extended("corrected_mrr_at_k.png"), "Tie-corrected MRR and P@K comparison")
 
