@@ -1,0 +1,31 @@
+{
+  "exported_at": "2026-07-26T15:32:24.369865+00:00",
+  "chroma_source": "pubmed_selected_articles",
+  "chroma_total_docs": 272796,
+  "embedding_model": "sentence-transformers/all-mpnet-base-v2",
+  "embedding_dim": 768,
+  "pool_requested_docs": 1431,
+  "pool_docs_with_embeddings": 1431,
+  "pool_docs_missing_embeddings": 0,
+  "n_queries": 10,
+  "gt_embeddings_found": 10,
+  "queue_rows": 14310,
+  "queue_queries": 10,
+  "queue_is_gt_count": 10,
+  "queue_rag_failed_count": 1431,
+  "queue_dist_to_gt_mean": 0.8233291609538003,
+  "queue_dist_to_gt_std": 0.19801311324070792,
+  "queue_dist_to_gt_min": 0.0,
+  "queue_dist_to_gt_max": 1.1597021669149399,
+  "artifacts": {
+    "scoring_queue.parquet": "Main Phase-2 input \u2014 (query_idx, doc_id, doc_text, dist_to_gt, is_gt, rag_failed)",
+    "pool_embeddings.npy": "float32 [1431 \u00d7 768] \u2014 pool doc embeddings in pool_doc_ids.json order",
+    "pool_doc_ids.json": "Ordered list of doc IDs; row i matches pool_embeddings.npy[i]",
+    "pool_metadata.parquet": "PMID, title, text_snippet per pool doc",
+    "gt_embeddings.npy": "float32 [10 \u00d7 768] \u2014 GT embedding per query; row = query_idx - 1",
+    "gt_doc_ids.json": "GT doc ID per query; index = query_idx - 1",
+    "run_metadata.json": "This file \u2014 full provenance",
+    "queries.json": "Full query list used in experiment",
+    "correlation_pool_manifest.json": "Ranked pool manifest from Phase 1"
+  }
+}

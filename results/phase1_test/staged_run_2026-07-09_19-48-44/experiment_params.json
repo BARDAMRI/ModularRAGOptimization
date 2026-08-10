@@ -1,0 +1,8 @@
+{
+  "num_queries": 10,
+  "stride": 5,
+  "max_ranked_per_gt": 100,
+  "max_ranked_per_query": 100,
+  "phase": "phase1_build_queue",
+  "chroma_source": "pubmed_selected_articles"
+}
