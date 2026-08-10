@@ -1,0 +1,8 @@
+{
+  "phase2_complete": true,
+  "analysis_complete": true,
+  "phase2_completed_at": "2026-08-08T00:17:01.085162+00:00",
+  "phase2_scored_pairs": 995148,
+  "phase2_db_path": "/Users/bardamri/PycharmProjects/ModularRAGOptimization/results/cloud_runs/staged_run_2026-08-03_08-32-45/experiment_results.db",
+  "analysis_completed_at": "2026-08-08T00:17:10.342659+00:00"
+}

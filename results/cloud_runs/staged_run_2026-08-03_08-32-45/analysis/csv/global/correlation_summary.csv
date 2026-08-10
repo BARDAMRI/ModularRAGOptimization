@@ -1,0 +1,5 @@
+method,median,mean,pct_negative,pct_positive,pct_sig_p05,expected_sign
+Spearman r (score vs dist_to_gt),-0.2899660801486926,-0.2832472160066187,100.0,0.0,100.0,negative
+Pearson r (score vs dist_to_gt),-0.5030799831496207,-0.49368099857247777,100.0,0.0,100.0,negative
+Kendall τ-b (score vs dist_to_gt),-0.23217960342774943,-0.22749048251038115,100.0,0.0,100.0,negative
+Point-biserial r (score vs is_gt),0.11882196895209236,0.12052541654710489,0.0,100.0,99.46524064171123,positive
