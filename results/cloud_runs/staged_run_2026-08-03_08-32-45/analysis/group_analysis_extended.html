@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="utf-8">
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; margin: 40px; direction: rtl; color: #222; }
+  h1 { font-size: 22px; border-bottom: 2px solid #333; padding-bottom: 6px; }
+  h2 { font-size: 17px; border-bottom: 1px solid #aaa; padding-bottom: 4px; margin-top: 28px; }
+  h3 { font-size: 14px; margin-top: 20px; }
+  h4 { font-size: 13px; font-style: italic; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 12px; }
+  th, td { border: 1px solid #ccc; padding: 5px 8px; text-align: right; }
+  th { background: #f0f0f0; font-weight: bold; }
+  tr:nth-child(even) { background: #fafafa; }
+  code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-family: monospace; font-size: 11px; }
+  pre { background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto; direction: ltr; text-align: left; }
+  blockquote { border-right: 4px solid #4a90e2; margin: 10px 0; padding: 6px 12px; background: #f0f6ff; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 20px 0; }
+  li { margin: 3px 0; }
+  strong { font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>ניתוח קבוצות גיאומטריות: סיכום ניסוי</h1>
+
+<p><strong>Bar Damri | אוגוסט 2026</strong></p>
+<p><strong>סקריפט:</strong> <code>experiments/global_correlation/analyze_groups.py</code></p>
+<p><strong>נתונים:</strong> אותו pool ו-DB של ניסוי 2 (25M PubMed, 199 שאילתות, 1,000,174 זוגות)</p>
+
+<hr>
+
+<h2>שאלת הניסוי</h2>
+
+<p>לאחר שהוכחנו שקיים קורלציה שלילית בין ציון ה-LLM למרחק מ-GT, רצינו להבין את <strong>המבנה הגיאומטרי</strong> של הנתונים בצורה מעמיקה יותר. הגדרנו שלוש קבוצות גיאומטריות לכל שאילתה ובדקנו את החפיפה ביניהן.</p>
+
+<hr>
+
+<h2>הגדרת הקבוצות</h2>
+
+<table>
+<tr><th>קבוצה</th><th>הגדרה</th><th>מחשב לפי</th></tr>
+<tr><td><strong>G1</strong></td><td>כל המסמכים שנמצאים <strong>במעגל סביב השאילתה</strong> ברדיוס dist(query, GT)</td><td>re-embedding עם `all-mpnet-base-v2`</td></tr>
+<tr><td><strong>G2</strong></td><td>כל המסמכים שנמצאים <strong>במעגל סביב הצנטרואיד של G3</strong> ברדיוס dist(centroid, GT)</td><td>re-embedding + centroid</td></tr>
+<tr><td><strong>G3</strong></td><td>כל המסמכים שקיבלו <strong>ציון מושלם (1.0) מה-LLM</strong></td><td>`experiment_results.db`</td></tr>
+</table>
+
+<p><strong>פרשנות:</strong></p>
+<li>G1 = תחום ה"אחריות" של הריטריבר: מסמכים שהריטריבר "יכול" לאחזר לפני ה-GT</li>
+<li>G3 = "הדעה" של ה-LLM: מסמכים שהוא מגדיר כרלוונטיים לחלוטין</li>
+<li>G2 = פילטר גיאומטרי על G3: "ליבת" G3 לפי מרחק מהצנטרואיד</li>
+
+<hr>
+
+<h2>שיטת הניתוח</h2>
+
+<p>1. <strong>Re-embedding:</strong> הטמעת 199 שאילתות ו-39,507 מסמכי pool מחדש בעזרת <code>sentence-transformers/all-mpnet-base-v2</code> (אותו מודל שנעשה בניסוי המקורי)</p>
+<p>2. <strong>חישוב G1:</strong> dist(doc, query) ≤ dist(query, GT): cosine distance</p>
+<p>3. <strong>חישוב G3:</strong> llm_score = 1.0 מ-DB</p>
+<p>4. <strong>חישוב G2:</strong> centroid = ממוצע ממושקל של וקטורי G3; radius = dist(centroid, GT)</p>
+<p>5. <strong>חפיפות:</strong> Jaccard + intersection ביחס לכל קבוצה, לכל שאילתה בנפרד</p>
+<p>6. <strong>פלטים:</strong> 196 CSVs פר-שאילתה + master_summary.csv + global_aggregates.csv</p>
+
+<hr>
+
+<h2>תוצאות</h2>
+
+<h3>גדלי קבוצות (196 שאילתות)</h3>
+
+<table>
+<tr><th>קבוצה</th><th>ממוצע</th><th>חציון</th><th>מינימום</th><th>מקסימום</th></tr>
+<tr><td><strong>G1</strong></td><td>3.1</td><td><strong>1</strong></td><td>0</td><td>26</td></tr>
+<tr><td><strong>G2</strong></td><td>9.7</td><td><strong>6</strong></td><td>0</td><td>68</td></tr>
+<tr><td><strong>G3</strong></td><td>17.1</td><td><strong>18</strong></td><td>3</td><td>38</td></tr>
+</table>
+
+<h3>GT-membership</h3>
+
+<table>
+<tr><th>קבוצה</th><th>כולל</th><th>rag_ok (n=138)</th><th>rag_failed (n=58)</th></tr>
+<tr><td><strong>G1</strong></td><td><strong>84.7%</strong></td><td>89.1%</td><td>74.1%</td></tr>
+<tr><td><strong>G2</strong></td><td><strong>85.2%</strong></td><td>88.4%</td><td>77.6%</td></tr>
+<tr><td><strong>G3</strong></td><td><strong>94.9%</strong></td><td>99.3%</td><td>84.5%</td></tr>
+<tr><td>G1 ∩ G2 ∩ G3</td><td><strong>76.0%</strong></td><td>79.0%</td><td>69.0%</td></tr>
+</table>
+
+<h3>חפיפות בין קבוצות</h3>
+
+<p><strong>G1 ∩ G2:</strong></p>
+
+<table>
+<tr><th>מדד</th><th>כולל</th><th>rag_ok</th><th>rag_failed</th></tr>
+<tr><td>\</td><td>G1∩G2\</td><td>/ \</td><td>G1\</td><td></td><td><strong>85.2%</strong></td><td>89.4%</td><td>76.3%</td></tr>
+<tr><td>\</td><td>G1∩G2\</td><td>/ \</td><td>G2\</td><td></td><td>35.4%</td><td>29.4%</td><td>49.3%</td></tr>
+<tr><td>Jaccard</td><td>0.326</td><td>0.290</td><td>0.411</td></tr>
+</table>
+
+<p><strong>G1 ∩ G3:</strong></p>
+
+<table>
+<tr><th>מדד</th><th>כולל</th><th>rag_ok</th><th>rag_failed</th></tr>
+<tr><td>\</td><td>G1∩G3\</td><td>/ \</td><td>G1\</td><td></td><td><strong>93.2%</strong></td><td><strong>99.2%</strong></td><td>80.6%</td></tr>
+<tr><td>\</td><td>G1∩G3\</td><td>/ \</td><td>G3\</td><td></td><td>13.8%</td><td>7.1%</td><td>29.8%</td></tr>
+<tr><td>Jaccard</td><td>0.125</td><td>0.071</td><td>0.252</td></tr>
+</table>
+
+<p><strong>G2 ∩ G3:</strong></p>
+
+<table>
+<tr><th>מדד</th><th>כולל</th><th>rag_ok</th><th>rag_failed</th></tr>
+<tr><td>\</td><td>G2∩G3\</td><td>/ \</td><td>G2\</td><td></td><td><strong>83.5%</strong></td><td>84.1%</td><td>81.9%</td></tr>
+<tr><td>\</td><td>G2∩G3\</td><td>/ \</td><td>G3\</td><td></td><td>41.6%</td><td>36.4%</td><td>53.8%</td></tr>
+<tr><td>Jaccard</td><td>0.336</td><td>0.291</td><td>0.442</td></tr>
+</table>
+
+<p><strong>G1 ∩ G2 ∩ G3:</strong></p>
+
+<table>
+<tr><th>\</th><th>∩\</th><th>/ \</th><th>G1\</th><th></th><th>\</th><th>∩\</th><th>/ \</th><th>G2\</th><th></th><th>\</th><th>∩\</th><th>/ \</th><th>G3\</th><th></th><th>Jaccard</th></tr>
+<tr><td>81.2%</td><td>33.0%</td><td>12.0%</td><td>0.100</td></tr>
+</table>
+
+<p><strong>כש-G1 מכיל בדיוק מסמך אחד (126/196 שאילתות = 64%):</strong></p>
+<li>ה-GT הוא אותו מסמך ב-<strong>97.6%</strong> מהמקרים</li>
+
+<h3>מרחקים: ממצא מרכזי</h3>
+
+<table>
+<tr><th>מרחק</th><th>ממוצע</th><th>חציון</th></tr>
+<tr><td>dist(query, GT)</td><td>0.173</td><td>0.154</td></tr>
+<tr><td>dist(centroid\_G3, GT)</td><td><strong>0.097</strong></td><td><strong>0.086</strong></td></tr>
+<tr><td><strong>שיפור יחסי</strong></td><td><strong>43.6%</strong></td><td><strong>44.3%</strong></td></tr>
+</table>
+
+<p><strong>הצנטרואיד של G3 קרוב ל-GT ב-44% יותר מהשאילתה המקורית.</strong></p>
+
+<h3>הפרש המרחקים: ניתוח מפורט</h3>
+
+<p>הפרש = dist(query, GT) − dist(centroid, GT): ערך חיובי = הצנטרואיד טוב יותר.</p>
+
+<table>
+<tr><th>מדד</th><th>כולל (196)</th><th>rag_ok (138)</th><th>rag_failed (58)</th></tr>
+<tr><td><strong>צנטרואיד קרוב יותר</strong></td><td><strong>181/196 = 92.3%</strong></td><td>124/138 = 89.9%</td><td>57/58 = 98.3%</td></tr>
+<tr><td><strong>ממוצע הפרש</strong></td><td><strong>0.076</strong></td><td>0.061</td><td>0.110</td></tr>
+<tr><td><strong>חציון הפרש</strong></td><td><strong>0.065</strong></td><td>0.053</td><td>0.097</td></tr>
+<tr><td><strong>סטיית תקן</strong></td><td>0.066</td><td>0.056</td><td>0.074</td></tr>
+<tr><td>מינימום (הכי גרוע)</td><td>−0.173</td><td>−0.173</td><td>−0.020</td></tr>
+<tr><td>מקסימום (הכי טוב)</td><td>+0.408</td><td>+0.243</td><td>+0.408</td></tr>
+</table>
+
+<p><strong>פרשנות:</strong></p>
+<li>ב-<strong>92.3%</strong> מהשאילתות הצנטרואיד קרוב יותר ל-GT: לא רק בממוצע, אלא בכל שאילתה בנפרד.</li>
+<li>ב-<strong>rag_failed</strong> השיפור חזק פי 1.8 (ממוצע 0.110 לעומת 0.061 ב-rag_ok): המקרים שהריטריבר נכשל בהם נהנים יותר מהצנטרואיד.</li>
+<li>ב-<strong>7.7%</strong> מהשאילתות (15 מקרים) הצנטרואיד <strong>מרחיק</strong> מה-GT (ערך שלילי עד −0.173): ייתכן כי G3 מכיל מסמכים "שכנים" שמושכים לכיוון לא נכון.</li>
+
+<hr>
+
+<h2>ניתוח חיתוכים: מה כל קבוצה מוסיפה ייחודית</h2>
+
+<h3>הסכמה בין Retriever ל-LLM</h3>
+
+<p>כשה-retriever <strong>מצליח</strong> (rag_ok, n=138): 99.2% מ-G1 נמצא גם ב-G3: הסכמה כמעט מוחלטת.</p>
+<p>כשה-retriever <strong>נכשל</strong> (rag_failed, n=58): רק 50.0% מ-G1 נמצא ב-G3: כשהריטריבר אובד, הוא מוצא מסמכים גיאומטרית-קרובים שה-LLM דוחה.</p>
+
+<p><strong>מסקנה:</strong> G1∩G3 הוא אינדיקטור חזק: כשהריטריבר וה-LLM מסכימים, כמעט תמיד זה ה-GT.</p>
+
+<h3>תרומה ייחודית של כל קבוצה (GT coverage)</h3>
+
+<table>
+<tr><th>מקרה</th><th>שאילתות</th><th>אחוז</th></tr>
+<tr><td>GT ב-G1, לא ב-G3 (retriever מצא, LLM פספס)</td><td>1/196</td><td><strong>0.5%</strong></td></tr>
+<tr><td>GT ב-G3, לא ב-G1 (LLM מציל מה שריטריבר פספס)</td><td>21/196</td><td><strong>10.7%</strong></td></tr>
+<tr><td>GT ב-G2, לא ב-G1 (G2 מציל מעבר לG1)</td><td>17/196</td><td><strong>8.7%</strong></td></tr>
+</table>
+
+<p>ה-LLM הוא superset כמעט מושלם של הריטריבר: מקרה אחד בלבד (query 29) שבו הריטריבר מצא והLLM פספס.</p>
+
+<h3>G2 מסנן רעש אמיתי מ-G3</h3>
+
+<p>G3 מכיל בממוצע <strong>10.1 מסמכים</strong> שG2 מוציא החוצה: מסמכים שה-LLM אוהב אבל גיאומטרית רחוקים מהצנטרואיד. G2 מסנן את ה-noise ומשאיר 6 מסמכים ממוקדים.</p>
+
+<h3>כיסוי union: ערך השילוב</h3>
+
+<table>
+<tr><th>שילוב</th><th>GT בפנים</th><th>גודל חציוני</th></tr>
+<tr><td>G1 בלבד</td><td>84.7% (166/196)</td><td>1</td></tr>
+<tr><td>G1 ∪ G2</td><td><strong>93.4% (183/196)</strong></td><td>~7</td></tr>
+<tr><td>G1 ∪ G2 ∪ G3</td><td><strong>95.4% (187/196)</strong></td><td>~18</td></tr>
+</table>
+
+<p>G1∪G2 מספק 93.4% recall עם גודל סביר: פשרה אופטימלית בין recall לדיוק.</p>
+
+<hr>
+
+<h2>ניתוח מורחב: סטטיסטיקות נוספות</h2>
+
+<h3>התפלגות גדלי G1</h3>
+
+<table>
+<tr><th>G1</th><th>שאילתות</th><th>%</th></tr>
+<tr><td>0 מסמכים</td><td>15</td><td>7.7%</td></tr>
+<tr><td>1 מסמך</td><td>126</td><td>64.3%</td></tr>
+<tr><td>2 מסמכים</td><td>17</td><td>8.7%</td></tr>
+<tr><td>3–5 מסמכים</td><td>15</td><td>7.7%</td></tr>
+<tr><td>יותר מ-5</td><td>23</td><td>11.7%</td></tr>
+</table>
+
+<p>ב-72% מהשאילתות G1 מכילה 0 או 1 מסמכים: ממוקדת מאוד או ריקה לחלוטין.</p>
+
+<h3>התפלגות גדלי G3</h3>
+
+<table>
+<tr><th>G3</th><th>שאילתות</th><th>%</th></tr>
+<tr><td>3–10 (קטנה)</td><td>37</td><td>18.9%</td></tr>
+<tr><td>11–20 (בינונית)</td><td>104</td><td>53.1%</td></tr>
+<tr><td>21–38 (גדולה)</td><td>55</td><td>28.1%</td></tr>
+</table>
+
+<h3>כשG1 ריקה (15 שאילתות = 7.7%)</h3>
+
+<p>בכל 15 המקרים rag_failed=0. GT נמצא ב-G3 ב-<strong>100%</strong> מהמקרים וב-G2 ב-80%: ה-LLM מפצה לחלוטין על היעדר G1.</p>
+
+<h3>מתי הצנטרואיד מזיק (15 שאילתות = 7.7%)</h3>
+
+<p>שאילתות שהשאילתה כבר <strong>קרובה</strong> ל-GT (dist ממוצע 0.127 לעומת 0.173 בשאר). כשהשאילתה קרובה, הצנטרואיד מושך לאזור רחב יותר. הנזק הממוצע קטן (0.025), ו-14 מתוך 15 הם rag_ok.</p>
+
+<h3>מה גורם לצנטרואיד להשתפר יותר</h3>
+
+<p>הגורם החזק ביותר: מרחק השאילתה מה-GT (r=0.720, p<10⁻³²). ככל שהשאילתה רחוקה יותר: הצנטרואיד עוזר יותר.</p>
+
+<table>
+<tr><th>גורם</th><th>קורלציה עם שיפור</th></tr>
+<tr><td>dist(query, GT)</td><td>r = 0.720</td></tr>
+<tr><td>גודל G2</td><td>r = −0.263</td></tr>
+<tr><td>גודל G1</td><td>r = 0.206</td></tr>
+<tr><td>גודל G3</td><td>r = −0.015 (לא מובהק)</td></tr>
+</table>
+
+<h3>G3 גדולה יותר = צנטרואיד טוב יותר</h3>
+
+<table>
+<tr><th>גודל G3</th><th>שיפור ממוצע</th><th>צנטרואיד קרוב יותר</th></tr>
+<tr><td>קטנה (3–10)</td><td>33.9%</td><td>83.8%</td></tr>
+<tr><td>בינונית (11–20)</td><td>39.8%</td><td>93.3%</td></tr>
+<tr><td>גדולה (21–38)</td><td>45.9%</td><td>96.4%</td></tr>
+</table>
+
+<h3>התפלגות השיפור (כל 196 שאילתות)</h3>
+
+<table>
+<tr><th>שיפור</th><th>שאילתות</th><th>%</th></tr>
+<tr><td>שלילי</td><td>15</td><td>7.7%</td></tr>
+<tr><td>0–20%</td><td>19</td><td>9.7%</td></tr>
+<tr><td>20–40%</td><td>48</td><td>24.5%</td></tr>
+<tr><td>40–60%</td><td>75</td><td>38.3%</td></tr>
+<tr><td>מעל 60%</td><td>39</td><td>19.9%</td></tr>
+</table>
+
+<h3>כשכל שלוש הקבוצות מפספסות GT</h3>
+
+<p>9 שאילתות בלבד (4.6%): ב-100% מהן rag_failed=1. כשהריטריבר מצליח, לפחות קבוצה אחת תמיד מוצאת את ה-GT.</p>
+
+<h3>אות הביטחון הגבוה ביותר</h3>
+
+<p>כש-G1 מכילה בדיוק מסמך אחד <strong>והוא גם ב-G3</strong>: ב-97.6% מהמקרים זה ה-GT. זה קורה ב-125/196 שאילתות (63.8%).</p>
+
+<h3>תפקיד G2</h3>
+
+<p>G2 אינה מוצאת GT חדש שלא קיים ב-G3 (קורה פעם אחת בלבד = 0.5%). תפקידה הוא <strong>לסנן את G3</strong> ולהשאיר את הגרעין הממוקד.</p>
+
+<hr>
+
+<h2>מסקנות</h2>
+
+<h3>1. G1: כלי הריטריבר: מדויק אבל לא מלא</h3>
+
+<p>כאשר הריטריבר מצליח (rag_ok), G1 מכיל <strong>מסמך אחד בדיוק</strong> ב-89% מהמקרים, ואותו מסמך הוא ה-GT ב-100% מהמקרים. G1 בקבוצת rag_ok היא <strong>מצביע מדויק</strong>: הריטריבר מרוכז בדיוק סביב ה-GT.</p>
+
+<p>בקבוצת rag_failed, G1 מתרחבת (חציון 4, ממוצע 8.5) וה-GT אינו בה ב-26% מהמקרים: הריטריבר "מבולבל".</p>
+
+<h3>2. G3: כלי ה-LLM: recall גבוה, precision אפסי</h3>
+
+<p>G3 מכיל את ה-GT ב-94.9% מהמקרים: זו כמות ה-recall הגבוהה. אבל: <strong>ממוצע 16.1 מסמכים לא-GT מקבלים ציון 1.0 לצד ה-GT</strong>. ה-LLM אינו מסוגל להפריד בין G3-members: כולם 1.0, וה-Score Quantization מונע tiebreaking. G3 היא "דלי גדול" שמכיל את ה-GT אבל לא יכול לבודד אותו.</p>
+
+<h3>3. G2: סינתזה: מנצל את שניהם</h3>
+
+<p>G2 מסנן את ה-G3 גיאומטרית לפי מרחק מהצנטרואיד:</p>
+<li>שומרת GT ב-85.2% (דומה ל-G1)</li>
+<li>גדולה מ-G1 (חציון 6 לעומת 1): coverage טוב יותר</li>
+<li>מכילה 84% מ-G3: דוחה 16% שהם noise</li>
+
+<h3>4. הממצא הגיאומטרי המרכזי</h3>
+
+<p>הצנטרואיד של מסמכי G3 (LLM-scored perfect) <strong>קרוב ל-GT ב-44% יותר</strong> מהשאילתה המקורית. זה אומר:</p>
+<blockquote><strong>פעולה אחת של "מי הכי רלוונטי לפי LLM → מרכז המסה שלהם" מקדמת את נקודת הייחוס ב-44% לכיוון ה-GT.</strong></blockquote>
+
+<p>זוהי ההוכחה הגיאומטרית הישירה לעיקרון הטרילטרציה: הצנטרואיד הוא נקודת פתיחה טובה יותר לאיטרציה הבאה מהשאילתה עצמה.</p>
+
+<hr>
+
+<h2>פלטים</h2>
+
+<pre><code>
+analysis/csv/group_analysis/
+├── master_summary.csv        : שורה לכל שאילתה (196 שורות)
+├── global_aggregates.csv     : mean/median/std/min/max לכל מדד
+└── per_query/
+    ├── query_001.csv
+    ├── query_002.csv
+    ...
+    └── query_199.csv          (196 קבצים, 3 שאילתות לא כללו GT embedding)
+</code></pre>
+
+<h3>schema: master_summary.csv</h3>
+
+<table>
+<tr><th>עמודה</th><th>תיאור</th></tr>
+<tr><td>query_idx, gt_id, rag_failed</td><td>מזהים</td></tr>
+<tr><td>dist_query_to_gt</td><td>dist(query, GT): cosine</td></tr>
+<tr><td>dist_centroid_to_gt</td><td>dist(centroid_G3, GT): cosine</td></tr>
+<tr><td>n_pool, n_g1, n_g2, n_g3</td><td>גדלי קבוצות</td></tr>
+<tr><td>n_g1_g2, n_g1_g3, n_g2_g3, n_g1_g2_g3</td><td>גדלי חיתוכים</td></tr>
+<tr><td>jaccard_g1_g2, jaccard_g1_g3, jaccard_g2_g3, jaccard_g1_g2_g3</td><td>Jaccard</td></tr>
+<tr><td>gt_in_g1, gt_in_g2, gt_in_g3, gt_in_all</td><td>האם GT נמצא בקבוצה (0/1)</td></tr>
+<tr><td>g1_doc_ids, g2_doc_ids, g3_doc_ids</td><td>רשימת PMIDs מופרדים ב-"\</td><td>"</td></tr>
+</table>
+
+<h3>schema: per_query CSVs</h3>
+
+<table>
+<tr><th>עמודה</th><th>תיאור</th></tr>
+<tr><td>doc_id</td><td>PMID</td></tr>
+<tr><td>llm_score</td><td>ציון ה-LLM</td></tr>
+<tr><td>dist_to_gt_db / dist_to_gt_reembed</td><td>מרחק מ-GT (DB + re-embed)</td></tr>
+<tr><td>dist_to_query</td><td>dist(doc, query): cosine</td></tr>
+<tr><td>dist_to_centroid</td><td>dist(doc, centroid_G3): cosine</td></tr>
+<tr><td>is_gt</td><td>0/1</td></tr>
+<tr><td>in_g1, in_g2, in_g3</td><td>שייכות (0/1)</td></tr>
+<tr><td>in_g1_and_g2, in_g1_and_g3, in_g2_and_g3, in_all</td><td>חיתוכים (0/1)</td></tr>
+</table>
+
+</body>
+</html>
