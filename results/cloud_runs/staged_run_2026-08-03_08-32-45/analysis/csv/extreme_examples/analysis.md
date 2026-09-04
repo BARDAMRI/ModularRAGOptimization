@@ -185,3 +185,30 @@ while the query - only slightly closer to GT - captures only 1.
 | `top10_extreme_examples.csv` | Full stats for all 10 queries |
 | `g2_only_query_NNN.csv` | Docs in G2 but not G1 for each query |
 | `analysis.md` | This document |
+
+---
+
+## Interactive visualizations
+
+Trilateration plots (exact cosine distances, all 5,035 docs) for all 196 queries:
+
+```
+analysis/charts/vector_space/geo_interactive/
+```
+
+Open the index to browse all queries:
+```bash
+open results/cloud_runs/staged_run_2026-08-03_08-32-45/analysis/charts/vector_space/geo_interactive/index.html
+```
+
+Most extreme queries (open directly):
+```bash
+# Gap=67, Mechanism A
+open .../geo_interactive/query_118.html
+# Top-5 by G2 density (r2 < r1): 121, 27, 180, 48, 37
+open .../geo_interactive/query_121.html
+open .../geo_interactive/query_037.html
+```
+
+**Session brief** (full analysis narrative):
+https://claude.ai/code/artifact/44397523-a8bc-4305-9227-4fca3bdbb835

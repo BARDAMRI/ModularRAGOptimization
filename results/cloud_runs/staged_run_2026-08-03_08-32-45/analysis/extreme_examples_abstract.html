@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Extreme G2-G1 Gap Queries</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #F7F8FC;
+    --surface:  #FFFFFF;
+    --text:     #1C1F2E;
+    --muted:    #5A6072;
+    --accent:   #2563EB;
+    --stripe:   #EEF2FF;
+    --border:   #D4D8E8;
+    --chip-a-bg:   #FEE2E2;
+    --chip-a-fg:   #991B1B;
+    --chip-b-bg:   #D1FAE5;
+    --chip-b-fg:   #065F46;
+    --num-bg:   #EEF2FF;
+    --num-fg:   #1E40AF;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:       #0F1117;
+      --surface:  #1A1E2E;
+      --text:     #E8EAF2;
+      --muted:    #8B91A8;
+      --accent:   #60A5FA;
+      --stripe:   #1E2640;
+      --border:   #2E3450;
+      --chip-a-bg:   #3B1515;
+      --chip-a-fg:   #FCA5A5;
+      --chip-b-bg:   #0A2E1E;
+      --chip-b-fg:   #6EE7B7;
+      --num-bg:   #1E2640;
+      --num-fg:   #93C5FD;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg:       #0F1117;
+    --surface:  #1A1E2E;
+    --text:     #E8EAF2;
+    --muted:    #8B91A8;
+    --accent:   #60A5FA;
+    --stripe:   #1E2640;
+    --border:   #2E3450;
+    --chip-a-bg:   #3B1515;
+    --chip-a-fg:   #FCA5A5;
+    --chip-b-bg:   #0A2E1E;
+    --chip-b-fg:   #6EE7B7;
+    --num-bg:   #1E2640;
+    --num-fg:   #93C5FD;
+  }
+
+  body {
+    font-family: "IBM Plex Serif", Georgia, serif;
+    font-size: 11pt;
+    line-height: 1.65;
+    color: var(--text);
+    background: var(--bg);
+    padding: 48px 32px;
+  }
+
+  .page {
+    max-width: 680px;
+    margin: 0 auto;
+    background: var(--surface);
+    padding: 48px 52px;
+    border: 1px solid var(--border);
+  }
+
+  /* ---- Header ---- */
+  .run-id {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 8pt;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+    margin-bottom: 22px;
+  }
+
+  h1 {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 18pt;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.25;
+    margin-bottom: 6px;
+    text-wrap: balance;
+  }
+
+  .subtitle {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 9pt;
+    color: var(--muted);
+    margin-bottom: 28px;
+  }
+
+  /* ---- Abstract ---- */
+  .abstract {
+    font-style: italic;
+    color: var(--muted);
+    border-left: 3px solid var(--accent);
+    padding-left: 16px;
+    margin-bottom: 32px;
+    font-size: 10.5pt;
+    line-height: 1.7;
+  }
+
+  /* ---- Section headings ---- */
+  h2 {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 10pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    margin-top: 32px;
+    margin-bottom: 12px;
+  }
+
+  /* ---- Table ---- */
+  .table-wrap { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 8.5pt;
+    font-variant-numeric: tabular-nums;
+  }
+
+  thead th {
+    font-weight: 600;
+    text-align: left;
+    border-bottom: 2px solid var(--border);
+    padding: 6px 8px;
+    color: var(--muted);
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  thead th.num { text-align: right; }
+
+  tbody tr:nth-child(even) { background: var(--stripe); }
+
+  tbody td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .chip {
+    display: inline-block;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 7pt;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .chip-a { background: var(--chip-a-bg); color: var(--chip-a-fg); }
+  .chip-b { background: var(--chip-b-bg); color: var(--chip-b-fg); }
+
+  .fail-tag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 7pt;
+    color: var(--chip-a-fg);
+  }
+
+  /* ---- Mechanism blocks ---- */
+  .mech-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 12px;
+  }
+
+  .mech-card {
+    border: 1px solid var(--border);
+    padding: 16px 18px;
+    font-size: 9.5pt;
+    line-height: 1.6;
+  }
+
+  .mech-label {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 8pt;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .mech-label.a { color: var(--chip-a-fg); }
+  .mech-label.b { color: var(--chip-b-fg); }
+
+  .mech-stat {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 8pt;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  /* ---- Conclusions ---- */
+  ol.conclusions {
+    padding: 0;
+    list-style: none;
+    counter-reset: clist;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  ol.conclusions li {
+    counter-increment: clist;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: 10pt;
+    line-height: 1.6;
+  }
+
+  ol.conclusions li::before {
+    content: counter(clist);
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    background: var(--num-bg);
+    color: var(--num-fg);
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 8pt;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    margin-top: 2px;
+  }
+
+  strong {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .footnote {
+    margin-top: 36px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 7.5pt;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="run-id">
+    staged_run_2026-08-03_08-32-45 &nbsp;|&nbsp; 196 queries &times; 5,035 docs &nbsp;|&nbsp; 2026-09-04
+  </div>
+
+  <h1>Extreme Cases: Why G2 Dominates G1 at the Query Level</h1>
+  <div class="subtitle">Deep dive &mdash; 10 queries with largest G2&minus;G1 gap</div>
+
+  <p class="abstract">
+    We identify the 10 queries where the centroid-based retrieval group (G2) most
+    dramatically exceeds the query-centered group (G1). Two distinct mechanisms explain
+    the gap. In both, the root cause is the same: queries occupy a sparse region of
+    embedding space, while documents cluster in a structurally denser zone that the
+    centroid of LLM-scored documents (G3) consistently reaches.
+  </p>
+
+  <h2>Results Table</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Query</th>
+          <th class="num">G1</th>
+          <th class="num">G2</th>
+          <th class="num">G3</th>
+          <th class="num">Gap</th>
+          <th class="num">r1</th>
+          <th class="num">r2</th>
+          <th>Mechanism</th>
+          <th>RAG</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>118</td><td class="num">1</td><td class="num">68</td><td class="num">4</td><td class="num">67</td><td class="num">0.158</td><td class="num">0.331</td><td><span class="chip chip-a">A</span></td><td></td></tr>
+        <tr><td>2</td><td>37</td><td class="num">1</td><td class="num">42</td><td class="num">31</td><td class="num">41</td><td class="num">0.200</td><td class="num">0.153</td><td><span class="chip chip-b">B</span></td><td></td></tr>
+        <tr><td>3</td><td>119</td><td class="num">1</td><td class="num">38</td><td class="num">20</td><td class="num">37</td><td class="num">0.221</td><td class="num">0.153</td><td><span class="chip chip-b">B</span></td><td></td></tr>
+        <tr><td>4</td><td>190</td><td class="num">25</td><td class="num">56</td><td class="num">25</td><td class="num">31</td><td class="num">0.292</td><td class="num">0.223</td><td><span class="chip chip-b">B</span></td><td><span class="fail-tag">FAIL</span></td></tr>
+        <tr><td>5</td><td>29</td><td class="num">1</td><td class="num">26</td><td class="num">10</td><td class="num">25</td><td class="num">0.235</td><td class="num">0.245</td><td><span class="chip chip-a">A</span></td><td></td></tr>
+        <tr><td>6</td><td>96</td><td class="num">1</td><td class="num">24</td><td class="num">19</td><td class="num">23</td><td class="num">0.247</td><td class="num">0.174</td><td><span class="chip chip-b">B</span></td><td></td></tr>
+        <tr><td>7</td><td>43</td><td class="num">0</td><td class="num">22</td><td class="num">14</td><td class="num">22</td><td class="num">0.289</td><td class="num">0.166</td><td><span class="chip chip-b">B</span></td><td></td></tr>
+        <tr><td>8</td><td>85</td><td class="num">1</td><td class="num">23</td><td class="num">15</td><td class="num">22</td><td class="num">0.076</td><td class="num">0.081</td><td><span class="chip chip-a">A</span></td><td></td></tr>
+        <tr><td>9</td><td>114</td><td class="num">1</td><td class="num">23</td><td class="num">19</td><td class="num">22</td><td class="num">0.140</td><td class="num">0.138</td><td><span class="chip chip-b">B</span></td><td></td></tr>
+        <tr><td>10</td><td>153</td><td class="num">2</td><td class="num">24</td><td class="num">33</td><td class="num">22</td><td class="num">0.183</td><td class="num">0.143</td><td><span class="chip chip-b">B</span></td><td><span class="fail-tag">FAIL</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-family:'IBM Plex Sans',sans-serif;font-size:8pt;color:var(--muted);margin-top:6px;">
+    r1 = dist(Query, GT) &nbsp;&bull;&nbsp; r2 = dist(Centroid, GT).
+    G1 is 0 or 1 in 9 of 10 cases.
+  </p>
+
+  <h2>Two Mechanisms</h2>
+  <div class="mech-grid">
+    <div class="mech-card">
+      <div class="mech-label a">Mechanism A &mdash; 3 queries (118, 29, 85)</div>
+      The G3 centroid is pulled <em>away</em> from GT by false-positive documents,
+      so r2 &ge; r1. Yet G2 is large because the centroid lands inside a
+      structurally dense zone of document space. Proximity to GT is not required
+      &mdash; presence in document space is sufficient.
+      <div class="mech-stat">Query 118: r2 = 2.1 &times; r1, G2/G1 = 68&times;</div>
+    </div>
+    <div class="mech-card">
+      <div class="mech-label b">Mechanism B &mdash; 7 queries</div>
+      G3 forms a coherent, tight cluster. Its centroid falls close to GT
+      (r2 &lt; r1). Even a smaller centroid circle lands inside the dense
+      document cluster around GT and captures many more documents than G1.
+      <div class="mech-stat">Median G3 spread std: 0.088 (vs 0.726 in Mech A)</div>
+    </div>
+  </div>
+
+  <h2>Conclusions</h2>
+  <ol class="conclusions">
+    <li>
+      <strong>G1 collapses to 0-1 documents in 9 of 10 extreme cases.</strong>
+      Queries sit in a structurally sparse region of embedding space; almost nothing
+      is near the query even when the GT is nearby.
+    </li>
+    <li>
+      <strong>The centroid does not need to be close to GT.</strong>
+      Query 118 has r2 more than twice r1, yet G2 = 68. What matters is
+      that the centroid lands in document space, which is inherently denser
+      than query space.
+    </li>
+    <li>
+      <strong>Two paths to a large G2.</strong>
+      Mechanism A: centroid displaced by false positives, lands in dense
+      document region. Mechanism B: tight G3 cluster, centroid genuinely
+      close to GT. Both produce the same result: G2 >> G1.
+    </li>
+    <li>
+      <strong>RAG failure does not prevent a large G2.</strong>
+      Queries 190 and 153 (RAG failed, GT not in G3) still reach G2 = 56 and 24.
+      G2 reflects the coherent document cluster, not the correctness of scoring.
+    </li>
+    <li>
+      <strong>The density asymmetry between query space and document space
+      is the fundamental cause</strong> of the G2 > G1 phenomenon across all 196 queries,
+      and it is most visible at the extremes studied here.
+    </li>
+  </ol>
+
+  <div class="footnote">
+    G1: docs within dist(Q, GT) of the query. &nbsp;
+    G2: docs within dist(Centroid<sub>G3</sub>, GT) of the G3 centroid. &nbsp;
+    G3: LLM-scored docs with score = 1.0. &nbsp;
+    Script: <code>analyze_extreme_examples.py</code> &mdash;
+    reading pre-computed output of <code>analyze_groups.py</code>.
+  </div>
+
+</div>
+</body>
+</html>

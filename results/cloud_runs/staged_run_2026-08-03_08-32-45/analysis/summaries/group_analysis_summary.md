@@ -1,5 +1,11 @@
 # ניתוח קבוצות גיאומטריות — סיכום ניסוי
 
+> **קישורים מהירים**
+> - **בריף מלא (session brief):** https://claude.ai/code/artifact/44397523-a8bc-4305-9227-4fca3bdbb835
+> - **פלוטים אינטראקטיביים (trilateration):** `analysis/charts/vector_space/geo_interactive/index.html`
+> - **פלוטים אינטראקטיביים (UMAP):** `analysis/charts/vector_space/umap_interactive/index.html`
+> - **ניתוח מקרים קיצוניים:** `analysis/csv/extreme_examples/analysis.md`
+
 **Bar Damri | אוגוסט 2026**
 **סקריפט:** `experiments/global_correlation/analyze_groups.py`
 **נתונים:** אותו pool ו-DB של ניסוי 2 (25M PubMed, 199 שאילתות, 1,000,174 זוגות)
