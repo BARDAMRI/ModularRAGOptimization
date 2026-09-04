@@ -1,18 +1,10 @@
 import numpy as np
 from scipy.special import softmax
-from sklearn.metrics.pairwise import cosine_similarity
 
 from configurations.config import TRILATERATION_MODE, NUM_BASE_ANCHORS, LIN_SOLVER_EPSILON, DISTANCE_SCALE_GAMMA, \
     LIN_SOLVER_MAX_ITERATIONS, LIN_SOLVER_TOLERANCE, LIN_SOLVER_STEP_SIZE
 from utility.logger import logger
-
-
-def cosine_distance(a: np.ndarray, b: np.ndarray) -> float:
-    """Compute cosine distance (1 - similarity)."""
-    a = a.reshape(1, -1)
-    b = b.reshape(1, -1)
-    sim = np.clip(cosine_similarity(a, b)[0][0], -1.0, 1.0)
-    return float(1.0 - sim)
+from utility.similarity_calculator import cosine_distance
 
 
 class TrilaterationRetriever:

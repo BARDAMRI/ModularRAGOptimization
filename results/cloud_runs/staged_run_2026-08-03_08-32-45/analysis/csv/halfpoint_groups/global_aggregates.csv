@@ -1,0 +1,2 @@
+n_queries,n_pool,g1_mean,g1_median,hp_mean,hp_median,g2_centroid_mean,g2_centroid_median,density_g1_mean,density_hp_mean,pct_queries_hp_gt_g1
+196,5035,3.1785714285714284,1.0,0.8158163265306123,1.0,9.775510204081632,6.0,15.595081527250326,11.048503054794379,7.142857142857142

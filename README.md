@@ -414,6 +414,167 @@ utility/run_config.py                # run_config.json loader
 
 ---
 
+## Geometric group analysis experiments
+
+Three post-hoc analysis scripts that study the embedding-space structure of retrieval
+groups around the ground-truth document. All three share the same canonical dataset
+(196 queries, 5,035 docs) and the same `cosine_distance()` function from
+`utility/similarity_calculator.py`.
+
+### Shared data loader
+
+`experiments/global_correlation/load_experiment_data.py`
+
+Must be run from the same directory as the three scripts below, or with its parent
+on `sys.path`. It loads:
+- 196 canonical query indices (from `master_summary.csv`)
+- 5,035 pool documents (5,026 from `expanded_scoring_queue.parquet` + 9 missing GTs from `scoring_queue.parquet`)
+- LLM scores from `experiment_results.db`
+- All embeddings via `sentence-transformers/all-mpnet-base-v2`
+
+```python
+from load_experiment_data import load_data, cosine_distance
+data = load_data()          # returns dict with query_vecs, doc_vecs, scores_df, ...
+```
+
+**What to fill in:** The `RUN_DIR` constant points to the run folder. Change it if
+using a different run directory.
+
+---
+
+### Experiment A - G1 / G2 / G3 group analysis
+
+**Script:** `experiments/global_correlation/analyze_groups.py`
+
+```bash
+cd experiments/global_correlation
+python analyze_groups.py
+```
+
+**What it does:** For each of 196 queries, computes three geometric groups in
+embedding space:
+
+| Group | Center | Radius | Meaning |
+|-------|--------|--------|---------|
+| G1 | Query vector Q | dist(Q, GT) | Docs in query-centered circle |
+| G2 | Normalized centroid of G3 | dist(centroid, GT) | Docs in centroid-centered circle |
+| G3 | - | - | All docs with LLM score = 1.0 |
+
+**Runtime:** ~30-60 min (embeds 5,035 docs + 196 queries with all-mpnet-base-v2).
+
+**What to fill in:**
+- `RUN_DIR` at the top of the script (path to the run folder containing `scoring_queue.parquet` and `experiment_results.db`)
+- `MODEL_NAME` if using a different embedding model
+
+**Output:** `<run_dir>/analysis/csv/group_analysis/`
+
+| File | Rows | Description |
+|------|------|-------------|
+| `master_summary.csv` | 196 | Per-query G1/G2/G3 sizes, Jaccard overlaps, GT membership |
+| `global_aggregates.csv` | 5 | Mean/median/std/min/max for all numeric columns |
+| `per_query/query_NNN.csv` | ~26 | Per-doc membership flags, distances, LLM scores |
+
+---
+
+### Experiment B - Halfpoint groups (random space points)
+
+**Script:** `experiments/global_correlation/analyze_halfpoint_groups.py`
+
+```bash
+cd experiments/global_correlation
+python analyze_halfpoint_groups.py
+```
+
+**What it does:** For each query, generates `N_ANCHORS=10` random unit vectors at
+cosine distance `r1/2` from GT (using Gram-Schmidt construction). Each anchor's
+circle has radius `r1/2`. Measures how many pool docs each random anchor captures,
+vs G1 and G2.
+
+**Question answered:** Is the GT neighborhood inherently dense, or is the centroid
+special? Result: random points at the same distance as the centroid capture 0.82
+docs on average (less than G1's 3.18). The density advantage requires real document
+cluster structure.
+
+**Runtime:** ~30-60 min (same embedding step as Experiment A; uses shared loader).
+
+**What to fill in:** `N_ANCHORS` (default 10), `RANDOM_SEED` (default 42).
+The run directory is inherited from `load_experiment_data.py`.
+
+**Output:** `<run_dir>/analysis/csv/halfpoint_groups/`
+
+| File | Rows | Description |
+|------|------|-------------|
+| `all_anchors.csv` | 196 x N_ANCHORS | Per-anchor n_halfpoint, density, Jaccard vs G1 |
+| `per_query_summary.csv` | 196 | Per-query aggregate (mean/median/std over anchors) |
+| `global_aggregates.csv` | 1 | Global halfpoint statistics |
+| `per_query/query_NNN.csv` | N_ANCHORS | Per-anchor detail for one query |
+
+---
+
+### Experiment C - Pool-document centroid
+
+**Script:** `experiments/global_correlation/analyze_pooldoc_centroid.py`
+
+```bash
+cd experiments/global_correlation
+python analyze_pooldoc_centroid.py
+```
+
+**What it does:** For each query, finds all pool documents closer to GT than the
+query (dist(doc, GT) < r1), samples up to `N_SAMPLES=10` of them, and uses each as
+a G2-style circle center with radius = dist(doc, GT). Measures how many docs each
+real pool document captures, vs G1 and the true G2 centroid.
+
+**Question answered:** Is the pool itself dense around GT, independently of the G3
+centroid? Result: real pool docs near GT capture 10.12 docs on average (91.8% beat
+G1). The pool is structurally concentrated around GT.
+
+**Runtime:** ~30-60 min (same embedding step; uses shared loader).
+
+**What to fill in:** `N_SAMPLES` (default 10), `RANDOM_SEED` (default 42).
+The run directory is inherited from `load_experiment_data.py`.
+
+**Output:** `<run_dir>/analysis/csv/pooldoc_centroid/`
+
+| File | Rows | Description |
+|------|------|-------------|
+| `all_candidates.csv` | up to 196 x N_SAMPLES | Per-candidate n_cand_circle, density, Jaccard |
+| `per_query_summary.csv` | 196 | Per-query aggregate over sampled candidates |
+| `global_aggregates.csv` | 1 | Global pool-doc centroid statistics |
+| `per_query/query_NNN.csv` | N_SAMPLES | Per-candidate detail for one query |
+
+---
+
+### Run order for all three experiments
+
+```bash
+cd experiments/global_correlation
+
+# Experiment A (G1/G2/G3) - runs standalone
+python analyze_groups.py
+
+# Experiments B and C use the shared loader (load_experiment_data.py)
+# They can run independently or after A
+python analyze_halfpoint_groups.py
+python analyze_pooldoc_centroid.py
+```
+
+All three write to separate subdirectories under `<run_dir>/analysis/csv/` so they
+do not overwrite each other. Re-running any script overwrites its own output only.
+
+### Analysis reports
+
+After running the experiments, the full report and the standalone experiment document
+are in `<run_dir>/analysis/`:
+
+| File | Description |
+|------|-------------|
+| `report_full.html` / `.pdf` | Full report including all group geometry experiments |
+| `experiment_centroid_geometry.html` / `.pdf` / `.md` | Standalone centroid geometry report |
+| `INDEX.md` | Complete file catalog with experiment descriptions |
+
+---
+
 ## Interactive menu map
 
 | Main | Action |

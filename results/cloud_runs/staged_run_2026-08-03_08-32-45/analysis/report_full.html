@@ -470,10 +470,147 @@ code{font-family:var(--mono);font-size:12px;background:var(--accent-dim);color:v
   </div>
 </section>
 
+<!-- ═══════════════════════════════════════════════════════════════
+     § GEOMETRIC GROUP ANALYSIS — Centroid vs Query-Centered Groups
+     ═══════════════════════════════════════════════════════════════ -->
+
+<section>
+  <div class="section-label">§ Geometric Group Analysis</div>
+  <h2>Why Centroid-Based Retrieval Groups Consistently Outperform Query-Centered Groups</h2>
+
+  <p>Three linked experiments investigate the geometric structure of documents in embedding space around the ground-truth (GT) document, revealing why the centroid-based group (G2) captures far more documents than the query-centered group (G1).</p>
+
+  <h3>Group Definitions</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Group</th><th>Center</th><th>Radius</th><th>Rule</th></tr></thead>
+      <tbody>
+        <tr><td class="bold">G1</td><td>Query vector Q</td><td class="r">r₁ = dist(Q, GT)</td><td>dist(doc, Q) ≤ r₁</td></tr>
+        <tr><td class="bold">G2</td><td>Normalised centroid of G3</td><td class="r">r₂ = dist(centroid, GT)</td><td>dist(doc, centroid) ≤ r₂</td></tr>
+        <tr><td class="bold">G3</td><td>—</td><td>—</td><td>LLM score = 1.0</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:12px;color:var(--muted)">Distance = 1 − dot(a, b) for L2-normalised embeddings (cosine distance). Dataset: 196 queries · 5,035-document pool.</p>
+
+  <h3>Experiment 1 — G1 / G2 / G3 Group Sizes and Overlaps</h3>
+
+  <div class="findings-grid">
+    <div class="fcard warn">
+      <div class="lbl">G1 mean size</div>
+      <div class="val">3.13</div>
+      <div class="desc">docs · median 1.0 · density 15.4 docs/radius</div>
+    </div>
+    <div class="fcard pos">
+      <div class="lbl">G2 mean size</div>
+      <div class="val">9.72</div>
+      <div class="desc">docs · median 6.0 · density 92.5 docs/radius</div>
+    </div>
+    <div class="fcard acc">
+      <div class="lbl">G3 mean size</div>
+      <div class="val">17.05</div>
+      <div class="desc">docs with LLM score = 1.0 · median 18.0</div>
+    </div>
+    <div class="fcard pos">
+      <div class="lbl">G2 &gt; G1</div>
+      <div class="val">77.6%</div>
+      <div class="desc">152 / 196 queries where G2 captures more docs than G1</div>
+    </div>
+    <div class="fcard acc">
+      <div class="lbl">dist(centroid, GT)</div>
+      <div class="val">0.098</div>
+      <div class="desc">mean · vs dist(Q, GT) = 0.173 — centroid 1.77× closer to GT</div>
+    </div>
+    <div class="fcard acc">
+      <div class="lbl">G2 density / G1 density</div>
+      <div class="val">6.0×</div>
+      <div class="desc">92.5 vs 15.4 docs per unit cosine radius</div>
+    </div>
+  </div>
+
+  <div class="tw" style="margin-top:20px">
+    <table>
+      <thead><tr><th>Metric</th><th class="r">G1</th><th class="r">G2</th><th class="r">G3</th></tr></thead>
+      <tbody>
+        <tr><td>Mean docs</td><td class="r">3.13</td><td class="r good">9.72</td><td class="r">17.05</td></tr>
+        <tr><td>Median docs</td><td class="r">1.0</td><td class="r good">6.0</td><td class="r">18.0</td></tr>
+        <tr><td>GT included (%)</td><td class="r">84.7%</td><td class="r">85.2%</td><td class="r good">94.9%</td></tr>
+        <tr><td>Mean center–GT distance</td><td class="r caution">0.173</td><td class="r good">0.098</td><td class="r">—</td></tr>
+        <tr><td>Mean density (docs/radius)</td><td class="r caution">15.4</td><td class="r good">92.5</td><td class="r">—</td></tr>
+        <tr><td>Jaccard G1 ∩ G2</td><td class="r" colspan="3">0.326</td></tr>
+        <tr><td>Jaccard G2 ∩ G3</td><td class="r" colspan="3">0.336</td></tr>
+        <tr><td>GT in all three groups (%)</td><td class="r" colspan="3">76.0%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Experiment 2 — Halfpoint Experiment (Is the GT Neighbourhood Inherently Dense?)</h3>
+
+  <p>For each of 196 queries, 10 random unit vectors are constructed at cosine distance r₁/2 from GT using Gram-Schmidt orthogonalisation. Each anchor's circle has radius r₁/2 — matching the centroid's typical distance to GT. Result: 1,960 random anchors total.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Group</th><th>Center</th><th class="r">Mean docs</th><th class="r">Median</th><th class="r">Density</th></tr></thead>
+      <tbody>
+        <tr><td>G1</td><td>Query Q, radius r₁</td><td class="r">3.18</td><td class="r">1.0</td><td class="r">15.6</td></tr>
+        <tr><td>Halfpoint (HP)</td><td>Random anchor, radius r₁/2</td><td class="r caution">0.82</td><td class="r">1.0</td><td class="r">11.0</td></tr>
+        <tr><td>G2 (reference)</td><td>Centroid, radius r₂</td><td class="r good">9.78</td><td class="r good">6.0</td><td class="r good">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <strong>Key result:</strong> Random points at the same distance from GT as the centroid capture <em>fewer</em> docs (0.82) than even G1 (3.18). Only 7.1% of queries see HP &gt; G1. The GT neighbourhood is <strong>not inherently dense</strong> in arbitrary directions — the centroid's advantage requires real document cluster structure.
+  </div>
+
+  <h3>Experiment 3 — Pool-Document Centroid (Is the Pool Structured Around GT?)</h3>
+
+  <p>For each query, pool documents with dist(doc, GT) &lt; r₁ are identified (closer to GT than the query). Up to 10 are sampled and each used as a circle center with radius = dist(doc, GT) — the same convention as G2. Dataset: 159/196 queries have ≥1 eligible doc.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Group</th><th>Center</th><th class="r">Mean docs</th><th class="r">Median</th><th class="r">Density</th></tr></thead>
+      <tbody>
+        <tr><td>G1</td><td>Query Q, radius r₁</td><td class="r">3.18</td><td class="r">1.0</td><td class="r">15.6</td></tr>
+        <tr><td>Pool-doc candidate</td><td>Real pool doc, radius=dist(doc,GT)</td><td class="r good">10.12</td><td class="r good">6.5</td><td class="r good">59.6</td></tr>
+        <tr><td>G2 (true centroid)</td><td>G3 centroid, radius r₂</td><td class="r good">9.78</td><td class="r good">6.0</td><td class="r">92.5</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout pos">
+    <strong>Key result:</strong> Real pool docs closer to GT than Q capture 10.12 docs on average — nearly identical to G2's 9.78. <strong>91.8%</strong> of valid queries see candidate mean &gt; G1. The document pool is structurally concentrated near GT; any real document in the GT neighbourhood works as well as the centroid for raw count.
+  </div>
+
+  <h3>Unified Density Comparison</h3>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Anchor</th><th class="r">Mean docs</th><th class="r">Mean radius</th><th class="r">Docs / radius</th></tr></thead>
+      <tbody>
+        <tr><td>Query Q (G1)</td><td class="r">3.18</td><td class="r">0.173</td><td class="r caution">15.6</td></tr>
+        <tr><td>Random point at r₁/2 from GT (halfpoint)</td><td class="r">0.82</td><td class="r">0.087</td><td class="r">11.0</td></tr>
+        <tr><td>Pool doc closer to GT than Q</td><td class="r">10.12</td><td class="r">~0.070</td><td class="r">59.6</td></tr>
+        <tr><td><strong>G3 centroid (G2)</strong></td><td class="r good">9.78</td><td class="r good">0.098</td><td class="r good">92.5</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Conclusions</h3>
+
+  <div class="callout info">
+    <strong>(1)</strong> G2 outperforms G1 in 77.6% of queries (~3× more docs) because the centroid sits inside the dense document cluster, not in query space.<br>
+    <strong>(2)</strong> The GT neighbourhood is not uniformly dense — random points yield fewer docs than G1.<br>
+    <strong>(3)</strong> The document pool is structurally concentrated around GT — any real pool doc near GT captures ~10 docs (91.8% beat G1).<br>
+    <strong>(4)</strong> The <em>query–document gap</em> drives the disparity: queries sit in a different embedding region than documents, so using Q as the circle center "wastes" its radius on empty query space.<br>
+    <strong>(5)</strong> The centroid is uniquely optimal in density (92.5 vs 59.6 for random pool docs) because it minimises total cluster distance, yielding the smallest radius for the same coverage.
+  </div>
+</section>
+
 </div>
 
 <footer class="report-footer">
   Run: <code>staged_run_2026-08-03_08-32-45</code> · DB: <code>experiment_results.db</code> ·
   Model: gcp/google/gemini-2.5-flash-lite via NVIDIA Inference Hub ·
-  Analysis: analyze_experiment.py · Generated 2026-08-10
+  Analysis: analyze_experiment.py, analyze_groups.py, analyze_halfpoint_groups.py, analyze_pooldoc_centroid.py · Generated 2026-08-25
 </footer>

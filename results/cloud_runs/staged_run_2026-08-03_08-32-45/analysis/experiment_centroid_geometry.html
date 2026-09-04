@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Centroid Geometry Experiment</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #FAFBFC;
+  --surface: #FFFFFF;
+  --text: #1C2333;
+  --muted: #5E6E8C;
+  --border: #D8DDE8;
+  --accent: #1B54C0;
+  --accent-dim: #EAF0FB;
+  --g1: #C0392B;
+  --g1-bg: #FEF0EE;
+  --g2: #1A7A4A;
+  --g2-bg: #EDFAF3;
+  --g3: #6A3FA0;
+  --g3-bg: #F3EEF9;
+  --hp: #9A6B00;
+  --hp-bg: #FFF8E6;
+  --hdr: #0E2040;
+  --hdr2: #1A3458;
+  --mono: 'IBM Plex Mono', 'Courier New', monospace;
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --serif: 'Source Serif 4', Georgia, serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  font-size: 13.5px;
+  line-height: 1.68;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ── Cover header ── */
+.cover {
+  background: var(--hdr);
+  color: #C8D8F0;
+  padding: 52px 56px 44px;
+  border-bottom: 4px solid #2A6AE0;
+}
+.cover .eyebrow {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: #5A80B8;
+  margin-bottom: 18px;
+}
+.cover h1 {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 300;
+  line-height: 1.25;
+  color: #D8EAF8;
+  max-width: 720px;
+  text-wrap: balance;
+  margin-bottom: 28px;
+}
+.cover .meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+}
+.cover .meta-item { font-size: 11.5px; }
+.cover .meta-item .label { color: #4A6888; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; font-size: 10px; margin-bottom: 2px; }
+.cover .meta-item .val { color: #8AABCC; font-family: var(--mono); }
+
+/* ── Body ── */
+.body { max-width: 860px; margin: 0 auto; padding: 48px 40px 80px; }
+
+/* ── Sections ── */
+.section { margin-bottom: 52px; }
+.section-eyebrow {
+  font-size: 9.5px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.section h2 {
+  font-family: var(--serif);
+  font-size: 21px;
+  font-weight: 400;
+  color: var(--text);
+  border-bottom: 1.5px solid var(--border);
+  padding-bottom: 10px;
+  margin-bottom: 22px;
+  text-wrap: balance;
+}
+.section h3 {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 28px 0 12px;
+}
+
+p { margin-bottom: 12px; max-width: 72ch; }
+
+/* ── Stat cards ── */
+.card-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px 18px;
+  min-width: 140px;
+  flex: 1 1 140px;
+}
+.card.g1 { border-left: 3px solid var(--g1); }
+.card.g2 { border-left: 3px solid var(--g2); }
+.card.g3 { border-left: 3px solid var(--g3); }
+.card.hp { border-left: 3px solid var(--hp); }
+.card.pool { border-left: 3px solid var(--accent); }
+.card .lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 4px; }
+.card .val { font-family: var(--mono); font-size: 24px; font-weight: 500; color: var(--accent); font-variant-numeric: tabular-nums; line-height: 1.1; margin-bottom: 4px; }
+.card.g1 .val { color: var(--g1); }
+.card.g2 .val { color: var(--g2); }
+.card.g3 .val { color: var(--g3); }
+.card.hp .val { color: var(--hp); }
+.card .sub { font-size: 11px; color: var(--muted); line-height: 1.45; }
+
+/* ── Tables ── */
+.tw { overflow-x: auto; margin: 14px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+thead tr { background: var(--hdr); color: #B8CDE0; }
+thead th { padding: 9px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; font-weight: 600; text-align: left; white-space: nowrap; font-family: var(--sans); }
+tbody tr { border-bottom: 1px solid var(--border); }
+tbody tr:last-child { border-bottom: none; }
+tbody td { padding: 8px 12px; }
+td.r { font-family: var(--mono); text-align: right; }
+td.best { color: var(--g2); font-weight: 700; }
+td.worst { color: var(--g1); }
+td.bold { font-weight: 700; }
+tbody tr:nth-child(even) { background: #F5F7FB; }
+
+/* ── Callouts ── */
+.callout {
+  padding: 14px 18px;
+  border-radius: 6px;
+  margin: 16px 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.callout.pos { background: var(--g2-bg); border-left: 3px solid var(--g2); }
+.callout.info { background: var(--accent-dim); border-left: 3px solid var(--accent); }
+.callout.warn { background: var(--hp-bg); border-left: 3px solid var(--hp); }
+.callout strong { font-weight: 700; }
+
+/* ── Code ── */
+pre {
+  background: #F0F3FA;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 14px 16px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  overflow-x: auto;
+  margin: 14px 0;
+}
+
+/* ── Density comparison visual ── */
+.density-bar-wrap { margin: 20px 0; }
+.dbar { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.dbar-label { font-size: 11.5px; width: 220px; flex-shrink: 0; color: var(--text); }
+.dbar-track { flex: 1; height: 18px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.dbar-fill { height: 100%; border-radius: 3px; }
+.dbar-val { font-family: var(--mono); font-size: 11.5px; width: 56px; text-align: right; flex-shrink: 0; }
+
+/* ── Conclusions list ── */
+.concl { display: flex; flex-direction: column; gap: 0; margin: 18px 0; }
+.concl-item { display: flex; gap: 16px; padding: 14px 0; border-top: 1px dashed var(--border); }
+.concl-item:first-child { border-top: none; }
+.concl-num {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--hdr);
+  color: #8AABCC;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  margin-top: 1px;
+}
+.concl-text h4 { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+.concl-text p { font-size: 12.5px; color: var(--muted); margin: 0; max-width: 100%; }
+
+/* ── Footer ── */
+.footer {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 16px 40px 36px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+code { font-family: var(--mono); font-size: 11px; background: var(--accent-dim); color: var(--accent); padding: 1px 5px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="eyebrow">ModularRAGOptimization · Geometric Group Analysis</div>
+  <h1>Why Centroid-Based Retrieval Groups Consistently Outperform Query-Centered Groups</h1>
+  <div class="meta-row">
+    <div class="meta-item"><div class="label">Run</div><div class="val">staged_run_2026-08-03</div></div>
+    <div class="meta-item"><div class="label">Queries</div><div class="val">196</div></div>
+    <div class="meta-item"><div class="label">Pool</div><div class="val">5,035 docs</div></div>
+    <div class="meta-item"><div class="label">Experiments</div><div class="val">3 linked</div></div>
+    <div class="meta-item"><div class="label">Date</div><div class="val">2026-08-25</div></div>
+  </div>
+</div>
+
+<div class="body">
+
+<!-- §1 Group Definitions -->
+<section class="section">
+  <div class="section-eyebrow">§ 1</div>
+  <h2>Group Definitions</h2>
+
+  <p>Three geometric groups partition the document pool per query, each defined as all pool documents inside a cosine-distance circle in embedding space.</p>
+
+  <div class="tw">
+    <table>
+      <thead>
+        <tr><th>Group</th><th>Circle center</th><th>Radius</th><th>Membership rule</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="bold" style="color:var(--g1)">G1</td>
+          <td>Query vector Q</td>
+          <td class="r">r₁ = dist(Q, GT)</td>
+          <td>dist(doc, Q) ≤ r₁</td>
+        </tr>
+        <tr>
+          <td class="bold" style="color:var(--g2)">G2</td>
+          <td>Normalized centroid of G3</td>
+          <td class="r">r₂ = dist(centroid, GT)</td>
+          <td>dist(doc, centroid) ≤ r₂</td>
+        </tr>
+        <tr>
+          <td class="bold" style="color:var(--g3)">G3</td>
+          <td>-</td>
+          <td>-</td>
+          <td>LLM score = 1.0</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="margin-top:8px;font-size:12px;color:var(--muted)">Distance = 1 − dot(a, b) for L2-normalised vectors. All DB vectors are unit vectors (HuggingFaceEmbedding normalize=True).</p>
+</section>
+
+<!-- §2 Main Results -->
+<section class="section">
+  <div class="section-eyebrow">§ 2</div>
+  <h2>Experiment 1 - G1 / G2 / G3 Group Analysis</h2>
+
+  <p>Ran over all 196 queries using the canonical 5,035-document pool. For each query, G1, G2, and G3 are computed and pairwise overlaps recorded.</p>
+
+  <h3>Group sizes</h3>
+  <div class="card-row">
+    <div class="card g1">
+      <div class="lbl">G1 - query circle</div>
+      <div class="val">3.13</div>
+      <div class="sub">mean docs · median 1.0</div>
+    </div>
+    <div class="card g2">
+      <div class="lbl">G2 - centroid circle</div>
+      <div class="val">9.72</div>
+      <div class="sub">mean docs · median 6.0</div>
+    </div>
+    <div class="card g3">
+      <div class="lbl">G3 - LLM-scored</div>
+      <div class="val">17.05</div>
+      <div class="sub">mean docs · median 18.0</div>
+    </div>
+  </div>
+
+  <h3>Center–GT distance</h3>
+  <div class="card-row">
+    <div class="card g1">
+      <div class="lbl">dist(Q, GT)</div>
+      <div class="val">0.173</div>
+      <div class="sub">mean cosine distance · median 0.154</div>
+    </div>
+    <div class="card g2">
+      <div class="lbl">dist(centroid, GT)</div>
+      <div class="val">0.098</div>
+      <div class="sub">mean cosine distance · median 0.086</div>
+    </div>
+  </div>
+
+  <h3>Density (docs per unit radius)</h3>
+  <div class="density-bar-wrap">
+    <div class="dbar">
+      <div class="dbar-label" style="color:var(--g1)">G1 (query center)</div>
+      <div class="dbar-track"><div class="dbar-fill" style="width:16.7%;background:var(--g1)"></div></div>
+      <div class="dbar-val" style="color:var(--g1)">15.4</div>
+    </div>
+    <div class="dbar">
+      <div class="dbar-label" style="color:var(--g2)">G2 (centroid center)</div>
+      <div class="dbar-track"><div class="dbar-fill" style="width:100%;background:var(--g2)"></div></div>
+      <div class="dbar-val" style="color:var(--g2)">92.5</div>
+    </div>
+  </div>
+
+  <h3>GT membership and overlaps</h3>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr><th>Metric</th><th class="r">G1</th><th class="r">G2</th><th class="r">G3</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>GT included (%)</td><td class="r">84.7%</td><td class="r">85.2%</td><td class="r best">94.9%</td></tr>
+        <tr><td>GT in all three (%)</td><td class="r" colspan="3">76.0%</td></tr>
+        <tr><td>Jaccard G1 ∩ G2</td><td class="r" colspan="3">0.326</td></tr>
+        <tr><td>Jaccard G1 ∩ G3</td><td class="r" colspan="3">0.125</td></tr>
+        <tr><td>Jaccard G2 ∩ G3</td><td class="r" colspan="3">0.336</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout info">
+    <strong>Finding:</strong> G2 is ~3× larger than G1 (9.72 vs 3.13 docs, mean) in
+    77.6% of queries, and has 6× higher density (92.5 vs 15.4 docs/radius).
+    The centroid is also 1.77× closer to GT (0.098 vs 0.173).
+    This raises a key question: <em>why?</em>
+  </div>
+</section>
+
+<!-- §3 Halfpoint -->
+<section class="section">
+  <div class="section-eyebrow">§ 3</div>
+  <h2>Experiment 2 - Halfpoint Experiment (Random Space Points)</h2>
+
+  <p>To test whether the GT neighborhood is inherently dense, 10 random unit vectors are generated per query at exactly cosine distance r₁/2 from GT. Each anchor's circle has radius r₁/2 - same distance-to-GT as a typical centroid, matching G2's convention.</p>
+
+  <h3>Construction (Gram-Schmidt)</h3>
+  <pre>u_perp = v − dot(v, GT) · GT      # remove GT component
+u_perp /= ‖u_perp‖                # unit vector ⊥ GT
+anchor = cos(θ)·GT + sin(θ)·u_perp  # where cos(θ) = 1 − r₁/2</pre>
+
+  <p>Verification: dot(anchor, GT) = cos(θ) → cosine_distance(anchor, GT) = r₁/2 ✓</p>
+
+  <h3>Results - 196 × 10 = 1,960 anchors</h3>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr><th>Group</th><th>Center</th><th class="r">Mean docs</th><th class="r">Median</th><th class="r">Mean density</th></tr>
+      </thead>
+      <tbody>
+        <tr><td style="color:var(--g1)">G1</td><td>Query Q, radius r₁</td><td class="r">3.18</td><td class="r">1.0</td><td class="r">15.6</td></tr>
+        <tr><td style="color:var(--hp)">Halfpoint (HP)</td><td>Random anchor, radius r₁/2</td><td class="r worst">0.82</td><td class="r">1.0</td><td class="r">11.0</td></tr>
+        <tr><td style="color:var(--g2)">G2 (reference)</td><td>Centroid, radius r₂</td><td class="r best">9.78</td><td class="r best">6.0</td><td class="r best">-</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>Queries where HP mean &gt; G1:</strong> 7.1% (14/196)</p>
+
+  <div class="callout warn">
+    <strong>Key result:</strong> Random points at the same distance from GT as the centroid
+    capture <em>fewer</em> docs (0.82) than G1 (3.18) - not more. The GT neighborhood
+    is <strong>not inherently dense in arbitrary directions.</strong> The centroid's
+    advantage is not a general property of proximity to GT.
+  </div>
+</section>
+
+<!-- §4 Pool-doc centroid -->
+<section class="section">
+  <div class="section-eyebrow">§ 4</div>
+  <h2>Experiment 3 - Pool-Document Centroid Experiment</h2>
+
+  <p>Instead of synthetic random points, use actual pool documents as circle centers.
+  For each query, find pool docs where dist(doc, GT) &lt; r₁ (closer to GT than the query),
+  sample up to 10, and use each as a center with radius = dist(doc, GT) - identical
+  convention to G2.</p>
+
+  <p>This tests whether the pool itself is structurally dense around GT.</p>
+
+  <h3>Results - 196 queries, 159 with ≥1 eligible pool doc</h3>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr><th>Group</th><th>Center</th><th class="r">Mean docs</th><th class="r">Median</th><th class="r">Mean density</th></tr>
+      </thead>
+      <tbody>
+        <tr><td style="color:var(--g1)">G1</td><td>Query Q, radius r₁</td><td class="r">3.18</td><td class="r">1.0</td><td class="r">15.6</td></tr>
+        <tr><td style="color:var(--accent)">Pool-doc candidate</td><td>Real pool doc, radius=dist(doc,GT)</td><td class="r best">10.12</td><td class="r best">6.5</td><td class="r best">59.6</td></tr>
+        <tr><td style="color:var(--g2)">G2 (true centroid)</td><td>G3 centroid, radius r₂</td><td class="r">9.78</td><td class="r">6.0</td><td class="r">92.5</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>Queries where candidate mean &gt; G1:</strong> 91.8% (146/159 valid queries)</p>
+
+  <div class="callout pos">
+    <strong>Key result:</strong> Real pool documents closer to GT than Q capture 10.12 docs
+    on average - nearly identical to G2's 9.78. The document pool is
+    <strong>structurally concentrated near GT.</strong> Any pool document near GT works as
+    well as the centroid for raw count; the centroid has the highest density (92.5 vs 59.6)
+    because it minimises total distance to the cluster, yielding the smallest radius.
+  </div>
+</section>
+
+<!-- §5 Interpretation -->
+<section class="section">
+  <div class="section-eyebrow">§ 5</div>
+  <h2>Unified Interpretation</h2>
+
+  <h3>The Query–Document Gap</h3>
+  <p>Queries and documents occupy different regions of embedding space. Because the retriever returns GT as the nearest document to Q, almost nothing in the pool is closer to Q than GT - G1 collapses to 1–3 docs on average. Documents near GT, however, are surrounded by other semantically similar documents. The pool clusters around GT in document space.</p>
+
+  <h3>Density comparison across all experiments</h3>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr><th>Anchor</th><th class="r">Mean docs</th><th class="r">Mean radius</th><th class="r">Docs / radius</th></tr>
+      </thead>
+      <tbody>
+        <tr><td style="color:var(--g1)">Query Q (G1)</td><td class="r">3.18</td><td class="r">0.173</td><td class="r worst">15.6</td></tr>
+        <tr><td style="color:var(--hp)">Random point at r₁/2 from GT (HP)</td><td class="r">0.82</td><td class="r">0.087</td><td class="r">11.0</td></tr>
+        <tr><td style="color:var(--accent)">Pool doc closer to GT than Q</td><td class="r">10.12</td><td class="r">~0.070</td><td class="r">59.6</td></tr>
+        <tr><td style="color:var(--g2)"><strong>G3 centroid (G2)</strong></td><td class="r best">9.78</td><td class="r best">0.098</td><td class="r best">92.5</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The centroid's superiority in density (92.5) vs raw pool docs (59.6) arises because the centroid minimizes total distance to all G3 members - it is the optimal center of the cluster, yielding the tightest radius for the same coverage.</p>
+</section>
+
+<!-- §6 Conclusions -->
+<section class="section">
+  <div class="section-eyebrow">§ 6</div>
+  <h2>Conclusions</h2>
+
+  <div class="concl">
+    <div class="concl-item">
+      <div class="concl-num">1</div>
+      <div class="concl-text">
+        <h4>G2 systematically outperforms G1</h4>
+        <p>In 77.6% of 196 queries, G2 captures more documents (~3× on average: 9.72 vs 3.13). The centroid anchors the circle inside the dense document cluster, not in query space.</p>
+      </div>
+    </div>
+    <div class="concl-item">
+      <div class="concl-num">2</div>
+      <div class="concl-text">
+        <h4>The GT neighborhood is not uniformly dense</h4>
+        <p>Random points at equal distance from GT capture only 0.82 docs - fewer than G1. The density advantage requires real document structure, not just proximity to GT.</p>
+      </div>
+    </div>
+    <div class="concl-item">
+      <div class="concl-num">3</div>
+      <div class="concl-text">
+        <h4>The document pool is structured around GT</h4>
+        <p>Real pool docs closer to GT than Q capture 10.12 docs (91.8% of queries beat G1). The pool is not uniform - it concentrates near semantically relevant content.</p>
+      </div>
+    </div>
+    <div class="concl-item">
+      <div class="concl-num">4</div>
+      <div class="concl-text">
+        <h4>The query–document gap drives the disparity</h4>
+        <p>Queries sit in a different embedding region than documents. Using Q as the circle center misses the document cluster entirely - G1's radius r₁ is "wasted" on empty query space.</p>
+      </div>
+    </div>
+    <div class="concl-item">
+      <div class="concl-num">5</div>
+      <div class="concl-text">
+        <h4>The centroid is special in density, not in raw count</h4>
+        <p>Any real pool doc near GT gives similar raw count (~10). The centroid has uniquely high density (92.5 vs 59.6) because it minimizes total cluster distance, yielding the smallest radius for the same coverage.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- §7 Output Files -->
+<section class="section">
+  <div class="section-eyebrow">§ 7</div>
+  <h2>Output Files</h2>
+  <div class="tw">
+    <table>
+      <thead><tr><th>File</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>csv/group_analysis/master_summary.csv</code></td><td>Per-query G1/G2/G3 sizes, overlaps, GT membership (196 rows)</td></tr>
+        <tr><td><code>csv/group_analysis/global_aggregates.csv</code></td><td>Global mean/median/std for all metrics</td></tr>
+        <tr><td><code>csv/group_analysis/per_query/query_NNN.csv</code></td><td>Per-doc membership flags, distances, scores per query</td></tr>
+        <tr><td><code>csv/halfpoint_groups/all_anchors.csv</code></td><td>1,960 rows (196 × 10 anchors) with HP group sizes and densities</td></tr>
+        <tr><td><code>csv/halfpoint_groups/per_query_summary.csv</code></td><td>Per-query HP aggregates vs G1 (196 rows)</td></tr>
+        <tr><td><code>csv/halfpoint_groups/global_aggregates.csv</code></td><td>Global halfpoint statistics</td></tr>
+        <tr><td><code>csv/pooldoc_centroid/all_candidates.csv</code></td><td>1,052 candidate-doc rows across 159 valid queries</td></tr>
+        <tr><td><code>csv/pooldoc_centroid/per_query_summary.csv</code></td><td>Per-query pool-doc centroid aggregates (196 rows)</td></tr>
+        <tr><td><code>csv/pooldoc_centroid/global_aggregates.csv</code></td><td>Global pool-doc centroid statistics</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</div>
+
+<div class="footer">
+  Run: <code>staged_run_2026-08-03_08-32-45</code> ·
+  Scripts: <code>analyze_groups.py</code>, <code>analyze_halfpoint_groups.py</code>, <code>analyze_pooldoc_centroid.py</code> ·
+  Shared data loader: <code>load_experiment_data.py</code> ·
+  Generated 2026-08-25
+</div>
+
+</body>
+</html>

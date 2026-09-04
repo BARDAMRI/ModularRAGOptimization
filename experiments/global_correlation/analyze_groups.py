@@ -17,7 +17,11 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import sys
 from sentence_transformers import SentenceTransformer
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "utility"))
+from similarity_calculator import cosine_distance
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -49,9 +53,7 @@ def extract_doc_text(doc_text_json: str) -> str:
         return str(doc_text_json)
 
 
-def cosine_dist(a: np.ndarray, b: np.ndarray) -> float:
-    """Cosine distance between two L2-normalised vectors (= 1 - dot)."""
-    return float(1.0 - np.dot(a, b))
+# cosine_distance imported from utility/similarity_calculator
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +176,7 @@ for _, qrow in queries_meta.iterrows():
     vecs_q = np.stack([doc_id_to_vec[d] for d in doc_ids_q])  # (n_pool, dim)
 
     # dist(query, GT) = cosine distance (both L2-normalised → 1 - dot)
-    dist_q_gt = cosine_dist(q_vec, gt_vec)
+    dist_q_gt = cosine_distance(q_vec, gt_vec)
 
     # dist(doc_i, query) for each pool doc
     dist_doc_to_query = 1.0 - vecs_q @ q_vec  # (n_pool,)
@@ -196,7 +198,7 @@ for _, qrow in queries_meta.iterrows():
         g3_vecs = vecs_q[g3_indices]
         centroid = g3_vecs.mean(axis=0)
         centroid_norm = centroid / np.linalg.norm(centroid)
-        dist_centroid_gt = cosine_dist(centroid_norm, gt_vec)
+        dist_centroid_gt = cosine_distance(centroid_norm, gt_vec)
         dist_doc_to_centroid = 1.0 - vecs_q @ centroid_norm
         g2_flags = (dist_doc_to_centroid <= dist_centroid_gt).astype(int)
         g2_doc_ids = set(np.array(doc_ids_q)[g2_flags.astype(bool)])

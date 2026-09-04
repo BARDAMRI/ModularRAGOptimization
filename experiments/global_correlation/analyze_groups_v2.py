@@ -2,7 +2,7 @@
 Group Analysis v2 — refactored from analyze_groups.py.
 
 Identical computation, restructured into functions:
-  cosine_dist()     — pairwise cosine distance between two unit vectors
+  cosine_distance() — imported from utility/similarity_calculator
   docs_in_circle()  — shared membership test for G1 and G2
   compute_g3()      — score-based G3 membership
   compute_centroid()— L2-normalised centroid of G3
@@ -12,11 +12,15 @@ Output goes to analysis/csv/group_analysis_v2/ for comparison with original.
 
 import json
 import sqlite3
+import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "utility"))
+from similarity_calculator import cosine_distance
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -49,9 +53,7 @@ def extract_doc_text(doc_text_json: str) -> str:
         return str(doc_text_json)
 
 
-def cosine_dist(a: np.ndarray, b: np.ndarray) -> float:
-    """Cosine distance between two L2-normalised vectors (= 1 − dot)."""
-    return float(1.0 - np.dot(a, b))
+# cosine_distance imported from utility/similarity_calculator
 
 
 def docs_in_circle(
@@ -212,7 +214,7 @@ for _, qrow in queries_meta.iterrows():
 
     vecs_q = np.stack([doc_id_to_vec[d] for d in doc_ids_q])  # (n_pool, dim)
 
-    dist_q_gt = cosine_dist(q_vec, gt_vec)
+    dist_q_gt = cosine_distance(q_vec, gt_vec)
     dist_doc_to_gt = 1.0 - vecs_q @ gt_vec   # kept for per-query CSV
 
     # --- G1 and G3 ---
@@ -222,7 +224,7 @@ for _, qrow in queries_meta.iterrows():
     # --- G2 ---
     centroid_norm = compute_centroid(vecs_q, g3_flags)
     if centroid_norm is not None:
-        dist_centroid_gt = cosine_dist(centroid_norm, gt_vec)
+        dist_centroid_gt = cosine_distance(centroid_norm, gt_vec)
         g2_flags, g2_doc_ids = docs_in_circle(vecs_q, doc_ids_q, centroid_norm, dist_centroid_gt)
     else:
         dist_centroid_gt = None

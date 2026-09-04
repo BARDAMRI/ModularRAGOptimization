@@ -63,7 +63,8 @@ DEFAULTS = dict(
     spot               = False,          # set True to use Spot (~60 % cheaper)
 )
 
-# Files we need from the project (excludes heavy data / results / storage)
+# Files we need from the project (excludes heavy data / results / storage).
+# Pipeline scripts now live under experiments/global_correlation/ — covered by "experiments/".
 UPLOAD_INCLUDE = [
     "configurations/",
     "experiments/",
@@ -72,14 +73,12 @@ UPLOAD_INCLUDE = [
     "vector_db/",
     "matrics/",
     "QACollection/",
-    "embed_full_pubmed.py",
-    "embed_and_rank.py",
-    "build_scoring_queue.py",
-    "score_from_queue.py",
-    "export_pool_artifacts.py",
     "requirements.txt",
     ".env",
 ]
+
+# Prefix for pipeline scripts on the remote (relative to remote_dir).
+_EXP_PREFIX = "experiments/global_correlation"
 
 # ---------------------------------------------------------------------------
 # Remote bootstrap script (runs as ubuntu on the EC2 instance)
@@ -654,7 +653,7 @@ PYEOF"""
         # Run embed_full_pubmed dry-run to trigger JSONL→Parquet conversion:
         schema_flags = _pubmed_schema_flags(cfg["pubmed_dataset"])
         convert_cmd = (
-            f"cd {remote_dir} && python3 embed_full_pubmed.py"
+            f"cd {remote_dir} && python3 {_EXP_PREFIX}/embed_full_pubmed.py"
             f" --dataset {pubmed_local}"
             f" {schema_flags}"
             f" --dry-run 0"
@@ -683,7 +682,7 @@ PYEOF"""
 
     ssh.run(
         f"tmux new-session -d -s phase0 "
-        f"'cd {remote_dir} && set -o pipefail && python3 embed_and_rank.py{rank_args} "
+        f"'cd {remote_dir} && set -o pipefail && python3 {_EXP_PREFIX}/embed_and_rank.py{rank_args} "
         f"2>&1 | tee /tmp/embed_log.txt; echo $? > /tmp/embed_exit.txt'",
         timeout=30,
     )
@@ -726,7 +725,7 @@ def step_phase0_embed(ssh: SSHClient, cfg: dict, remote_dir: str) -> None:
     # Quick smoke-test: stream 5 docs to verify dataset is reachable before
     # committing to the 8-hour full run.
     verify_cmd = (
-        f"cd {remote_dir} && python3 embed_full_pubmed.py"
+        f"cd {remote_dir} && python3 {_EXP_PREFIX}/embed_full_pubmed.py"
         f" --dataset {cfg['pubmed_dataset']}"
         f" {schema_flags}"
         f" --dry-run 5"
@@ -800,7 +799,7 @@ PYEOF"""
     ssh.run("tmux kill-session -t phase0 2>/dev/null || true", check=False, timeout=10)
     ssh.run(
         f"tmux new-session -d -s phase0 "
-        f"'cd {remote_dir} && set -o pipefail && python3 embed_full_pubmed.py{embed_args} "
+        f"'cd {remote_dir} && set -o pipefail && python3 {_EXP_PREFIX}/embed_full_pubmed.py{embed_args} "
         f"2>&1 | tee /tmp/embed_log.txt; echo $? > /tmp/embed_exit.txt'",
         timeout=30,
     )
@@ -831,7 +830,7 @@ def step_phase1_queue(ssh: SSHClient, cfg: dict, remote_dir: str) -> str:
     """Build scoring queue. Returns remote run_dir path."""
     print("\n[PHASE 1] Building scoring queue from Chroma...")
     cmd = (
-        f"cd {remote_dir} && set -o pipefail && python3 build_scoring_queue.py"
+        f"cd {remote_dir} && set -o pipefail && python3 {_EXP_PREFIX}/build_scoring_queue.py"
         f" --chroma-source pubmed_full"
         f" --num-queries {cfg['num_queries']}"
         f" --max-ranked-gt {cfg['max_ranked_gt']}"
@@ -860,7 +859,7 @@ def step_phase1_queue(ssh: SSHClient, cfg: dict, remote_dir: str) -> str:
 def step_export_artifacts(ssh: SSHClient, remote_run_dir: str, remote_dir: str, chroma_source: str) -> None:
     print("\n[EXPORT] Exporting rich metadata and embeddings...")
     cmd = (
-        f"cd {remote_dir} && python3 export_pool_artifacts.py"
+        f"cd {remote_dir} && python3 {_EXP_PREFIX}/export_pool_artifacts.py"
         f" --run-dir {remote_run_dir}"
         f" --chroma-source {chroma_source}"
         f" 2>&1 | tee /tmp/export_log.txt"

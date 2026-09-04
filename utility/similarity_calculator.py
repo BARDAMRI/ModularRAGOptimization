@@ -4,6 +4,32 @@ from typing import Callable, Union
 from enum import Enum
 
 
+def cosine_distance(a: np.ndarray, b: np.ndarray) -> float:
+    """
+    Cosine distance between two L2-normalised unit vectors.
+
+    Equivalent to 1 - cosine_similarity for unit vectors.
+    Clips the dot product to [-1, 1] to guard against floating-point
+    values slightly outside that range (e.g. 1.0000000002).
+
+    Assumes a and b are already L2-normalised (||a|| = ||b|| = 1).
+    For non-normalised vectors use cosine_distance_general().
+    """
+    return float(1.0 - np.clip(np.dot(a, b), -1.0, 1.0))
+
+
+def cosine_distance_general(a: np.ndarray, b: np.ndarray) -> float:
+    """
+    Cosine distance for arbitrary (possibly non-normalised) vectors.
+    Returns 1.0 if either vector is zero.
+    """
+    na = np.linalg.norm(a)
+    nb = np.linalg.norm(b)
+    if na == 0.0 or nb == 0.0:
+        return 1.0
+    return float(1.0 - np.clip(np.dot(a, b) / (na * nb), -1.0, 1.0))
+
+
 class SimilarityMethod(Enum):
     """Enumeration of available similarity methods."""
     COSINE = "cosine"

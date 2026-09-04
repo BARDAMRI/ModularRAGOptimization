@@ -1,0 +1,2 @@
+query_idx,candidate_idx,cand_doc_id,r1,cand_dist_gt,dist_centroid_gt,n_g1,n_g2_true,n_cand_circle,gt_in_cand,jaccard_vs_g1,jaccard_vs_g2,density_g1,density_cand,n_closer_docs,rag_failed
+131,0,23099192,0.23182308673858643,0.2071678638458252,0.19769150018692017,17,25,24,1,0.64,0.96,73.33178174428298,115.8480835515148,1,1
