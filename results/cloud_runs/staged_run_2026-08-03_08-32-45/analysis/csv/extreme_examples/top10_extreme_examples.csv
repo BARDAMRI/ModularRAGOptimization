@@ -1,0 +1,11 @@
+rank,query_idx,query_text,rag_failed,n_g1,n_g2,n_g3,gap_g2_minus_g1,r1_dist_Q_GT,r2_dist_C_GT,r2_lt_r1,gt_in_g1,gt_in_g2,gt_in_g3,g3_mean_dist_GT,g3_max_dist_GT,g3_spread_std,g2_only_count,g2_only_mean_dist_GT,g2_only_mean_dist_query,g1_and_g2_count,density_g1,density_g2,mechanism
+1,118,Does laparoscopic surgery decrease the risk of atrial fibrillation after foregut surgery?,0,1,68,4,67,0.158,0.3312,False,1,1,1,0.4741,0.7259,0.3234,67,0.5335,0.5616,1,6.33,205.32,A_large_r2
+2,37,Prognosis of well differentiated small hepatocellular carcinoma--is well differentiated hepatocellular carcinoma clinically early cancer?,0,1,42,31,41,0.2002,0.1525,True,1,0,1,0.2844,0.748,0.147,42,0.2592,0.2944,0,4.99,275.48,B_small_r2
+3,119,"The Main Gate Syndrome: a new format in mass-casualty victim ""surge"" management?",0,1,38,20,37,0.2209,0.1531,True,1,1,1,0.2556,0.3416,0.0717,37,0.2554,0.3234,1,4.53,248.18,B_small_r2
+4,190,Do patients with localized prostate cancer treatment really want more aggressive treatment?,1,25,56,25,31,0.292,0.2232,True,0,0,0,0.3662,0.6231,0.1268,32,0.4613,0.4741,24,85.62,250.92,B_small_r2
+5,29,Is halofantrine ototoxic?,0,1,26,10,25,0.2349,0.2445,False,1,1,0,0.3536,0.6646,0.1139,25,0.3129,0.3142,1,4.26,106.33,A_large_r2
+6,96,Can increases in the cigarette tax rate be linked to cigarette retail prices?,0,1,24,19,23,0.247,0.1741,True,1,1,1,0.2689,0.3368,0.0747,23,0.2833,0.3266,1,4.05,137.85,B_small_r2
+7,43,Can a practicing surgeon detect early lymphedema reliably?,0,0,22,14,22,0.2894,0.1656,True,0,1,1,0.2729,0.3889,0.0878,22,0.2758,0.3465,0,0.0,132.82,B_small_r2
+8,85,Treatment of contralateral hydrocele in neonatal testicular torsion: Is less more?,0,1,23,15,22,0.0764,0.0809,False,1,1,1,0.1268,0.1651,0.0378,22,0.1321,0.1712,1,13.09,284.26,A_large_r2
+9,114,Perioperative care in an animal model for training in abdominal surgery: is it necessary a preoperative fasting?,0,1,23,19,22,0.1395,0.1376,True,1,1,1,0.2289,0.4238,0.0751,22,0.2246,0.2494,1,7.17,167.1,B_small_r2
+10,153,Stretch-sensitive KCNQ1 mutation A link between genetic and environmental factors in the pathogenesis of atrial fibrillation?,1,2,24,33,22,0.1826,0.1431,True,1,1,1,0.3152,0.8516,0.2114,22,0.1815,0.2137,2,10.95,167.71,B_small_r2

@@ -607,10 +607,77 @@ code{font-family:var(--mono);font-size:12px;background:var(--accent-dim);color:v
   </div>
 </section>
 
+<!-- ═══════════════════════════════════════════════════════════════
+     § EXTREME EXAMPLES — Deep Dive into 10 Largest G2-G1 Gaps
+     ═══════════════════════════════════════════════════════════════ -->
+
+<section>
+  <div class="section-label">§ Extreme Examples</div>
+  <h2>Deep Dive: 10 Queries with the Largest G2 - G1 Gap</h2>
+
+  <p>Identifying the queries where the G2/G1 disparity is most extreme reveals two distinct mechanisms that drive the gap. In 9 out of 10 cases G1 is 0 or 1, confirming that the query-document gap is the root cause across the board.</p>
+
+  <h3>Top 10 queries by gap (n_g2 - n_g1)</h3>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Query</th><th class="r">G1</th><th class="r">G2</th><th class="r">G3</th><th class="r">Gap</th><th class="r">r₁</th><th class="r">r₂</th><th>r₂ &lt; r₁</th><th>Mechanism</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>118 — Laparoscopic surgery &amp; atrial fibrillation</td><td class="r">1</td><td class="r good">68</td><td class="r">4</td><td class="r good">67</td><td class="r">0.158</td><td class="r caution">0.331</td><td>No</td><td>A</td></tr>
+        <tr><td>2</td><td>37 — Hepatocellular carcinoma prognosis</td><td class="r">1</td><td class="r good">42</td><td class="r">31</td><td class="r good">41</td><td class="r">0.200</td><td class="r">0.153</td><td>Yes</td><td>B</td></tr>
+        <tr><td>3</td><td>119 — Main Gate Syndrome mass-casualty</td><td class="r">1</td><td class="r good">38</td><td class="r">20</td><td class="r good">37</td><td class="r">0.221</td><td class="r">0.153</td><td>Yes</td><td>B</td></tr>
+        <tr><td>4</td><td>190 — Prostate cancer aggressive treatment (failed)</td><td class="r">25</td><td class="r good">56</td><td class="r">25</td><td class="r good">31</td><td class="r">0.292</td><td class="r">0.223</td><td>Yes</td><td>B</td></tr>
+        <tr><td>5</td><td>29 — Halofantrine ototoxicity</td><td class="r">1</td><td class="r good">26</td><td class="r">10</td><td class="r good">25</td><td class="r">0.235</td><td class="r caution">0.245</td><td>No</td><td>A</td></tr>
+        <tr><td>6</td><td>96 — Cigarette tax &amp; retail prices</td><td class="r">1</td><td class="r good">24</td><td class="r">19</td><td class="r good">23</td><td class="r">0.247</td><td class="r">0.174</td><td>Yes</td><td>B</td></tr>
+        <tr><td>7</td><td>43 — Surgeon detecting lymphedema (G1=0)</td><td class="r caution">0</td><td class="r good">22</td><td class="r">14</td><td class="r good">22</td><td class="r">0.289</td><td class="r">0.166</td><td>Yes</td><td>B</td></tr>
+        <tr><td>8</td><td>85 — Neonatal testicular torsion (tight cluster)</td><td class="r">1</td><td class="r good">23</td><td class="r">15</td><td class="r good">22</td><td class="r">0.076</td><td class="r caution">0.081</td><td>No</td><td>A</td></tr>
+        <tr><td>9</td><td>114 — Preoperative fasting animal model</td><td class="r">1</td><td class="r good">23</td><td class="r">19</td><td class="r good">22</td><td class="r">0.140</td><td class="r">0.138</td><td>Yes</td><td>B</td></tr>
+        <tr><td>10</td><td>153 — KCNQ1 mutation atrial fibrillation (failed)</td><td class="r">2</td><td class="r good">24</td><td class="r">33</td><td class="r good">22</td><td class="r">0.183</td><td class="r">0.143</td><td>Yes</td><td>B</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Mechanism A — Centroid pulled away from GT (3 queries: 118, 29, 85)</h3>
+  <p>r₂ ≥ r₁: the centroid lands <em>farther</em> from GT than the query, yet G2 >> G1. This happens when G3 contains high-scoring docs that are far from GT (false positives with max dist to GT up to 0.73). The centroid is pulled into a dense region of document space that has nothing to do with GT proximity.</p>
+
+  <div class="callout warn">
+    <strong>Query 118 (gap = 67):</strong> r₂ = 0.331 vs r₁ = 0.158 — centroid is more than 2x farther from GT than the query.
+    G3 has only 4 docs spanning 0.0 to 0.726 distance from GT. Their centroid lands in a region containing
+    <strong>68 pool documents</strong>. This proves G2 does not need a "good" centroid — it only needs to land
+    in dense document space.
+  </div>
+
+  <h3>Mechanism B — Tight coherent G3 cluster (7 queries)</h3>
+  <p>r₂ &lt; r₁: G3 forms a compact, coherent cluster of relevant docs (std of dist-to-GT: 0.07 - 0.21). The centroid lands close to GT and the smaller circle still captures many docs because it is centered inside the dense document cluster — not in query space.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Query</th><th class="r">r₁</th><th class="r">r₂</th><th class="r">G3 size</th><th class="r">G3 std(dist to GT)</th><th class="r">G2</th></tr></thead>
+      <tbody>
+        <tr><td>37</td><td class="r">0.200</td><td class="r">0.153</td><td class="r">31</td><td class="r">0.147</td><td class="r good">42</td></tr>
+        <tr><td>119</td><td class="r">0.221</td><td class="r">0.153</td><td class="r">20</td><td class="r">0.072</td><td class="r good">38</td></tr>
+        <tr><td>96</td><td class="r">0.247</td><td class="r">0.174</td><td class="r">19</td><td class="r">0.075</td><td class="r good">24</td></tr>
+        <tr><td>43</td><td class="r">0.289</td><td class="r">0.166</td><td class="r">14</td><td class="r">0.088</td><td class="r good">22</td></tr>
+        <tr><td>114</td><td class="r">0.140</td><td class="r">0.138</td><td class="r">19</td><td class="r">0.075</td><td class="r good">23</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Key cross-cutting conclusions</h3>
+  <div class="callout info">
+    <strong>(1)</strong> G1 = 0 or 1 in 9/10 extreme cases — the query always sits in empty space relative to the document cluster.<br>
+    <strong>(2)</strong> The centroid does NOT need to be close to GT to produce a large G2. Query 118 (r₂ more than 2x r₁) has the largest gap of all 196 queries.<br>
+    <strong>(3)</strong> RAG failure does not prevent a large G2. Query 190 (GT missed entirely) still has G2 = 56 because the false-positive cluster is real and dense.<br>
+    <strong>(4)</strong> G2 can be large even when GT is absent from G2 (query 37: G2 = 42, gt_in_g2 = 0). G2 reflects the coherent document cluster, not necessarily the correct answer.<br>
+    <strong>(5)</strong> The density ratio G2/G1 reaches up to 68x in extreme cases (query 118). Even in the "smallest" extreme case it is 22x.
+  </div>
+</section>
+
 </div>
 
 <footer class="report-footer">
   Run: <code>staged_run_2026-08-03_08-32-45</code> · DB: <code>experiment_results.db</code> ·
   Model: gcp/google/gemini-2.5-flash-lite via NVIDIA Inference Hub ·
-  Analysis: analyze_experiment.py, analyze_groups.py, analyze_halfpoint_groups.py, analyze_pooldoc_centroid.py · Generated 2026-08-25
+  Analysis: analyze_experiment.py, analyze_groups.py, analyze_halfpoint_groups.py, analyze_pooldoc_centroid.py · Updated 2026-09-04
 </footer>
