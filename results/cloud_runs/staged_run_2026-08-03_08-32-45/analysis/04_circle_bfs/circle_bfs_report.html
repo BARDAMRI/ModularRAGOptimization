@@ -1,0 +1,470 @@
+<meta charset="utf-8">
+<title>Circle & BFS Experiments</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#F3F6FA; --surface:#fff; --surface2:#EDF1F7; --border:#D4DCE8;
+  --text:#1B2B3A; --text2:#4A5C6A; --text3:#7A8FA0;
+  --accent:#2563EB; --accent-bg:#EEF4FF;
+  --green:#16A34A; --green-bg:#F0FDF4; --green-bd:#BBF7D0;
+  --red:#DC2626; --red-bg:#FEF2F2; --red-bd:#FECACA;
+  --amber:#B45309; --amber-bg:#FFFBEB; --amber-bd:#FDE68A;
+  --mono:'IBM Plex Mono',monospace;
+  --serif:'IBM Plex Serif',Georgia,serif;
+  --sans:'Inter',system-ui,sans-serif;
+}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1720; --surface:#172030; --surface2:#1E2A3A; --border:#2A3B4D;
+  --text:#E2EAF2; --text2:#8BA3B8; --text3:#5A7A90;
+  --accent:#60A5FA; --accent-bg:#1A2B45;
+  --green:#4ADE80; --green-bg:#052010; --green-bd:#166534;
+  --red:#F87171; --red-bg:#1F0A0A; --red-bd:#7B2020;
+  --amber:#FCD34D; --amber-bg:#1C1300; --amber-bd:#92400E;
+}}
+:root[data-theme="dark"]{
+  --bg:#0F1720; --surface:#172030; --surface2:#1E2A3A; --border:#2A3B4D;
+  --text:#E2EAF2; --text2:#8BA3B8; --text3:#5A7A90;
+  --accent:#60A5FA; --accent-bg:#1A2B45;
+  --green:#4ADE80; --green-bg:#052010; --green-bd:#166534;
+  --red:#F87171; --red-bg:#1F0A0A; --red-bd:#7B2020;
+  --amber:#FCD34D; --amber-bg:#1C1300; --amber-bd:#92400E;
+}
+
+body{
+  font-family:var(--sans);background:var(--bg);color:var(--text);
+  font-size:14px;line-height:1.7;max-width:880px;margin:0 auto;
+  padding:40px 28px 100px;
+}
+h1,h2,h3{font-family:var(--serif);text-wrap:balance;}
+p{color:var(--text2);margin-bottom:12px;}
+p strong{color:var(--text);}
+a{color:var(--accent);}
+
+/* ── Header ── */
+.doc-header{padding-bottom:20px;border-bottom:2px solid var(--border);margin-bottom:36px;}
+.doc-header h1{font-size:24px;font-weight:700;margin-bottom:8px;}
+.doc-meta{display:flex;flex-wrap:wrap;gap:18px;font-size:12px;color:var(--text3);font-family:var(--mono);}
+.doc-meta span::before{content:'';display:inline-block;width:6px;height:6px;
+  border-radius:50%;background:var(--accent);margin-right:6px;vertical-align:middle;}
+
+/* ── Stat banner ── */
+.banner{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:40px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:14px 16px;border-top:3px solid var(--accent);}
+.stat.g{border-top-color:var(--green);} .stat.r{border-top-color:var(--red);}
+.stat.a{border-top-color:var(--amber);}
+.stat .num{font-family:var(--mono);font-size:22px;font-weight:500;
+  color:var(--accent);font-variant-numeric:tabular-nums;}
+.stat.g .num{color:var(--green);} .stat.r .num{color:var(--red);}
+.stat.a .num{color:var(--amber);}
+.stat .lbl{font-size:10.5px;color:var(--text3);text-transform:uppercase;
+  letter-spacing:.07em;margin-top:4px;}
+
+/* ── Sections ── */
+.section{margin-bottom:52px;}
+.eyebrow{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);font-weight:600;font-family:var(--mono);margin-bottom:6px;}
+.section h2{font-size:20px;font-weight:700;margin-bottom:6px;}
+.section-sub{font-size:13px;color:var(--text3);margin-bottom:18px;font-style:italic;}
+.section h3{font-size:14px;font-weight:600;color:var(--text);margin:22px 0 8px;}
+
+/* ── Tables ── */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px;margin:12px 0 20px;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{background:var(--surface2);padding:8px 12px;text-align:left;font-size:11px;
+  font-weight:600;color:var(--text2);border-bottom:2px solid var(--border);white-space:nowrap;}
+td{padding:7px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.nr{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.row-best td{background:var(--green-bg)!important;}
+.row-best td.nr{color:var(--green);font-weight:600;}
+.row-worst td{background:var(--red-bg)!important;}
+.row-sweet td{background:var(--amber-bg)!important;}
+.row-sweet td.nr{color:var(--amber);font-weight:600;}
+.badge{display:inline-block;font-size:9.5px;font-weight:700;padding:1px 7px;
+  border-radius:3px;font-family:var(--mono);vertical-align:middle;margin-left:5px;}
+.badge-best{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);}
+.badge-sweet{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd);}
+.badge-worst{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);}
+
+/* ── Callouts ── */
+.callout{border-radius:6px;padding:13px 16px;margin:16px 0;font-size:13px;
+  border-left:3px solid;line-height:1.65;}
+.callout strong{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+  margin-bottom:4px;font-family:var(--mono);}
+.call-green{background:var(--green-bg);border-color:var(--green);color:var(--text2);}
+.call-red{background:var(--red-bg);border-color:var(--red);color:var(--text2);}
+.call-amber{background:var(--amber-bg);border-color:var(--amber);color:var(--text2);}
+.call-blue{background:var(--accent-bg);border-color:var(--accent);color:var(--text2);}
+
+/* ── Alpha bar chart ── */
+.alpha-chart{margin:14px 0 20px;}
+.alpha-row{display:flex;align-items:center;gap:8px;margin:3px 0;}
+.alpha-lbl{width:190px;flex-shrink:0;font-size:11px;font-family:var(--mono);
+  color:var(--text2);text-align:right;}
+.alpha-track{flex:1;height:18px;background:var(--surface2);border-radius:3px;
+  overflow:hidden;position:relative;}
+.alpha-bar{height:100%;border-radius:3px;display:flex;align-items:center;
+  padding:0 7px;font-size:9.5px;font-weight:600;color:#fff;white-space:nowrap;}
+.alpha-pct{font-family:var(--mono);font-size:11px;color:var(--text3);
+  width:40px;text-align:right;flex-shrink:0;}
+.alpha-ref{position:absolute;top:0;bottom:0;width:2px;background:rgba(0,0,0,.22);pointer-events:none;}
+
+/* ── Conclusion grid ── */
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
+.ccard{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:15px 17px;}
+.ccard h4{font-size:13px;font-weight:600;margin-bottom:6px;color:var(--text);}
+.ccard p{font-size:12.5px;margin:0;}
+@media(max-width:580px){.cgrid{grid-template-columns:1fr;}}
+
+/* ── Formula ── */
+.formula{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);
+  border-radius:4px;padding:10px 16px;font-family:var(--mono);font-size:12px;
+  margin:10px 0 16px;overflow-x:auto;color:var(--text);line-height:1.8;}
+</style>
+
+<!-- ══ HEADER ══════════════════════════════════════════════════════════ -->
+<div class="doc-header">
+  <h1>Circle &amp; BFS Experiments</h1>
+  <div class="doc-meta">
+    <span>staged_run_2026-08-03_08-32-45</span>
+    <span>196 queries &middot; 5,035 pool docs</span>
+    <span>all-mpnet-base-v2 &middot; L2-normalised</span>
+    <span>Script: analyze_circle_and_bfs.py</span>
+  </div>
+</div>
+
+<!-- ══ BANNER ═══════════════════════════════════════════════════════════ -->
+<div class="banner">
+  <div class="stat r"><div class="num">0</div><div class="lbl">Q_CIRCLE avg size (empty in every query)</div></div>
+  <div class="stat g"><div class="num">0.85</div><div class="lbl">GT_CIRCLE avg size (non-zero in 23% of queries)</div></div>
+  <div class="stat g"><div class="num">70.4%</div><div class="lbl">GT at rank 1, dist(Q) only - Baseline 1</div></div>
+  <div class="stat a"><div class="num">a=0.93</div><div class="lbl">Best hybrid alpha - highest top-1, same mean rank</div></div>
+  <div class="stat"><div class="num">+1pp</div><div class="lbl">Max top-1 gain of any hybrid over Baseline 1</div></div>
+  <div class="stat r"><div class="num">14.8%</div><div class="lbl">GT at rank 1, centroid only - Baseline 2</div></div>
+</div>
+
+<!-- ══ KEY TERMS ═════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">Terminology</div>
+  <h2>Key Terms</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Query (Q)</strong></td><td>The search query, represented as an embedding vector in 768-dimensional space.</td></tr>
+      <tr><td><strong>GT (Ground Truth)</strong></td><td>The single correct document for a given query &mdash; the document the retriever is supposed to find.</td></tr>
+      <tr><td><strong>Pool</strong></td><td>The full set of 5,035 candidate documents that are ranked for each query.</td></tr>
+      <tr><td><strong>r<sub>1</sub></strong></td><td>The cosine distance between Q and GT: <code>r1 = dist(Q, GT)</code>. It is the "gap" the retriever must close &mdash; smaller r1 means GT is already close to Q in embedding space.</td></tr>
+      <tr><td><strong>Cosine distance</strong></td><td>1 &minus; dot(a, b) for L2-normalised vectors. Ranges from 0 (identical) to 2 (opposite). All vectors here are L2-normalised, so dot product equals cosine similarity.</td></tr>
+      <tr><td><strong>BFS rank</strong></td><td>The position of GT when all pool documents are sorted by a scoring function f (rank 1 = closest / best). Lower rank = fewer steps to find GT.</td></tr>
+      <tr><td><strong>G3</strong></td><td>Documents that received a perfect relevance score (1.0) from the LLM judge. Mean size: 17 docs per query.</td></tr>
+      <tr><td><strong>Centroid</strong></td><td>The normalised mean embedding of all G3 documents for a given query. Acts as a "centre of mass" of the relevant cluster. This is an oracle &mdash; it requires LLM scores and is not available at real retrieval time.</td></tr>
+      <tr><td><strong>Q_CIRCLE / GT_CIRCLE</strong></td><td>The set of pool documents that fall within a circle of radius r<sub>1</sub>/2, centred on Q or GT respectively.</td></tr>
+      <tr><td><strong>Top-1 / Top-10</strong></td><td>Percentage of queries where GT lands at rank 1 (or within the top 10) under a given strategy.</td></tr>
+    </tbody>
+  </table></div>
+</div>
+
+<!-- ══ EXP 1 ════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">Experiment 1</div>
+  <h2>Q_CIRCLE vs GT_CIRCLE &mdash; radius = r<sub>1</sub>/2</h2>
+  <p class="section-sub">Do query vectors have neighbours in document space, the same way GT vectors do?</p>
+
+  <p><strong>Setup.</strong> For every query, draw two circles of radius r<sub>1</sub>/2 &mdash; one centred on Q, one on GT &mdash; and count how many pool documents fall inside each. GT is excluded from its own circle.</p>
+
+  <div class="formula">r<sub>1</sub>      = dist(Q, GT)   [cosine distance]
+radius  = r<sub>1</sub> / 2
+Q_CIRCLE  = { doc ∈ pool : dist(doc, Q)  &le; radius }
+GT_CIRCLE = { doc ∈ pool : dist(doc, GT) &le; radius } \ { GT itself }</div>
+
+  <h3>Context &mdash; r<sub>1</sub> distribution across 196 queries</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Metric</th><th class="nr">Min</th><th class="nr">Mean</th><th class="nr">Median</th><th class="nr">Max</th></tr></thead>
+    <tbody>
+      <tr><td>r<sub>1</sub> = dist(Q, GT)</td><td class="nr">0.061</td><td class="nr">0.173</td><td class="nr">0.154</td><td class="nr">0.648</td></tr>
+      <tr><td>radius = r<sub>1</sub>/2</td><td class="nr">0.030</td><td class="nr">0.087</td><td class="nr">0.077</td><td class="nr">0.324</td></tr>
+      <tr><td>n_g3 (LLM score = 1.0)</td><td class="nr">3</td><td class="nr">17.1</td><td class="nr">18</td><td class="nr">38</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Circle size comparison</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr>
+      <th>Circle</th><th>Centre</th>
+      <th class="nr">Mean docs</th><th class="nr">Max docs</th>
+      <th class="nr">Always empty</th><th class="nr">Has &ge;1 doc</th>
+      <th class="nr">Mean when non-zero</th>
+    </tr></thead>
+    <tbody>
+      <tr class="row-worst">
+        <td><strong>Q_CIRCLE</strong></td><td>Query Q</td>
+        <td class="nr">0.000</td><td class="nr">0</td>
+        <td class="nr">196 / 196</td><td class="nr">0 / 196</td>
+        <td class="nr">&mdash;</td>
+      </tr>
+      <tr class="row-best">
+        <td><strong>GT_CIRCLE</strong></td><td>Ground Truth</td>
+        <td class="nr">0.852</td><td class="nr">12</td>
+        <td class="nr">151 / 196</td>
+        <td class="nr"><strong>45 / 196 (23%)</strong></td>
+        <td class="nr">3.71</td>
+      </tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout call-green">
+    <strong>Finding &mdash; hypothesis confirmed (absolutely)</strong>
+    Q_CIRCLE is empty in every single one of the 196 queries. No pool document falls within r<sub>1</sub>/2 of any query vector. GT_CIRCLE, by contrast, has at least one neighbour in 23% of queries (up to 12 docs). The asymmetry is total: queries are geometric outliers in document space &mdash; not a matter of threshold, but of structure.
+  </div>
+  <div class="callout call-amber">
+    <strong>Caveat</strong>
+    At radius r<sub>1</sub>/2 (mean &asymp; 0.087 cosine), both circles are small relative to a 5,035-doc pool in 768D. 77% of queries have GT_CIRCLE empty as well, so the comparison is uninformative for those. The asymmetry is still decisive: GT sometimes has neighbours; Q never does.
+  </div>
+</div>
+
+<!-- ══ EXP 2 ════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">Experiment 2</div>
+  <h2>BFS Rank Comparison &mdash; Strategies for Finding GT</h2>
+  <p class="section-sub">Does mixing centroid distance into the retrieval function improve GT recovery?</p>
+
+  <p><strong>Setup.</strong> Rank all 5,035 pool documents by a scoring function f. The rank of GT equals the number of BFS steps needed to reach it. Lower = better. The centroid is the normalised mean embedding of G3 docs (LLM score = 1.0) &mdash; an oracle not available at real retrieval time.</p>
+
+  <div class="formula">Baseline 1 : f = dist(Q)
+Baseline 2 : f = dist(Centroid)                              [oracle]
+Hybrid 1   : f = &alpha;&middot;dist(Q) + &beta;&middot;dist(Centroid),  &alpha; > &beta; > 0
+Hybrid 2   : f = (dist(Q), dist(Centroid))       [lexicographic]
+Hybrid 3   : top-k by dist(Q)  &rarr;  rerank by dist(Centroid)</div>
+
+  <h3>Baselines</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr>
+      <th>Strategy</th><th>f(doc)</th>
+      <th class="nr">Mean rank</th><th class="nr">Median</th>
+      <th class="nr">Top-1</th><th class="nr">Top-10</th><th class="nr">Top-50</th>
+    </tr></thead>
+    <tbody>
+      <tr class="row-best">
+        <td><strong>Baseline 1</strong> <span class="badge badge-best">best overall</span></td>
+        <td>dist(Q)</td>
+        <td class="nr">3.3</td><td class="nr">1</td>
+        <td class="nr">70.4%</td><td class="nr">91.8%</td><td class="nr">100.0%</td>
+      </tr>
+      <tr class="row-worst">
+        <td>Baseline 2</td>
+        <td>dist(Centroid)</td>
+        <td class="nr">9.9</td><td class="nr">6</td>
+        <td class="nr">14.8%</td><td class="nr">62.8%</td><td class="nr">99.0%</td>
+      </tr>
+    </tbody>
+  </table></div>
+
+  <p>The median rank of Baseline 1 is 1 &mdash; in the typical query, GT is simply the nearest neighbour to Q. The 30% of cases where this fails pull the mean up to 3.3. Baseline 2 (centroid alone) performs poorly because the centroid points toward a cluster of relevant documents, not specifically toward GT.</p>
+
+  <h3>Hybrid 1 &mdash; &alpha; &middot; dist(Q) + &beta; &middot; dist(Centroid)</h3>
+  <p style="font-size:12px;color:var(--text3);margin-bottom:8px;">Top-1 accuracy across &alpha; values. Vertical line = Baseline 1 reference (70.4%). All &alpha; satisfy &alpha; &gt; &beta; (= 1−&alpha;), i.e. &alpha; &gt; 0.5.</p>
+
+  <div class="alpha-chart" id="alpha-chart"></div>
+
+  <div class="tbl-wrap"><table>
+    <thead><tr>
+      <th>&alpha;</th><th>&beta; = 1−&alpha;</th>
+      <th class="nr">Mean rank</th><th class="nr">Median</th>
+      <th class="nr">Top-1</th><th class="nr">Top-10</th>
+    </tr></thead>
+    <tbody>
+      <tr class="row-best"><td>1.00 <span class="badge badge-best">Baseline 1</span></td><td>0.00</td><td class="nr">3.3</td><td class="nr">1</td><td class="nr">70.4%</td><td class="nr">91.8%</td></tr>
+      <tr><td>0.99</td><td>0.01</td><td class="nr">3.3</td><td class="nr">1</td><td class="nr">70.4%</td><td class="nr">91.8%</td></tr>
+      <tr><td>0.97</td><td>0.03</td><td class="nr">3.3</td><td class="nr">1</td><td class="nr">70.4%</td><td class="nr">91.8%</td></tr>
+      <tr><td>0.95</td><td>0.05</td><td class="nr">3.3</td><td class="nr">1</td><td class="nr">70.9%</td><td class="nr">91.8%</td></tr>
+      <tr class="row-sweet"><td>0.93 <span class="badge badge-sweet">Pareto-optimal</span></td><td>0.07</td><td class="nr">3.3</td><td class="nr">1</td><td class="nr"><strong>71.4%</strong></td><td class="nr">90.8%</td></tr>
+      <tr class="row-sweet"><td>0.91</td><td>0.09</td><td class="nr">3.4</td><td class="nr">1</td><td class="nr"><strong>71.4%</strong></td><td class="nr">90.8%</td></tr>
+      <tr class="row-sweet"><td>0.90</td><td>0.10</td><td class="nr">3.4</td><td class="nr">1</td><td class="nr"><strong>71.4%</strong></td><td class="nr">90.8%</td></tr>
+      <tr><td>0.85</td><td>0.15</td><td class="nr">3.4</td><td class="nr">1</td><td class="nr">70.9%</td><td class="nr">90.8%</td></tr>
+      <tr><td>0.80</td><td>0.20</td><td class="nr">3.5</td><td class="nr">1</td><td class="nr">70.4%</td><td class="nr">90.3%</td></tr>
+      <tr><td>0.75</td><td>0.25</td><td class="nr">3.6</td><td class="nr">1</td><td class="nr">67.9%</td><td class="nr">89.8%</td></tr>
+      <tr><td>0.70</td><td>0.30</td><td class="nr">3.7</td><td class="nr">1</td><td class="nr">67.9%</td><td class="nr">89.8%</td></tr>
+      <tr><td>0.60</td><td>0.40</td><td class="nr">4.1</td><td class="nr">1</td><td class="nr">64.3%</td><td class="nr">87.2%</td></tr>
+      <tr><td>0.51</td><td>0.49</td><td class="nr">4.4</td><td class="nr">1</td><td class="nr">59.7%</td><td class="nr">87.2%</td></tr>
+      <tr class="row-worst"><td>0.00 <span class="badge badge-worst">Baseline 2</span></td><td>1.00</td><td class="nr">9.9</td><td class="nr">6</td><td class="nr">14.8%</td><td class="nr">62.8%</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>The sweet spot is <strong>&alpha; = 0.93</strong>: it achieves the best top-1 accuracy (71.4%) while keeping mean rank equal to Baseline 1 (3.3). At &alpha; = 0.91 the same top-1 is reached, but mean rank worsens to 3.4 &mdash; so 0.93 Pareto-dominates 0.91. The gain over pure dist(Q) is only +1.0 percentage point (&asymp; 2 queries out of 196), and top-10 drops by 1%, so the practical benefit is marginal. Note that the constraint &alpha; + &beta; = 1 is without loss of generality: only the ratio &alpha;/&beta; affects ranking order.</p>
+
+  <h3>Hybrid 2 &mdash; Lexicographic</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Strategy</th><th class="nr">Mean rank</th><th class="nr">Top-1</th><th class="nr">Top-10</th></tr></thead>
+    <tbody>
+      <tr><td>Hybrid 2 &mdash; lex(dist Q, dist Centroid)</td><td class="nr">3.3</td><td class="nr">70.4%</td><td class="nr">91.8%</td></tr>
+      <tr class="row-best"><td>Baseline 1 &mdash; dist(Q)</td><td class="nr">3.3</td><td class="nr">70.4%</td><td class="nr">91.8%</td></tr>
+    </tbody>
+  </table></div>
+  <p>Identical to Baseline 1. Cosine distances are continuous floats &mdash; exact ties almost never occur, so the centroid tiebreak never activates.</p>
+
+  <h3>Hybrid 3 &mdash; top-k by dist(Q) &rarr; rerank by dist(Centroid)</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr>
+      <th>k</th>
+      <th class="nr">Mean rank</th><th class="nr">Median</th>
+      <th class="nr">Top-1</th><th class="nr">Top-10</th><th class="nr">Top-50</th>
+    </tr></thead>
+    <tbody>
+      <tr class="row-best"><td>No filter (Baseline 1)</td><td class="nr">3.3</td><td class="nr">1</td><td class="nr">70.4%</td><td class="nr">91.8%</td><td class="nr">100.0%</td></tr>
+      <tr><td>k = 10</td><td class="nr">5.1</td><td class="nr">4</td><td class="nr">17.9%</td><td class="nr">91.8%</td><td class="nr">100.0%</td></tr>
+      <tr><td>k = 20</td><td class="nr">7.9</td><td class="nr">5</td><td class="nr">15.3%</td><td class="nr">67.9%</td><td class="nr">100.0%</td></tr>
+      <tr><td>k = 50</td><td class="nr">9.5</td><td class="nr">6</td><td class="nr">14.8%</td><td class="nr">63.3%</td><td class="nr">100.0%</td></tr>
+      <tr><td>k = 100</td><td class="nr">9.6</td><td class="nr">6</td><td class="nr">14.8%</td><td class="nr">62.8%</td><td class="nr">99.5%</td></tr>
+      <tr><td>k = 200</td><td class="nr">9.7</td><td class="nr">6</td><td class="nr">14.8%</td><td class="nr">62.8%</td><td class="nr">99.5%</td></tr>
+      <tr class="row-worst"><td>k = 500 (&asymp; Baseline 2)</td><td class="nr">9.8</td><td class="nr">6</td><td class="nr">14.8%</td><td class="nr">62.8%</td><td class="nr">99.0%</td></tr>
+    </tbody>
+  </table></div>
+  <p>At k = 10, top-10 recall is preserved (91.8%) because GT is captured by the filter whenever it was in the top-10 under Baseline 1 &mdash; but the centroid reranks it to position &asymp; 4 on average, collapsing top-1 to 17.9%. As k grows, the strategy converges to pure Baseline 2. No k value improves over Baseline 1.</p>
+</div>
+
+<!-- ══ ALL METHODS COMPARISON ════════════════════════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">All Methods</div>
+  <h2>Head-to-Head Comparison</h2>
+  <p class="section-sub">All strategies evaluated on the same 196 queries. Best / Mean / Worst = minimum, mean, maximum rank of GT across queries. Lower rank is better.</p>
+
+  <div class="tbl-wrap"><table>
+    <thead><tr>
+      <th>Strategy</th>
+      <th>Description</th>
+      <th class="nr">Best rank</th>
+      <th class="nr">Median rank</th>
+      <th class="nr">Mean rank</th>
+      <th class="nr">Worst rank</th>
+      <th class="nr">Top-1</th>
+      <th class="nr">Top-10</th>
+    </tr></thead>
+    <tbody>
+      <tr class="row-best">
+        <td><strong>Baseline 1</strong> <span class="badge badge-best">best overall</span></td>
+        <td>dist(Q) only</td>
+        <td class="nr">1</td><td class="nr">1</td><td class="nr">3.3</td><td class="nr">27</td>
+        <td class="nr">70.4%</td><td class="nr">91.8%</td>
+      </tr>
+      <tr class="row-sweet">
+        <td><strong>Hybrid 1 &alpha;=0.93</strong> <span class="badge badge-sweet">Pareto-optimal</span></td>
+        <td>0.93&middot;dist(Q) + 0.07&middot;dist(Centroid)</td>
+        <td class="nr">1</td><td class="nr">1</td><td class="nr">3.3</td><td class="nr">27</td>
+        <td class="nr"><strong>71.4%</strong></td><td class="nr">90.8%</td>
+      </tr>
+      <tr>
+        <td><strong>Hybrid 1 &alpha;=0.90</strong></td>
+        <td>0.90&middot;dist(Q) + 0.10&middot;dist(Centroid)</td>
+        <td class="nr">1</td><td class="nr">1</td><td class="nr">3.4</td><td class="nr">27</td>
+        <td class="nr">71.4%</td><td class="nr">90.8%</td>
+      </tr>
+      <tr>
+        <td><strong>Hybrid 1 &alpha;=0.70</strong></td>
+        <td>0.70&middot;dist(Q) + 0.30&middot;dist(Centroid)</td>
+        <td class="nr">1</td><td class="nr">1</td><td class="nr">3.7</td><td class="nr">27</td>
+        <td class="nr">67.9%</td><td class="nr">89.8%</td>
+      </tr>
+      <tr>
+        <td><strong>Hybrid 2 &mdash; lex</strong></td>
+        <td>Sort by dist(Q), break ties by dist(Centroid)</td>
+        <td class="nr">1</td><td class="nr">1</td><td class="nr">3.3</td><td class="nr">27</td>
+        <td class="nr">70.4%</td><td class="nr">91.8%</td>
+      </tr>
+      <tr>
+        <td><strong>Hybrid 3 &mdash; k=10</strong></td>
+        <td>Keep top-10 by dist(Q), rerank by dist(Centroid)</td>
+        <td class="nr">1</td><td class="nr">4</td><td class="nr">5.1</td><td class="nr">11</td>
+        <td class="nr">17.9%</td><td class="nr">91.8%</td>
+      </tr>
+      <tr>
+        <td><strong>Hybrid 3 &mdash; k=50</strong></td>
+        <td>Keep top-50 by dist(Q), rerank by dist(Centroid)</td>
+        <td class="nr">1</td><td class="nr">6</td><td class="nr">9.5</td><td class="nr">46</td>
+        <td class="nr">14.8%</td><td class="nr">63.3%</td>
+      </tr>
+      <tr>
+        <td><strong>Hybrid 3 &mdash; k=200</strong></td>
+        <td>Keep top-200 by dist(Q), rerank by dist(Centroid)</td>
+        <td class="nr">1</td><td class="nr">6</td><td class="nr">9.7</td><td class="nr">57</td>
+        <td class="nr">14.8%</td><td class="nr">62.8%</td>
+      </tr>
+      <tr class="row-worst">
+        <td><strong>Baseline 2</strong> <span class="badge badge-worst">worst overall</span></td>
+        <td>dist(Centroid) only &mdash; oracle</td>
+        <td class="nr">1</td><td class="nr">6</td><td class="nr">9.9</td><td class="nr">68</td>
+        <td class="nr">14.8%</td><td class="nr">62.8%</td>
+      </tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout call-blue">
+    <strong>Reading the table</strong>
+    Best rank = 1 for all methods: every strategy finds GT first on its easiest query. The real differentiator is Mean rank and Worst rank. Baseline 1 has the lowest mean (3.3) and one of the lowest worst-case ranks (27). Baseline 2 has the highest worst-case (68) &mdash; on bad queries the centroid can push GT very far down. Hybrid 3 k=10 caps the worst case at 11 (by construction: GT can never rank worse than k+1=11), but at the cost of collapsing top-1 to 17.9%.
+  </div>
+</div>
+
+<!-- ══ CONCLUSIONS ══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">Synthesis</div>
+  <h2>Conclusions</h2>
+  <div class="cgrid">
+    <div class="ccard">
+      <h4>✓ Queries are geometric outliers</h4>
+      <p>Zero pool documents within r<sub>1</sub>/2 of any query vector, across all 196 queries. GT has neighbours in 23% of cases. The gap is structural, not a threshold effect.</p>
+    </div>
+    <div class="ccard">
+      <h4>~ Centroid gives marginal top-1 gain</h4>
+      <p>Best hybrid (&alpha;=0.93): top-1 rises from 70.4% to 71.4% (+1%, &asymp;2 queries). Mean rank unchanged at 3.3. Top-10 loses 1%. No strategy dominates Baseline 1 on all metrics.</p>
+    </div>
+    <div class="ccard">
+      <h4>Two conflicting objectives</h4>
+      <p><strong>Coverage</strong> (G2 &gt; G1): centroid wins &mdash; finds the relevant cluster.<br><strong>Precision</strong> (rank GT first): dist(Q) wins &mdash; GT is the nearest neighbour in 70% of cases. Mixing dilutes precision.</p>
+    </div>
+    <div class="ccard">
+      <h4>Oracle caveat</h4>
+      <p>The centroid is built from G3 (LLM-scored docs) &mdash; unavailable at retrieval time. These results are upper bounds. Hybrid 3 at k&ge;50 approximates a real centroid estimate and shows no gain.</p>
+    </div>
+  </div>
+
+  <div class="callout call-blue" style="margin-top:18px;">
+    <strong>Open question</strong>
+    The 45 queries where GT_CIRCLE is non-empty &mdash; do they overlap with the &asymp;8% of queries where Hybrid 1 beats Baseline 1? If so, the centroid could be applied selectively (a routing strategy) rather than universally &mdash; only when there is evidence of a tight document cluster around GT.
+  </div>
+</div>
+
+<script>
+const data = [
+  {lbl:"&alpha;=1.00  (Baseline 1)", v:70.4, color:"#16A34A", ref:true},
+  {lbl:"&alpha;=0.99",               v:70.4, color:"#2563EB"},
+  {lbl:"&alpha;=0.97",               v:70.4, color:"#2563EB"},
+  {lbl:"&alpha;=0.95",               v:70.9, color:"#2563EB"},
+  {lbl:"&alpha;=0.93  &#9733; Pareto",    v:71.4, color:"#B45309"},
+  {lbl:"&alpha;=0.91",               v:71.4, color:"#B45309"},
+  {lbl:"&alpha;=0.90",               v:71.4, color:"#B45309"},
+  {lbl:"&alpha;=0.85",               v:70.9, color:"#4B5563"},
+  {lbl:"&alpha;=0.80",               v:70.4, color:"#6B7280"},
+  {lbl:"&alpha;=0.75",               v:67.9, color:"#9CA3AF"},
+  {lbl:"&alpha;=0.70",               v:67.9, color:"#9CA3AF"},
+  {lbl:"&alpha;=0.60",               v:64.3, color:"#C4B5A0"},
+  {lbl:"&alpha;=0.51",               v:59.7, color:"#DC8060"},
+  {lbl:"&alpha;=0.00  (Baseline 2)", v:14.8, color:"#DC2626"},
+];
+const MAX = 75;
+const refPct = (70.4/MAX*100).toFixed(1);
+const chart = document.getElementById('alpha-chart');
+data.forEach(d => {
+  const w = (d.v/MAX*100).toFixed(1);
+  chart.innerHTML += `
+  <div class="alpha-row">
+    <span class="alpha-lbl">${d.lbl}</span>
+    <div class="alpha-track">
+      <div class="alpha-bar" style="width:${w}%;background:${d.color}">${d.v}%</div>
+      <div class="alpha-ref" style="left:${refPct}%"></div>
+    </div>
+    <span class="alpha-pct">${d.v}%</span>
+  </div>`;
+});
+</script>

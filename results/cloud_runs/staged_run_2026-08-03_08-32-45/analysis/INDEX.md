@@ -1,182 +1,171 @@
-# Analysis Index - staged_run_2026-08-03_08-32-45
+# Analysis Index — staged_run_2026-08-03_08-32-45
 
-Run completed: 2026-08-08 00:17 UTC  
-Scored pairs: 1,000,174  
-Scoring model: gcp/google/gemini-2.5-flash-lite (NVIDIA IH)  
-Pool: 5,035 docs (5,026 from expanded_scoring_queue + 9 missing GTs)  
-Canonical dataset: 196 queries (filtered from 199 - 3 missing GT in pool)
+**Run completed:** 2026-08-08 00:17 UTC  
+**Scored pairs:** 1,000,174 · **Pool:** 5,035 docs · **Queries:** 196  
+**Scoring model:** gcp/google/gemini-2.5-flash-lite
 
 ---
 
-## Reports (start here)
-
-| File | Format | Topic | Date |
-|------|--------|-------|------|
-| `report_full.html` / `.pdf` | HTML + PDF | Complete report - correlation analysis + all group geometry experiments | 2026-08-25 |
-| `report_summary.html` / `.pdf` | HTML + PDF | Summary of main correlation experiment | 2026-08-10 |
-| `group_analysis_extended.html` / `.pdf` | HTML + PDF | Extended G1/G2/G3 group analysis with charts | 2026-08-10 |
-| `experiment_centroid_geometry.html` / `.pdf` / `.md` | HTML + PDF + MD | Standalone centroid geometry experiment report | 2026-08-25 |
-
-> Quick start: Open `report_full.pdf` for everything in one document.
-
----
-
-## Topic 1 - LLM Score vs Embedding Distance Correlation
-
-*Do LLM relevance scores reflect cosine-distance proximity to GT in embedding space?*  
-*Answer: Yes - strong negative correlation (Spearman −0.290, ROC-AUC 0.9974), GT recovery 99.5%.*
-
-### Global metrics (`csv/global/`)
-
-| File | Description |
-|------|-------------|
-| `correlation_summary.csv` | Median/mean Spearman, Pearson, Kendall-τ across queries |
-| `llm_recovery_at_k.csv` | GT in top-K by LLM score (all queries) |
-| `mrr_and_precision_at_k.csv` | Optimistic MRR / P@K |
-| `roc_pr_summary.csv` | Global ROC-AUC / average precision |
-| `score_distribution_summary.csv` | GT vs non-GT score statistics |
-| `distance_quantile_analysis.csv` | LLM score by distance decile (non-GT docs) |
-| `topk_jaccard_summary.csv` | LLM vs distance top-K agreement (aggregated) |
-
-### Per-query metrics (`csv/per_query/`) - one row per query_idx
-
-| File | Key columns |
-|------|-------------|
-| `per_query_overview.csv` | Master merge - start here for per-query review |
-| `per_query_correlation.csv` | spearman_r, pearson_r, kendall_tau |
-| `gt_llm_rank.csv` | gt_llm_rank, gt_llm_score, gt_rank_pct |
-| `score_gap.csv` | GT score − best non-GT score |
-| `topk_jaccard.csv` | Jaccard vs distance ranking per query × K |
-
----
-
-## Topic 2 - Geometric Group Analysis (G1 / G2 / G3)
-
-*Why does the centroid-based group (G2) consistently capture more docs than the query-centered group (G1)?*  
-*Three linked experiments; all use the canonical 196-query × 5,035-doc dataset.*
-
-### Group definitions
-
-| Group | Center | Radius | Rule |
-|-------|--------|--------|------|
-| G1 | Query vector Q | dist(Q, GT) | docs within query circle |
-| G2 | Normalised centroid of G3 | dist(centroid, GT) | docs within centroid circle |
-| G3 | - | - | LLM score = 1.0 |
-
-### Experiment A - G1 / G2 / G3 sizes and overlaps (`csv/group_analysis/`)
-
-Run: 2026-08-XX · Script: `analyze_groups.py`
-
-Key results: G2 mean 9.72 vs G1 mean 3.13 (77.6% of queries). Density: G2 92.5 vs G1 15.4 docs/radius.
-
-| File | Description |
-|------|-------------|
-| `master_summary.csv` | Per-query G1/G2/G3 sizes, overlaps, Jaccard, GT membership (196 rows) |
-| `global_aggregates.csv` | Global mean / median / std for all metrics |
-| `per_query/query_NNN.csv` | Per-doc membership flags, distances, LLM scores per query |
-
-### Experiment B - Halfpoint (random space points) (`csv/halfpoint_groups/`)
-
-Run: 2026-08-XX · Script: `analyze_halfpoint_groups.py`
-
-Key result: Random points at dist r₁/2 from GT yield 0.82 docs (< G1's 3.18). GT neighbourhood is not inherently dense.
-
-| File | Description |
-|------|-------------|
-| `all_anchors.csv` | 1,960 rows (196 queries × 10 anchors) - n_halfpoint, density, Jaccard vs G1 |
-| `per_query_summary.csv` | Per-query aggregate over 10 anchors (196 rows) |
-| `global_aggregates.csv` | Global halfpoint statistics |
-| `per_query/query_NNN.csv` | Per-anchor detail per query |
-
-### Experiment C - Pool-document centroid (`csv/pooldoc_centroid/`)
-
-Run: 2026-08-XX · Script: `analyze_pooldoc_centroid.py`
-
-Key result: Real pool docs closer to GT than Q yield 10.12 docs (91.8% beat G1). Pool is structurally dense around GT.
-
-| File | Description |
-|------|-------------|
-| `all_candidates.csv` | 1,052 candidate rows - n_cand_circle, density, Jaccard vs G1/G2 |
-| `per_query_summary.csv` | Per-query aggregate over sampled candidates (196 rows) |
-| `global_aggregates.csv` | Global pool-doc centroid statistics |
-| `per_query/query_NNN.csv` | Per-candidate detail per query |
-
----
-
-## Summaries (`summaries/`)
-
-| File | Description |
-|------|-------------|
-| `analysis_summary.txt` | Base correlation run summary + run health |
-| `group_analysis_summary.md` | Narrative summary of G1/G2/G3 group analysis findings |
-
-## Charts (`charts/`)
-
-| Folder | Source script | Contents |
-|--------|---------------|----------|
-| `charts/base/` | `analyze_experiment.py` | Correlation + score distribution |
-| `charts/extended/` | `analyze_experiment_extended.py` | Extended analysis |
-| `charts/vector_space/radial/` | `visualize_vector_space.py` | 196 radial density PNGs |
-| `charts/vector_space/geometric/` | `visualize_vector_space.py` | 196 trilateration scatter PNGs |
-| `charts/vector_space/umap/` | `visualize_vector_space.py` | 196 UMAP scatter PNGs |
-
----
-
-## Interactive Visualizations (`charts/vector_space/`)
-
-Plotly HTML files — open in any browser, supports zoom / pan / hover.
-
-### Trilateration maps — exact cosine distances (recommended)
+## Directory structure
 
 ```
-charts/vector_space/geo_interactive/
-  index.html          ← start here: 196 query tiles with gap values
-  query_NNN.html      ← per-query interactive plot
+analysis/
+├── 01_run_overview/        Base statistics + full run reports
+├── 02_group_analysis/      G1/G2/G3 group geometry analysis
+├── 03_centroid_geometry/   Centroid geometry experiment
+├── 04_circle_bfs/          Circle & BFS experiments
+├── 05_extreme_examples/    Extreme failure/success case deep-dive
+├── 06_triangle_geometry/   Triangle Q–Centroid–GT geometric analysis
+├── csv/                    Raw experiment output CSVs
+├── INDEX.md                This file
+└── run_health.json         Scoring run health metadata
 ```
 
-**How to open:**
+---
+
+## 01 — Run Overview
+
+*Do LLM scores reflect cosine-distance proximity to GT? Answer: yes (Spearman −0.290, ROC-AUC 0.9974, GT recovery 99.5%).*
+
+| File | Description |
+|------|-------------|
+| [`01_run_overview/report_full.html`](01_run_overview/report_full.html) / [`.pdf`](01_run_overview/report_full.pdf) | Complete run report — correlation analysis + all group geometry |
+| [`01_run_overview/report_summary.html`](01_run_overview/report_summary.html) / [`.pdf`](01_run_overview/report_summary.pdf) | Summary of main correlation experiment |
+| [`01_run_overview/charts/`](01_run_overview/charts/) | Base statistical charts (scatter, histograms, ROC, etc.) |
+
+**CSV data:** `csv/global/`, `csv/per_query/`
+
+---
+
+## 02 — Group Analysis (G1 / G2 / G3)
+
+*Why does the centroid circle (G2) capture 3× more docs than the query circle (G1)?*
+
+| Group | Center | Radius | Meaning |
+|-------|--------|--------|---------|
+| G1 | Query Q | dist(Q, GT) | docs within query neighbourhood |
+| G2 | G3 centroid | dist(centroid, GT) | docs within centroid neighbourhood |
+| G3 | — | — | LLM score = 1.0 (oracle) |
+
+**Key results:**
+- G2 mean 9.72 docs vs G1 mean 3.13 (77.6% of queries)
+- Halfpoint random anchors: only 0.82 docs — GT neighbourhood is not inherently dense
+- Pool-doc centroid: 10.12 docs (91.8% beat G1)
+
+| File | Description |
+|------|-------------|
+| [`02_group_analysis/group_analysis_extended.html`](02_group_analysis/group_analysis_extended.html) / [`.pdf`](02_group_analysis/group_analysis_extended.pdf) | Extended G1/G2/G3 report with charts |
+| [`02_group_analysis/charts_extended/`](02_group_analysis/charts_extended/) | Extended analysis charts |
+| [`02_group_analysis/summaries/group_analysis_summary.md`](02_group_analysis/summaries/group_analysis_summary.md) | Narrative findings summary |
+
+**CSV data:** `csv/group_analysis/`, `csv/halfpoint_groups/`, `csv/pooldoc_centroid/`
+
+---
+
+## 03 — Centroid Geometry Experiment
+
+*How does the centroid relate geometrically to the query and pool documents?*
+
+| File | Description |
+|------|-------------|
+| [`03_centroid_geometry/experiment_centroid_geometry.html`](03_centroid_geometry/experiment_centroid_geometry.html) / [`.pdf`](03_centroid_geometry/experiment_centroid_geometry.pdf) | Full centroid geometry report |
+| [`03_centroid_geometry/experiment_centroid_geometry.md`](03_centroid_geometry/experiment_centroid_geometry.md) | Markdown version |
+| [`03_centroid_geometry/charts_vector_space/`](03_centroid_geometry/charts_vector_space/) | Vector space visualisations (UMAP, trilateration, radial, interactive Plotly) |
+
+**How to open interactive visualisations:**
 ```bash
-open results/cloud_runs/staged_run_2026-08-03_08-32-45/analysis/charts/vector_space/geo_interactive/index.html
-# or a specific query:
-open .../geo_interactive/query_118.html
-```
+# Trilateration (recommended — exact cosine distances)
+open 03_centroid_geometry/charts_vector_space/geo_interactive/browse.html
 
-**Axes:** X = cosine projection onto Q→GT (Q at 0, GT at r1). Y = perpendicular distance (folded ≥ 0).
-All 5,035 docs shown. G1 circle is exact. Initial view zoomed to area of interest; scroll to zoom out.
-
-### UMAP maps — neighbourhood-preserving (not distance-accurate)
-
-```
-charts/vector_space/umap_interactive/
-  index.html
-  query_NNN.html
+# dist(Q) vs dist(GT) scatter
+open 03_centroid_geometry/charts_vector_space/dqdgt_interactive/browse_dqdgt.html
 ```
 
 ---
 
-## Extreme Examples (`csv/extreme_examples/`)
+## 04 — Circle & BFS Experiments
 
-Top 10 queries by G2−G1 gap — generated by `analyze_extreme_examples.py`.
+*Do query embeddings sit further from document space than GT embeddings? Does a centroid-guided BFS improve retrieval?*
+
+**Key results:**
+
+| Strategy | Mean rank | Top-1 | Top-10 |
+|---|---|---|---|
+| Baseline 1 — dist(Q) | 3.3 | 70.4% | 91.8% |
+| Hybrid 1 α=0.93 (best) | 3.3 | **71.4%** | 90.8% |
+| Baseline 2 — dist(Centroid) | 9.9 | 14.8% | 62.8% |
+
+Conclusion: Q_CIRCLE always empty (query is geometric outlier). Oracle centroid adds only +1% top-1.
 
 | File | Description |
 |------|-------------|
-| `top10_extreme_examples.csv` | Full stats for top-10 queries |
-| `g2_only_query_NNN.csv` | Docs in G2 but not G1 for each query |
-| `analysis.md` | Detailed per-query breakdown + conclusions |
+| [`04_circle_bfs/circle_bfs_report.html`](04_circle_bfs/circle_bfs_report.html) | Full Circle & BFS visual report |
 
-**Mechanism classification:** A = centroid displaced (r2 ≥ r1, lands in dense zone); B = tight G3 cluster (r2 < r1, coherent centroid).
+**CSV data:** `csv/circle_bfs/`
 
 ---
 
-## Session Brief
+## 05 — Extreme Examples
 
-Full narrative brief of all analysis steps since group experiment results:
-**https://claude.ai/code/artifact/44397523-a8bc-4305-9227-4fca3bdbb835**
+*Deep-dive into the 10 queries where G2 most exceeds G1.*
 
----
-
-## Other
+Two mechanisms identified:
+- **A** — centroid displaced (r2 ≥ r1, lands in dense zone)
+- **B** — tight G3 cluster (r2 < r1, coherent centroid)
 
 | File | Description |
 |------|-------------|
-| `run_health.json` | Scoring run health check (199 queries in DB, 3 missing GT) |
+| [`05_extreme_examples/extreme_examples_abstract.html`](05_extreme_examples/extreme_examples_abstract.html) / [`.pdf`](05_extreme_examples/extreme_examples_abstract.pdf) | Extreme examples analysis report |
+
+**CSV data:** `csv/extreme_examples/`
+
+---
+
+## 06 — Triangle Geometry (Q – Centroid – GT)
+
+*What is the geometric relationship between Q, the G3 centroid, and GT on the unit hypersphere?*
+
+**Key results (196 queries, Cosine/Spherical):**
+
+| Vertex | Mean angle | Interpretation |
+|--------|-----------|----------------|
+| ∠Q (apex) | 45.7° | Centroid and GT diverge ~46° as seen from Q |
+| ∠C | 70.8° | GT is ~71° away from Q as seen from C |
+| ∠GT | 70.6° | C is ~71° away from Q as seen from GT |
+| Sum | 187.0° | Spherical excess of 7° |
+
+Q→GT ≈ Q→C (both ~0.17 cosine), but C→GT is only 0.10 — the triangle is nearly isosceles with Q at the apex. This explains geometrically why mixing centroid into retrieval deflects away from GT.
+
+| File | Description |
+|------|-------------|
+| [`06_triangle_geometry/triangle_geometry.html`](06_triangle_geometry/triangle_geometry.html) | Full interactive report (angle distributions + heatmap) |
+| [`06_triangle_geometry/triangle_geometry_web.pdf`](06_triangle_geometry/triangle_geometry_web.pdf) | PDF — ready to share |
+| [`06_triangle_geometry/triangle_geometry_page1.png`](06_triangle_geometry/triangle_geometry_page1.png) | PNG — ready to share |
+| [`06_triangle_geometry/triangle_geometry.tex`](06_triangle_geometry/triangle_geometry.tex) | LaTeX source for academic use |
+
+---
+
+## CSV Data
+
+| Folder | Experiment | Contents |
+|--------|-----------|----------|
+| `csv/global/` | Run overview | Correlation summary, ROC, MRR, top-K |
+| `csv/per_query/` | Run overview | Per-query correlation, GT rank, score gap |
+| `csv/group_analysis/` | Group analysis | G1/G2/G3 sizes, overlaps, Jaccard |
+| `csv/halfpoint_groups/` | Group analysis | Random anchor halfpoint statistics |
+| `csv/pooldoc_centroid/` | Group analysis | Pool-doc centroid statistics |
+| `csv/circle_bfs/` | Circle & BFS | Circle doc counts + BFS rank comparison |
+| `csv/extreme_examples/` | Extreme examples | Top-10 extreme G2−G1 gap queries |
+| `csv/llm_rerank/` | LLM re-ranking | Re-rank k=5..100 vs Baseline 1 |
+| `csv/iterative_prf/` | Iterative PRF | PRF rounds k=5..50, thresholds g2/g3 |
+| `csv/adaptive_search/` | Adaptive search | Sequential search, α sweep |
+
+---
+
+## Infrastructure
+
+| Component | Location | Description |
+|-----------|----------|-------------|
+| Data loader | `experiments/global_correlation/load_experiment_data.py` | Single entry point for all experiments |
+| Embedding factory | `experiments/global_correlation/embedding_factory.py` | Model, batch size, encode/save/load |
+| Embedding cache | `embeddings/` (run root) | Pre-computed vectors, ~16MB, loads in 0.05s |
