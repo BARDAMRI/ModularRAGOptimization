@@ -5,35 +5,29 @@ Guarantees the same 196 queries and pool as the original group analysis:
   - Query list from master_summary.csv (196 queries, original experiment)
   - Pool docs from expanded_scoring_queue.parquet (5,026 docs)
   - Missing GT texts fetched from scoring_queue.parquet
-  - Embeddings via sentence-transformers/all-mpnet-base-v2
+  - Embeddings via embedding_factory (cached in <run_dir>/embeddings/)
 """
 
-import json
 import sqlite3
 import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sentence_transformers import SentenceTransformer
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "utility"))
-from similarity_calculator import cosine_distance  # noqa: F401 — re-exported for experiment scripts
+from similarity_calculator import cosine_distance  # noqa: F401 — re-exported for callers
+
+from embedding_factory import (  # noqa: F401 — MODEL_NAME, extract_doc_text re-exported for callers
+    MODEL_NAME, extract_doc_text,
+    load_model, encode_texts,
+    save_embeddings, load_embeddings,
+)
 
 RUN_DIR = (
     Path(__file__).resolve().parent.parent.parent
     / "results/cloud_runs/staged_run_2026-08-03_08-32-45"
 )
-MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
-
-
-def extract_doc_text(s: str) -> str:
-    try:
-        d = json.loads(s)
-        raw = d.get("contexts") or d.get("CONTEXTS") or ""
-        return " ".join(str(c) for c in raw if c) if isinstance(raw, list) else str(raw)
-    except Exception:
-        return str(s)
 
 
 def load_data(verbose: bool = True) -> dict:
@@ -85,22 +79,67 @@ def load_data(verbose: bool = True) -> dict:
     pool_doc_ids = set(pool_docs["doc_id"].tolist())
 
     # ------------------------------------------------------------------
-    # 3. Add missing GTs from scoring_queue.parquet
+    # 3. Add missing GTs — three fallback sources in order
     # ------------------------------------------------------------------
-    gt_ids_all = set(queries_meta["gt_id"].tolist())
+    gt_ids_all  = set(queries_meta["gt_id"].tolist())
     missing_gts = gt_ids_all - pool_doc_ids
 
     if missing_gts:
-        log(f"GT docs missing from pool ({len(missing_gts)}): {sorted(missing_gts)}")
-        log("  Fetching from scoring_queue.parquet …")
-        sq = pd.read_parquet(
-            RUN_DIR / "scoring_queue.parquet",
-            columns=["doc_id", "doc_text"],
-        )
-        sq["doc_id"] = sq["doc_id"].astype(str)
-        gt_rows = sq[sq["doc_id"].isin(missing_gts)].drop_duplicates("doc_id")
-        pool_docs = pd.concat([pool_docs, gt_rows], ignore_index=True).drop_duplicates("doc_id")
-        log(f"  Pool docs after adding missing GTs: {len(pool_docs)}")
+        log(f"GT docs missing from expanded_scoring_queue ({len(missing_gts)}): {sorted(missing_gts)}")
+
+        # Fallback 1: scoring_queue.parquet (original pre-expansion queue)
+        log("  [Fallback 1] Searching scoring_queue.parquet …")
+        sq_path = RUN_DIR / "scoring_queue.parquet"
+        if sq_path.exists():
+            sq = pd.read_parquet(sq_path, columns=["doc_id", "doc_text"])
+            sq["doc_id"] = sq["doc_id"].astype(str)
+            found1 = sq[sq["doc_id"].isin(missing_gts)].drop_duplicates("doc_id")
+            if not found1.empty:
+                pool_docs   = pd.concat([pool_docs, found1], ignore_index=True).drop_duplicates("doc_id")
+                missing_gts -= set(found1["doc_id"].tolist())
+                log(f"    Recovered {len(found1)} GT(s). Still missing: {len(missing_gts)}")
+            else:
+                log("    Not found in scoring_queue.parquet.")
+        else:
+            log("    scoring_queue.parquet not found — skipping.")
+
+        # Fallback 2: experiment_results.db — any table with (doc_id, doc_text) columns
+        if missing_gts:
+            log("  [Fallback 2] Searching experiment_results.db …")
+            conn2  = sqlite3.connect(RUN_DIR / "experiment_results.db")
+            tables = [r[0] for r in conn2.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()]
+            log(f"    DB tables: {tables}")
+            found2 = pd.DataFrame()
+            for tbl in tables:
+                cols = [r[1] for r in conn2.execute(f"PRAGMA table_info({tbl})").fetchall()]
+                if "doc_id" in cols and "doc_text" in cols:
+                    placeholders = ",".join("?" * len(missing_gts))
+                    rows = pd.read_sql(
+                        f"SELECT doc_id, doc_text FROM {tbl} WHERE doc_id IN ({placeholders})",
+                        conn2, params=list(missing_gts),
+                    )
+                    rows["doc_id"] = rows["doc_id"].astype(str)
+                    found2 = pd.concat([found2, rows], ignore_index=True).drop_duplicates("doc_id")
+            conn2.close()
+            if not found2.empty:
+                pool_docs   = pd.concat([pool_docs, found2], ignore_index=True).drop_duplicates("doc_id")
+                missing_gts -= set(found2["doc_id"].tolist())
+                log(f"    Recovered {len(found2)} GT(s) from DB. Still missing: {len(missing_gts)}")
+            else:
+                log("    No table with (doc_id, doc_text) columns found in DB.")
+
+        # Final guard — abort rather than silently skip queries
+        if missing_gts:
+            raise ValueError(
+                f"FATAL: {len(missing_gts)} GT doc(s) could not be found in any source "
+                f"(expanded_scoring_queue, scoring_queue, experiment_results.db).\n"
+                f"Missing GT ids: {sorted(missing_gts)}\n"
+                f"Cannot proceed — ranks for queries with these GTs would be undefined."
+            )
+
+        log(f"  All GTs recovered. Pool size: {len(pool_docs)}")
     else:
         log("All GTs present in pool.")
 
@@ -118,28 +157,29 @@ def load_data(verbose: bool = True) -> dict:
     log(f"  Scored pairs (canonical queries): {len(scores_df):,}")
 
     # ------------------------------------------------------------------
-    # 5. Embed
+    # 5. Embed — load from cache or compute and save
     # ------------------------------------------------------------------
-    log(f"\nLoading model: {MODEL_NAME} …")
-    model = SentenceTransformer(MODEL_NAME)
-
-    log("Embedding queries …")
-    query_vecs = model.encode(
-        queries_meta["query_text"].tolist(),
-        batch_size=64, normalize_embeddings=True, show_progress_bar=verbose,
-    )
-
-    log("Embedding pool documents …")
-    doc_texts = [extract_doc_text(t) for t in pool_docs["doc_text"].tolist()]
-    doc_vecs = model.encode(
-        doc_texts, batch_size=64, normalize_embeddings=True, show_progress_bar=verbose,
-    )
-
-    query_idx_to_vec = dict(zip(queries_meta["query_idx"].tolist(), query_vecs))
+    query_ids   = queries_meta["query_idx"].tolist()
     all_doc_ids = pool_docs["doc_id"].tolist()
-    doc_id_to_idx = {d: i for i, d in enumerate(all_doc_ids)}
 
-    log(f"\nEmbedded {len(query_vecs)} queries, {len(doc_vecs)} pool docs.")
+    cached = load_embeddings(RUN_DIR, query_ids, all_doc_ids)
+    if cached is not None:
+        query_vecs, doc_vecs = cached
+        log(f"Embeddings loaded from cache ({RUN_DIR / 'embeddings'}).")
+        model = None
+    else:
+        log(f"\nNo embedding cache found — computing with {MODEL_NAME} …")
+        model      = load_model()
+        query_vecs = encode_texts(queries_meta["query_text"].tolist(), model,
+                                  show_progress_bar=verbose)
+        doc_texts  = [extract_doc_text(t) for t in pool_docs["doc_text"].tolist()]
+        doc_vecs   = encode_texts(doc_texts, model, show_progress_bar=verbose)
+        save_embeddings(RUN_DIR, query_vecs, doc_vecs, query_ids, all_doc_ids)
+        log(f"Embeddings cached → {RUN_DIR / 'embeddings'}")
+
+    query_idx_to_vec = dict(zip(query_ids, query_vecs))
+    doc_id_to_idx    = {d: i for i, d in enumerate(all_doc_ids)}
+    log(f"Vectors ready: {len(query_vecs)} queries, {len(doc_vecs)} pool docs.")
 
     return dict(
         queries_meta     = queries_meta,
