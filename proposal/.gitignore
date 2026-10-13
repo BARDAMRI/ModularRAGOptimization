@@ -1,0 +1,12 @@
+# LaTeX build files (research_proposal.pdf is kept as the compiled deliverable)
+*.aux
+*.bbl
+*.blg
+*.out
+*.toc
+*.lof
+*.lot
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.xdv

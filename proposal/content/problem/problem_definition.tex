@@ -1,0 +1,51 @@
+% ============================================================
+% Chapter 3 -- Problem Definition
+% ============================================================
+
+This chapter formalises the problem discussed in our supervision meetings. The formulation started from a general question: find an item that maximises an expensive fitness function $f$, given a cheap surrogate $f'$, per-evaluation costs $C_f \gg C_{f'}$ and a budget $B$. It was later specialised to retrieval, where the input is a set of documents, some of which have already been scored by the LLM, and the output is \emph{which document to check with the LLM next}.
+
+\section{Setting}
+
+Let $D=\{d_1,\dots,d_n\}$ be a corpus and let $\phi$ map text to the unit hypersphere $\mathbb{S}^{m-1}\subset\mathbb{R}^m$ ($m=768$ in our experiments). For two texts $x,y$ we use the cosine distance
+\begin{equation}
+  \dist(x,y) \;=\; 1-\langle \phi(x),\phi(y)\rangle \in [0,2].
+\end{equation}
+A query $q$ has a ground-truth (target) document $\GT(q)\in D$, the document annotated as the source of its answer. Two evaluation functions are available:
+\begin{itemize}
+  \item \textbf{Surrogate} $f'(d)=\dist(q,d)$. It costs $C_{f'}\approx 0$ per document, because document embeddings are pre-computed and indexed.
+  \item \textbf{Judge} $J(q,d)\in\{0.1,0.2,\dots,1.0\}$, an LLM's relevance rating of $d$ for $q$ (an integer 1--10 scale, normalised). It costs $C_f\gg C_{f'}$ per document: an LLM call with its latency and price.
+\end{itemize}
+
+\section{Sequential Search with a Judge}
+
+A \emph{search policy} $\pi$ interacts with the judge in rounds. After $t$ judge calls it holds the history $H_t=\{(d_i,J(q,d_i))\}_{i=1}^{t}$ and selects the next document to judge:
+\begin{equation}
+  d_{t+1} \;=\; \pi(q, H_t) \in D\setminus\{d_1,\dots,d_t\}.
+\end{equation}
+The policy may use the query, the embeddings of all documents and the judged history, but no other information about the target. The search stops when the judge returns a terminal verdict (for example $J=1.0$), when a stopping condition of the policy fires, or when the budget $B$ is exhausted. It then returns $\hat d=\arg\max_{d\in H_t} J(q,d)$, with ties broken by the surrogate.
+
+We measure a policy with three complementary quantities:
+\begin{enumerate}
+  \item \textbf{Cost to find the target:} $N_\pi(q)$, the number of judge calls until $\GT(q)$ is judged. This is the ``number of best-first-search iterations until the GT is found'' used in our meetings. We report its mean and median over queries.
+  \item \textbf{Success under budget:} $\mathrm{Succ}@B=\Pr_q[N_\pi(q)\le B]$, and the full \emph{cost--accuracy curve} for $B\in\{1,2,3,5,10,20\}$.
+  \item \textbf{Accuracy of the returned document:} whether $\hat d=\GT(q)$ under a realistic stopping rule. A ``soft'' variant also accepts any document that the judge rates $1.0$, because several documents can legitimately answer the same question.
+\end{enumerate}
+
+\paragraph{Two feedback regimes.}
+Because many documents can receive $J=1.0$, a top score does not by itself identify the target. We therefore evaluate policies in two regimes. In the \emph{verified} regime, the policy also learns whether a judged document is the target. This is the analogue of Semantle, where the player knows when the secret word has been hit, and it idealises a strong final verifier. It isolates \emph{navigation} efficiency and yields $N_\pi(q)$. In the \emph{judge-only} regime, the policy sees only $J$ and must decide when to stop. This measures the accuracy of the returned document, and it exposes the cost of judge ties.
+
+\section{Static Policies as Best-First Search}
+
+Every fixed evaluation function $f:D\to\mathbb{R}$ induces a static policy $\pi_f$ that judges documents in increasing order of $f$. For such a policy, $N_{\pi_f}(q)$ equals the rank of $\GT(q)$ under $f$. The standard RAG retriever is the static policy with $f=\dist(q,\cdot)$, which we call \textbf{Baseline~1 (B1)}. Adaptive policies change $f$ as feedback arrives. For example, they may move the search anchor towards the documents rated highly so far, away from documents rated low, or towards a location estimated by trilateration (Chapter~\ref{chapter:methodology}).
+
+\section{Oracle Quantities Used Only for Analysis}
+
+Some geometric objects in our analysis require judging \emph{every} document in the pool. The most important is the \emph{oracle centroid}
+\begin{equation}
+  C^\star(q) \;=\; \frac{\sum_{d\,:\,J(q,d)=1.0}\phi(d)}{\bigl\|\sum_{d\,:\,J(q,d)=1.0}\phi(d)\bigr\|},
+\end{equation}
+the normalised centre of mass of the documents the judge rates as fully relevant. Computing $C^\star$ costs $n\cdot C_f$, far beyond any realistic budget. We therefore use it only to diagnose the geometry and to bound what a policy could achieve. A deployable policy can only build an \emph{online} estimate $C_t$ from $H_t$.
+
+\section{Offline Evaluation}
+
+Because $J(q,d)$ has been pre-computed for every query--document pair in the pool, any policy can be replayed exactly and deterministically offline: each ``judge call'' becomes a table lookup. This makes it possible to compare many policies and hyper-parameters on identical inputs, at no additional LLM cost, and to reserve live LLM calls for the final end-to-end validation.

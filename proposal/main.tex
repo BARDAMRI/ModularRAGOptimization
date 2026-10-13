@@ -1,0 +1,211 @@
+% ============================================================
+% main.tex -- Research proposal, Bar Mordechai Damri (BGU)
+%
+% Laid out like the CIS thesis template (main.tex + thesis_metadata.tex
+% + thesis_chapters.tex + Main_pages/ + content/), so the metadata,
+% chapter list, abstracts, chapter files and references.bib can be
+% copied into the department's Overleaf project unchanged.
+% This main.tex is a local stand-in for the template's own main.tex.
+%
+% Build:  xelatex -jobname=research_proposal main.tex
+%         bibtex  research_proposal
+%         xelatex -jobname=research_proposal main.tex   (x2)
+% ============================================================
+
+\documentclass[12pt,a4paper,oneside,openany]{report}
+
+% ---- Fonts (XeLaTeX) ---------------------------------------
+\usepackage{fontspec}
+
+% ---- Page geometry and typography --------------------------
+\usepackage{geometry}
+\geometry{a4paper, left=3cm, right=2.5cm, top=2.8cm, bottom=3cm}
+\usepackage{microtype}
+\usepackage{setspace}
+\setstretch{1.3}
+\usepackage{parskip}
+\setlength{\parskip}{6pt}
+\setlength{\emergencystretch}{3em}
+
+% ---- Colour and headings -----------------------------------
+\usepackage{xcolor}
+\definecolor{bgunavy}{RGB}{27,61,110}
+\usepackage{titlesec}
+
+% ---- Math, tables, lists, figures --------------------------
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{enumitem}
+\setlist[itemize]{topsep=3pt,itemsep=2pt,parsep=0pt,leftmargin=1.4em}
+\setlist[enumerate]{topsep=3pt,itemsep=2pt,parsep=0pt,leftmargin=1.8em}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\captionsetup{font=small, labelfont=bf}
+\usepackage{pgfgantt}
+
+% ---- Citations (template: \citep / \citet) -----------------
+\usepackage[round,authoryear]{natbib}
+\setlength{\bibsep}{3pt}
+
+% ---- Hyperlinks --------------------------------------------
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=bgunavy,
+  citecolor=bgunavy,
+  urlcolor=bgunavy,
+  pdftitle={Research Proposal -- Bar Mordechai Damri},
+  pdfauthor={Bar Mordechai Damri},
+  pdfsubject={Embedding geometric heuristics for improving RAG}
+}
+
+% ---- Hebrew (polyglossia loads bidi, so it comes last) -----
+\usepackage{polyglossia}
+\setmainlanguage{english}
+\setotherlanguage{hebrew}
+\IfFontExistsTF{Arial Hebrew}
+  {\newfontfamily\hebrewfont[Script=Hebrew,Ligatures=TeX,BoldFont={Arial Hebrew Bold}]{Arial Hebrew}}
+  {\IfFontExistsTF{David CLM}
+    {\newfontfamily\hebrewfont[Script=Hebrew,Ligatures=TeX]{David CLM}}
+    {\IfFontExistsTF{FreeSerif}
+      {\newfontfamily\hebrewfont[Script=Hebrew,Ligatures=TeX]{FreeSerif}}
+      {\newfontfamily\hebrewfont[Script=Hebrew,Ligatures=TeX]{Liberation Serif}}}}
+
+% ---- Heading styles (after polyglossia: bidi redefines \chapter) --
+\titleformat{\chapter}[hang]
+  {\Large\bfseries\color{bgunavy}}{\thechapter.}{0.6em}{}
+  [\vspace{-2pt}\color{bgunavy}\rule{\linewidth}{0.5pt}]
+\titlespacing*{\chapter}{0pt}{-12pt}{14pt}
+\titleformat{\section}
+  {\large\bfseries\color{bgunavy}}{\thesection}{0.7em}{}
+\titleformat{\subsection}
+  {\normalsize\bfseries\color{bgunavy}}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{12pt}{5pt}
+\titlespacing*{\subsection}{0pt}{10pt}{4pt}
+
+% ---- Metadata ----------------------------------------------
+\input{thesis_metadata}
+
+% ---- Template chapter macros -------------------------------
+% \thesischapter{English}{label}{Hebrew}{file}: typesets the chapter
+% and records the Hebrew title for the Hebrew table of contents.
+\makeatletter
+\newcommand{\HebTocEntries}{}
+\newcommand{\HebTocLine}[3]{\noindent\makebox[2.2em][r]{#1.}\hspace{0.8em}#2\dotfill#3\par}
+\newcommand{\thesischapter}[4]{%
+  \chapter{#1}\label{#2}%
+  \g@addto@macro\HebTocEntries{\HebTocLine{\ref{#2}}{#3}{\pageref{#2}}}%
+  \input{#4}}
+\newif\if@thesisappendix
+\newcommand{\thesisappendix}[4]{%
+  \if@thesisappendix\else\appendix\global\@thesisappendixtrue\fi
+  \chapter{#1}\label{#2}%
+  \g@addto@macro\HebTocEntries{\HebTocLine{\ref{#2}}{#3}{\pageref{#2}}}%
+  \input{#4}}
+\makeatother
+
+% ---- Notation used across chapters -------------------------
+\newcommand{\GT}{\mathit{GT}}
+\newcommand{\dist}{\delta}
+
+% ============================================================
+\begin{document}
+
+% ---- English cover page ------------------------------------
+\begin{titlepage}
+\centering\singlespacing
+\renewcommand{\and}{\quad\textbullet\quad}
+\vspace*{0.6cm}
+{\large\bfseries \UniversityEn}\\[5pt]
+{\normalsize \FacultyEn}\\[3pt]
+{\normalsize \ProgramEn}
+
+\vspace{3cm}
+{\LARGE\bfseries\color{bgunavy}\setstretch{1.25}\ThesisTitleEn\par}
+\vspace{0.5cm}
+{\large\itshape\ThesisSubtitleEn\par}
+
+\vspace{2.2cm}
+{\large \DocTypeEn}
+
+\vspace{2.6cm}
+{\large\bfseries \AuthorEn}\\[6pt]
+{\normalsize Student ID: \StudentID}
+
+\vspace{2.2cm}
+{\normalsize Supervisors:}\\[8pt]
+{\large\bfseries \AdvisorsEn}
+
+\vfill
+{\normalsize \SubmissionDateEn}
+\end{titlepage}
+
+% ---- Front matter ------------------------------------------
+\pagenumbering{roman}
+\setcounter{page}{2}
+\input{Main_pages/abstract}
+\clearpage
+{\setstretch{1.0}\tableofcontents}
+\clearpage
+\pagenumbering{arabic}
+
+% ---- Chapters ----------------------------------------------
+\input{thesis_chapters}
+
+% ---- Bibliography ------------------------------------------
+\clearpage
+\phantomsection\label{chapter:bibliography}
+\addcontentsline{toc}{chapter}{Bibliography}
+\renewcommand{\bibname}{Bibliography}
+{\setstretch{1.0}\small
+\bibliographystyle{plainnat}
+\bibliography{references}}
+
+% ---- Hebrew back matter: abstract, TOC, cover --------------
+\clearpage
+\begin{hebrew}
+\input{Main_pages/abstract_heb}
+
+\clearpage
+\section*{תוכן עניינים}
+\vspace{6pt}
+{\setstretch{1.5}
+\noindent\makebox[2.2em][r]{}\hspace{0.8em}תקציר (באנגלית)\dotfill\pageref{page:abstract}\par
+\HebTocEntries
+\noindent\makebox[2.2em][r]{}\hspace{0.8em}ביבליוגרפיה\dotfill\pageref{chapter:bibliography}\par}
+
+\clearpage
+\thispagestyle{empty}
+\begin{center}\singlespacing
+\vspace*{0.6cm}
+{\large\bfseries \UniversityHe}\\[5pt]
+{\normalsize \FacultyHe}\\[3pt]
+{\normalsize \ProgramHe}
+
+\vspace{3cm}
+{\LARGE\bfseries\color{bgunavy}\setstretch{1.3}\ThesisTitleHe\par}
+\vspace{0.5cm}
+{\large\ThesisSubtitleHe\par}
+
+\vspace{2.2cm}
+{\large \DocTypeHe}
+
+\vspace{2.6cm}
+{\large\bfseries \AuthorHe}\\[6pt]
+{\normalsize ת"ז: \StudentID}
+
+\vspace{2.2cm}
+{\normalsize בהנחיית:}\\[8pt]
+{\large\bfseries \AdvisorsHe}
+
+\vfill
+{\normalsize \SubmissionDateHe}
+\end{center}
+\end{hebrew}
+
+\end{document}

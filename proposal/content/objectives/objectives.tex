@@ -1,0 +1,54 @@
+% ============================================================
+% Chapter 4 -- Research Objectives and Expected Significance
+% ============================================================
+
+\section{Main Objective}
+
+To develop and evaluate geometry-aware, judge-guided search policies that reduce the number of expensive LLM judge calls needed to retrieve the target document in a RAG system, focusing on the queries on which standard dense retrieval fails, and to explain their behaviour through the geometry of the query--document embedding space.
+
+\section{Research Questions}
+
+\begin{enumerate}[label=\textbf{RQ\arabic*.}, leftmargin=3em]
+  \item \textbf{The judge as a signal.} To what extent is an LLM relevance judgement a reliable proxy for proximity to the target document in embedding space, and how can its resolution be increased so that ties among top-scored documents are broken?
+  \item \textbf{Geometry of failure.} Which geometric properties of the query--document space explain dense-retrieval failures, and what distinguishes the queries on which the retriever fails from those on which it succeeds?
+  \item \textbf{Search policies.} Can a policy that exploits judge feedback and embedding geometry find the target with fewer judge calls than the retriever's own order (B1), particularly on the queries where B1 fails?
+  \item \textbf{When to search.} Can retrieval failure be detected early, for example from the judge's verdict on the first retrieved document or from the retriever's confidence, so that the costly search is invoked only when it is needed?
+  \item \textbf{Generality.} Do the findings hold across embedding models, judges, and biomedical and general-domain datasets, and do retrieval gains translate into better end-to-end RAG answers?
+\end{enumerate}
+
+\section{Working Hypotheses}
+
+Table~\ref{tab:hypotheses} lists the working hypotheses. Some were formulated and tested during the preliminary phase; the others will be tested in the proposed research.
+
+\begin{table}[htbp]
+\centering
+\caption{Working hypotheses and their current status.}
+\label{tab:hypotheses}
+\setstretch{1.15}\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.6cm}X>{\raggedright\arraybackslash}p{3.1cm}}
+\toprule
+ & Hypothesis & Status \\
+\midrule
+H1 & Query embeddings lie further from document embeddings than documents lie from each other, so the neighbourhood of a query is sparse while the neighbourhood of its target is not. & Supported (\S\ref{sec:prelim-geometry}) \\
+H2 & It is best to search mostly by distance to the query, but also a little by distance to the centroid of relevant documents. & Partially supported: +1\,pp at most (\S\ref{sec:prelim-bfs}) \\
+H3 & Judge scores decrease monotonically with distance to the target, so they provide a usable navigation signal. & Supported, with heavy ties (\S\ref{sec:prelim-judge}) \\
+H4 & Steering \emph{towards} the centroid of judge-approved documents leads the search into a dense cluster of relevant-but-non-target documents. A \emph{repulsive} (negative) weight on that centroid, as in Rocchio's negative-feedback term, reduces the cost on failed queries. & Open: naive attraction increases cost (\S\ref{sec:prelim-adaptive}) \\
+H5 & Invoking the adaptive search only when the first retrieved document is judged not to be the target (gating) preserves B1's cost on easy queries and reduces it on hard ones. & Open \\
+H6 & Trilateration from calibrated judge scores localises the target better than any single anchor (query or centroid). & Open \\
+H7 & Finer-grained or comparative judging reduces ties at the top score and thereby lowers the cost of every judge-guided policy. & Open \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Expected Contributions and Significance}
+
+\begin{enumerate}
+  \item \textbf{A formulation} of LLM-judged retrieval as budget-constrained sequential search, which connects RAG with heuristic search, Bayesian optimisation and active learning, together with an offline evaluation protocol based on a large pre-scored query--document pool.
+  \item \textbf{An empirical account of the query--document geometry} in biomedical dense retrieval: the query is an outlier, documents are concentrated around the target, and judge-approved documents surround the target off the query--target axis. The account explains why simple centroid heuristics fail.
+  \item \textbf{Judge-guided search policies} (gated, repulsive feedback, trilateration) that reduce the number of LLM calls needed to recover from retrieval failures, with explicit cost--accuracy trade-offs.
+  \item \textbf{A characterisation and predictor of retrieval failure}, usable as a trigger for any corrective RAG component.
+  \item \textbf{Practical guidelines and open-source tooling} for cost-efficient RAG: when to call the judge, how many calls to budget, and which geometric features predict difficulty.
+\end{enumerate}
+
+\paragraph{Significance.}
+As RAG is deployed in clinical, legal and enterprise settings, LLM calls become a dominant operating cost, and silent retrieval failures become a dominant source of error. A method that spends judge calls only where they help, and spends as few as possible, improves both. Scientifically, the work clarifies how the geometry of learned embedding spaces limits nearest-neighbour retrieval, and how an expensive but accurate oracle can compensate for these limits.

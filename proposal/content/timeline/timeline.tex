@@ -1,0 +1,58 @@
+% ============================================================
+% Chapter 7 -- Time Schedule
+% ============================================================
+
+The proposed research spans four semesters, from October 2026 to September 2028, and builds on the preliminary phase (November 2024 to October 2026) reported in Chapter~\ref{chapter:preliminary}. Figure~\ref{fig:gantt} shows the plan at quarter-semester resolution, and Table~\ref{tab:milestones} lists the milestones.
+
+\begin{figure}[htbp]
+\centering
+\caption{Research timeline. Each column is half a semester. S1: Oct 2026 to Mar 2027; S2: Apr to Sep 2027; S3: Oct 2027 to Mar 2028; S4: Apr to Sep 2028.}
+\label{fig:gantt}
+\vspace{6pt}
+\resizebox{\textwidth}{!}{%
+\begin{ganttchart}[
+  hgrid,
+  vgrid={*1{dashed,gray!35}},
+  x unit=1.35cm,
+  y unit title=0.72cm,
+  y unit chart=0.62cm,
+  title height=1,
+  title/.append style={fill=bgunavy!12, font=\small\bfseries},
+  title label font=\small,
+  bar label font=\small,
+  bar/.append style={fill=bgunavy!45, rounded corners=1pt},
+  bar height=0.55,
+]{1}{8}
+\gantttitle{Year 1 (2026--2027)}{4}
+\gantttitle{Year 2 (2027--2028)}{4} \\
+\gantttitle{S1}{2}\gantttitle{S2}{2}\gantttitle{S3}{2}\gantttitle{S4}{2} \\
+\ganttbar{WP1: benchmark, simulator, power analysis}{1}{2} \\
+\ganttbar{WP2: failure characterisation and prediction}{1}{3} \\
+\ganttbar[bar/.append style={fill=green!45}]{WP3: finer-grained judging}{2}{4} \\
+\ganttbar[bar/.append style={fill=orange!55}]{WP4: judge-guided search policies}{3}{6} \\
+\ganttbar[bar/.append style={fill=purple!45}]{WP5: generalisation}{5}{6} \\
+\ganttbar[bar/.append style={fill=teal!45}]{WP6: end-to-end RAG evaluation}{6}{7} \\
+\ganttbar[bar/.append style={fill=yellow!65,draw=gray}]{Paper writing and submission}{4}{7} \\
+\ganttbar[bar/.append style={fill=gray!45}]{Thesis writing}{7}{8}
+\end{ganttchart}%
+}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption{Milestones.}
+\label{tab:milestones}
+\setstretch{1.15}\small
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+ & Date & Deliverable \\
+\midrule
+M1 & Mar 2027 & Extended benchmark and power analysis; failure characterisation of all failed queries \\
+M2 & Sep 2027 & Refined judge; gated and repulsive-feedback policies evaluated; first paper (judge signal and query--document geometry) submitted \\
+M3 & Mar 2028 & Trilateration policy and cross-domain replication completed; main paper (judge-guided search) submitted \\
+M4 & Sep 2028 & End-to-end evaluation completed; thesis submitted \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Target venues are information retrieval conferences (SIGIR, ECIR, CIKM), NLP conferences (ACL, EMNLP and their Findings tracks), and, for the search-algorithmic contribution, the Symposium on Combinatorial Search (SoCS).

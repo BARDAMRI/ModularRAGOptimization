@@ -1,0 +1,165 @@
+% ============================================================
+% Chapter 5 -- Preliminary Results
+% Numbers come from results/cloud_runs/staged_run_2026-08-03_08-32-45
+% unless stated otherwise.
+% ============================================================
+
+The preliminary phase built the infrastructure described below. It validated the LLM judge, measured the geometry of the query--document space, and evaluated a first family of static and adaptive search policies. The results are presented in the order in which they shaped the research.
+
+\section{Experimental Setup and Dataset Construction}
+\label{sec:prelim-setup}
+
+\paragraph{Pipeline.}
+We implemented a modular RAG pipeline (LlamaIndex with a Chroma vector store) that accepts a query either as text or directly as a vector, and returns neighbours of an arbitrary point in embedding space. This capability is required by every policy that moves the search anchor. Documents and queries are embedded with \texttt{all-mpnet-base-v2} (768 dimensions, cosine distance) \citep{reimers2019sbert,song2020mpnet}.
+
+\paragraph{A first, easy setting.}
+On PubMedQA \citep{jin2019pubmedqa} with its own corpus of about 272K abstracts, the dense retriever ranked the ground-truth abstract first for 186 of 199 questions (93.5\%). This is far above the lexical baselines reported on the same corpus, and it leaves little room for improvement. The same setting gave the first evidence of a query--document gap. The $K$ nearest neighbours of a question and the $K$ nearest neighbours of its target overlap only modestly: the mean Jaccard overlap is about 0.30 at $K=5$, peaks at about 0.40 at $K=20$, and falls to about 0.24 at $K=100$.
+
+\paragraph{A challenging pool.}
+Following the supervisors' recommendation, we built a harder benchmark on which the retriever succeeds in roughly 60--70\% of the questions. We embedded the full PubMed corpus distributed with MedRAG \citep{xiong2024medrag} (${\approx}$23.9M snippets) on a cloud GPU instance. For each of 199 PubMedQA questions we retrieved the 100 nearest neighbours of the question and the 100 nearest neighbours of its target. We interleaved these lists across questions and kept the first 5,026 unique documents as a \emph{shared pool}; adding missing targets brings the pool to 5,035 documents. Every question--document pair ($199\times5{,}026=1{,}000{,}174$ pairs) was scored by \textbf{Gemini~2.5~Flash-Lite} with a rubric-based prompt on an integer 1--10 scale, normalised to 0.1--1.0. Scoring was distributed over a rate-limited LLM gateway with a resumable, staged queue. Geometric analyses use the 196 questions for which a target embedding is available. On this pool B1 ranks the target first for \textbf{70.4\%} of the questions, so it fails on 58 of 196, which is inside the intended range.
+
+\section{The LLM Judge as a Proximity Signal (RQ1)}
+\label{sec:prelim-judge}
+
+\paragraph{Validating the judge.}
+Our first judging prompt produced poorly calibrated scores, and an early conclusion was that ``the LLM is not good as a judge''. A redesigned rubric with well-separated score definitions changed this. In a pilot, the judge gave the highest score to the target for 192 of 197 questions, and the five misses appeared to stem from questionable ground-truth labels.
+
+\paragraph{Correlation with distance to the target.}
+Table~\ref{tab:judge} summarises the full-pool run. Per query, the judge's score correlates negatively with the cosine distance between the document and the target. The correlation is negative for \emph{every} query and statistically significant ($p<0.05$) for every query under Spearman, Pearson and Kendall. As a detector of the target the judge is almost perfect (ROC-AUC 0.997). Average precision is low, however, because the target is one of many documents that receive the top score.
+
+\begin{table}[htbp]
+\centering
+\caption{Judge validity on the full pool (199 questions, 1,000,174 scored pairs). Correlations are per-query medians between $J(q,d)$ and $\dist(d,\GT)$.}
+\label{tab:judge}
+\setstretch{1.15}\small
+\begin{tabular}{lc}
+\toprule
+Metric & Value \\
+\midrule
+Spearman $\rho$ / Pearson $r$ / Kendall $\tau_b$ (median) & $-0.29$ / $-0.50$ / $-0.23$ \\
+Queries with negative / significant correlation & 100\% / 100\% \\
+ROC-AUC for identifying the target & 0.997 \\
+Average precision (random baseline) & 0.055 (0.0002) \\
+Targets that receive the top score (1.0) & 186 of 187 scored \\
+Documents with score 1.0 per query (median / mean) & 18 / 17.1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Score quantisation.}
+The judge effectively uses six of its ten levels (Table~\ref{tab:levels}), and the mean distance to the target decreases monotonically across them. The score is therefore an ordinal ``distance gauge'', which is the property a trilateration-style policy needs. Its resolution at the top is poor, though. A median of 18 documents per query share the score 1.0 with the target (the set $G_3$ below). In an earlier staged run the effect of ties was stark: MRR was 0.98 when ties were resolved in the target's favour, 0.26 when they were averaged, and 0.04 when they were resolved against the target.
+
+\begin{table}[htbp]
+\centering
+\caption{Score levels used by the judge (all pairs of the 196 analysed queries). The levels 0.3, 0.5, 0.7 and 0.9 together account for $<0.02\%$ of the pairs.}
+\label{tab:levels}
+\setstretch{1.15}\small
+\begin{tabular}{lcccccc}
+\toprule
+Judge score & 1.0 & 0.8 & 0.6 & 0.4 & 0.2 & 0.1 \\
+\midrule
+Share of pairs (\%) & 0.34 & 0.26 & 0.93 & 6.16 & 23.5 & 68.8 \\
+Mean $\dist(d,\GT)$ & 0.215 & 0.404 & 0.632 & 0.771 & 0.841 & 0.892 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The judge rarely flags a retrieval failure.}
+For 46 of the 58 questions on which B1 fails, the judge gives the wrong top-ranked document the score 1.0, so it is ``relevant'' but not the annotated target. The first document receives a lower score in only 12 failed questions and in 1 of the 138 successful ones. As a failure detector, ``$J(d_1)<1.0$'' is therefore precise (12 of 13) but has low recall (12 of 58). Two consequences follow. Evaluation must include a soft metric that accepts any fully relevant document. And gating the search on the first verdict (H5) requires a finer-grained judge (H7) or additional failure signals (RQ4). A pilot also indicated that the retriever's own top-1 confidence is markedly lower on failed queries, which makes it a candidate signal.
+
+\section{Geometry of the Query--Document Space (RQ2)}
+\label{sec:prelim-geometry}
+
+\paragraph{Queries are outliers (H1).}
+For every query we drew two balls of equal radius $\dist(q,\GT)/2$, one centred at the query and one centred at the target. The query ball contained \emph{no} pool document for any of the 196 queries. The target ball contained other documents for 23\% of the queries (38\% of the failed ones). Even though the target is, by construction, the document the retriever is aiming for, the query lies in an empty region and the target lies in a populated one.
+
+\paragraph{Three groups.}
+For each query we defined three document sets: $G_1$, the documents within $\dist(q,\GT)$ of the query; $G_3$, the documents the judge scores 1.0; and $G_2$, the documents within $\dist(C^\star,\GT)$ of the oracle centroid $C^\star$ of $G_3$. $G_1$ is small (median 1 document, mean 3.1). $G_3$ is large (median 18) and contains the target for 94.9\% of the queries. $G_2$ lies in between (median 6). The centroid is \textbf{44\% closer to the target than the query}: the mean $\dist(\cdot,\GT)$ is 0.097 for $C^\star$ against 0.173 for $q$, and $C^\star$ is closer for 92.3\% of the queries. The gain is larger exactly where it is needed: the mean improvement is 0.110 on failed queries against 0.061 on successful ones, and it correlates with $\dist(q,\GT)$ ($r=0.72$).
+
+\paragraph{The density anomaly.}
+Although the centroid ball is \emph{smaller} than the query ball, it contains about three times more documents. Two control experiments located the cause in the geometry of the document space and not in the centroid itself (Table~\ref{tab:density}). Random points at the same distance from the target capture almost nothing. Any real pool document closer to the target than the query captures as many documents as the centroid. In addition, using such a document as a ``simulated stronger judge'' does not shrink the candidate set. Documents are concentrated in a dense region around the target, and the query lies outside it. A deep dive into the ten most extreme queries identified two mechanisms. In one, the centroid is pulled \emph{away} from the target by distant false positives, yet still lands in a dense region. In the other, a tight and coherent $G_3$ cluster surrounds the target.
+
+\begin{table}[htbp]
+\centering
+\caption{Ball occupancy around different anchors (radius = anchor's distance to the target, except for random points, which use half the query's distance).}
+\label{tab:density}
+\setstretch{1.15}\small
+\begin{tabular}{lccc}
+\toprule
+Anchor & Mean radius & Docs in ball & Docs / radius \\
+\midrule
+Query $q$ ($G_1$) & 0.173 & 3.1 & 15 \\
+Random point near the target & 0.087 & 0.8 & 11 \\
+Pool doc.\ closer to the target than $q$ & 0.06--0.10 & 10.1 & 60 \\
+Oracle centroid $C^\star$ ($G_2$) & 0.098 & 9.7 & 93 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The $q$--$C^\star$--target triangle.}
+On the unit hypersphere, the triangle formed by the query, the oracle centroid and the target is nearly isosceles with its apex at the query. The mean spherical angles are $\angle q\approx45.7^{\circ}$, $\angle C^\star\approx70.8^{\circ}$ and $\angle\GT\approx70.6^{\circ}$, with $\dist(q,C^\star)\approx\dist(q,\GT)\approx0.17$ and $\dist(C^\star,\GT)\approx0.10$. Seen from the query, the centroid and the target lie in directions about $46^{\circ}$ apart. Moving from $q$ towards $C^\star$ brings the search closer to the \emph{cluster} of relevant documents, but not specifically to the target, which sits off the $q$--$C^\star$ axis.
+
+\section{Static Policies: Best-First Search with Fixed Evaluation Functions}
+\label{sec:prelim-bfs}
+
+To test H2 we compared static policies, each ranking the 5,035 documents by a fixed function $f$, with the oracle centroid as an optimistic ingredient (Table~\ref{tab:bfs}). Three sanity checks passed. B1 reproduces the RAG retriever exactly. H1 converges to B1 as $\alpha\to1$. H2 (query distance, with centroid distance as a tie-breaker) is identical to B1 for all 196 queries, because 64-bit cosine distances never tie.
+
+\begin{table}[htbp]
+\centering
+\caption{Static policies on 196 queries. Rank of the target = number of judge calls until it is found. B2 and H1--H3 use the \emph{oracle} centroid $C^\star$. H1: $\mathrm{score}(d)=\alpha\,\mathrm{sim}(q,d)+(1-\alpha)\,\mathrm{sim}(C^\star,d)$. H3: the top-$k$ by $\dist(q,\cdot)$, re-ranked by $\dist(C^\star,\cdot)$.}
+\label{tab:bfs}
+\setstretch{1.15}\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{5.0cm}*{5}{>{\centering\arraybackslash}X}}
+\toprule
+Policy & Mean rank & Top-1 (\%) & Top-3 (\%) & Top-10 (\%) & Mean rank (failed) \\
+\midrule
+B1: $\dist(q,\cdot)$ (standard RAG) & \textbf{3.29} & 70.4 & \textbf{83.2} & \textbf{91.8} & \textbf{8.72} \\
+B2: $\dist(C^\star,\cdot)$ & 9.87 & 14.8 & 36.2 & 62.8 & 14.31 \\
+H1, $\alpha=0.93$ & 3.35 & \textbf{71.4} & 82.7 & 90.8 & 8.93 \\
+H1, $\alpha=0.85$ & 3.40 & 70.9 & 82.7 & 90.8 & 9.09 \\
+H1, $\alpha=0.70$ & 3.71 & 67.9 & 79.6 & 89.8 & 9.86 \\
+H2: $\dist(q,\cdot)$, tie-break $\dist(C^\star,\cdot)$ & 3.29 & 70.4 & 83.2 & 91.8 & 8.72 \\
+H3, $k=10$ & 5.05 & 17.9 & 43.9 & 91.8 & -- \\
+H3, $k=50$ & 9.55 & 14.8 & 36.2 & 63.3 & -- \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Even with oracle information, mixing in the centroid barely helps. The best hybrid (H1, $\alpha=0.93$) gains one percentage point at top-1 but changes the target's rank in only 16 queries (6 better, 10 worse). Pure centroid ranking (B2) and re-ranking a short list by centroid distance (H3) collapse, as the triangle geometry predicts. A per-query table and three hand-traced queries confirmed that the policies behave as specified.
+
+\section{First Adaptive Policies}
+\label{sec:prelim-adaptive}
+
+We then removed the oracle and let policies learn from the judge online.
+\begin{itemize}
+  \item \textbf{Judge re-ranking of the top-$k$.} If ties are broken arbitrarily, top-1 accuracy collapses (40.8\% at $k=5$, 32.1\% at $k=10$). If ties are broken by query distance, judging the top-5 returns the target for 75.4\% of the 187 queries with a scored target, against 73.8\% for B1 on the same queries: five calls buy 1.6 points. The reason is that the wrong first document is usually also rated 1.0.
+  \item \textbf{Iterative pseudo-relevance feedback.} Judging the top-$k$, re-ranking the whole pool by the centroid of the documents rated 1.0, and repeating, places the target at mean rank 4.9 with 31\% top-1 ($k=5$, one round), and more rounds make it worse.
+  \item \textbf{Adaptive sequential search.} The policy follows B1 until the first document rated 1.0 is found. It then selects the next document by $\alpha\,\mathrm{sim}(q,d)+(1-\alpha)\,\mathrm{sim}(C_t,d)$, where $C_t$ is the online centroid of the documents rated 1.0 so far and is updated after every call. Every $\alpha<1$ \emph{increases} the cost (Table~\ref{tab:adaptive}).
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\caption{Adaptive sequential search: mean (median) number of judge calls until the target is found.}
+\label{tab:adaptive}
+\setstretch{1.15}\small
+\begin{tabular}{lcccccc}
+\toprule
+$\alpha$ & 1.0 (=B1) & 0.9 & 0.7 & 0.5 & 0.3 & 0.1 \\
+\midrule
+All 196 queries & 3.29 (1) & 3.35 (1) & 3.72 (1) & 4.10 (1) & 4.43 (1) & 4.55 (1) \\
+58 failed queries & 8.72 (4) & 8.93 (5) & 10.19 (5) & 11.47 (6) & 12.59 (8.5) & 13.00 (9) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+These negative results are informative. Attraction towards judge-approved documents moves the search into the dense cluster of relevant-but-non-target documents (on failed queries, the $\alpha=0.5$ policy judges a median of 3.5 other documents rated 1.0 before it reaches the target). This is consistent with the triangle geometry, in which the target lies off the $q$--centroid axis.
+
+\section{Summary of Preliminary Findings}
+\label{sec:prelim-summary}
+
+\begin{enumerate}
+  \item The judge is a strong but coarse proximity signal. Ties at the top score, not ranking errors, are its main limitation, and it rarely flags the retriever's own mistakes.
+  \item Queries lie outside the dense document region that surrounds their target, and judge-approved documents concentrate around the target \emph{off} the query--centroid axis.
+  \item Neither static mixing (even with oracle information) nor naive online attraction to the centroid beats B1. Any gain must come from policies that (i) are invoked only when B1 is likely to fail, (ii) push away from relevant-but-non-target documents rather than towards them, or (iii) localise the target from \emph{graded} feedback, which requires a finer-grained judge.
+\end{enumerate}
+These three directions match the action items of the most recent supervision meeting (12.10.2026): analyse the failed queries in depth, evaluate on them separately, add a negative weight on the centroid distance, and start the adaptive search only once the first document is known not to be the target. They form the core of the proposed work.

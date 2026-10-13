@@ -1,0 +1,15 @@
+% ============================================================
+% Main_pages/abstract.tex -- English abstract
+% ============================================================
+\chapter*{Abstract}
+\phantomsection\label{page:abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+In Retrieval-Augmented Generation (RAG), the quality of the answer is bounded by the quality of retrieval: if the relevant document is not retrieved, the generator cannot use it. Dense retrievers rank documents by embedding similarity to the query. They are cheap, but in specialised domains they miss the target document on a non-trivial fraction of queries. LLM judges score relevance much more accurately, but every call is expensive, and their scores are coarse: many documents receive the same top score.
+
+This research treats retrieval with an LLM judge as a \emph{budget-constrained sequential search problem}. Embedding distance is a cheap surrogate, the judge is an expensive oracle, and the policy chooses which document to judge next so as to reach the target in as few calls as possible. Our preliminary study used 196 PubMedQA questions over a shared pool of 5,035 documents drawn from a full-PubMed dense index, with all ${\approx}$1M question--document pairs scored by Gemini~2.5~Flash-Lite. It showed that (i) the judge's score is a reliable but coarse proxy for proximity to the target: its correlation with distance is negative in every query and ROC-AUC is 0.997, but a median of 18 documents per query share the top score; (ii) queries are geometric outliers with respect to the documents; and (iii) the centroid of the judge-approved documents is 44\% closer to the target than the query is, yet static use of this centroid improves top-1 accuracy by at most one percentage point over the dense retriever (70.4\%$\to$71.4\%), and naive online steering towards it increases cost.
+
+Building on these findings, we will develop and evaluate (a)~judge-guided search policies that invoke the expensive search only when the retriever is likely to have failed, use repulsive feedback from relevant-but-non-target documents, and localise the target by trilateration from judge scores; (b)~finer-grained judging that breaks score ties; and (c)~a characterisation and early prediction of retrieval failures. Policies will be compared by their cost--accuracy curves with dense retrieval, re-ranking, pseudo-relevance feedback and HyDE, on biomedical and general-domain benchmarks.
+
+\vspace{6pt}
+\noindent\textbf{Keywords:} retrieval-augmented generation, dense retrieval, embedding geometry, LLM-as-a-judge, budget-constrained search, biomedical question answering.

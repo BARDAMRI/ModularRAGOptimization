@@ -1,0 +1,113 @@
+% ============================================================
+% Chapter 6 -- Research Methodology and Work Plan
+% ============================================================
+
+The research is organised in six work packages (WPs). Table~\ref{tab:wp-map} maps them to the research questions and hypotheses of Chapter~\ref{chapter:objectives}.
+
+\begin{table}[htbp]
+\centering
+\caption{Work packages, research questions and hypotheses.}
+\label{tab:wp-map}
+\setstretch{1.15}\small
+\begin{tabularx}{\textwidth}{lXll}
+\toprule
+WP & Content & RQs & Hypotheses \\
+\midrule
+WP1 & Benchmark extension, offline simulator, statistical protocol & all & -- \\
+WP2 & Characterisation and prediction of retrieval failures & RQ2, RQ4 & H1, H5 \\
+WP3 & Finer-grained judging & RQ1 & H3, H7 \\
+WP4 & Judge-guided search policies & RQ3, RQ4 & H2, H4--H6 \\
+WP5 & Generalisation across embedders, judges, datasets & RQ5 & H1--H7 \\
+WP6 & End-to-end RAG evaluation & RQ5 & -- \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{WP1: Benchmark, Simulator and Statistical Protocol}
+
+\paragraph{Larger query sets.}
+The current pool contains 58 failed queries, too few to detect moderate effects on that subset. We will extend the benchmark to the full expert-annotated PubMedQA set (1,000 questions), using the same pool-construction recipe, so that B1 succeeds on about 60--70\% of the questions. A full query$\times$pool cross product grows quadratically, so we will pre-score each question's neighbourhood (neighbours of the question and of its target, plus sampled negatives). Any other document that a policy requests will be scored on demand and cached, which keeps the offline replay exact.
+
+\paragraph{Power analysis.}
+Using the per-query variance of the call differences measured in the preliminary phase, we will determine the number of failed queries needed to detect a target effect size, for example a 20\% reduction in mean calls on failed queries, at $\alpha=0.05$ and power $0.8$. This determines the final benchmark size \citep{sakai2016statistical}.
+
+\paragraph{Metrics and tests.}
+For every policy we report $N_\pi$ (mean and median), $\mathrm{Succ}@B$ and the cost--accuracy curve for $B\in\{1,2,3,5,10,20\}$, and the strict and soft accuracy of the returned document (Chapter~\ref{chapter:problem}). Results are reported separately on all queries and on the failed-query subset. Policies are compared per query with paired Wilcoxon signed-rank or randomisation tests, with bootstrap 95\% confidence intervals and Holm correction for multiple comparisons \citep{smucker2007comparison}. Hyper-parameters are tuned on a development split and reported on a held-out split.
+
+\section{WP2: Characterising and Predicting Retrieval Failure}
+
+\paragraph{Deep dive into failed queries.}
+Extending the hand-traced examples of the preliminary phase, we will analyse all queries on which B1 is not perfect and ask what separates them from the successful ones. \emph{Analysis features} may use the target and the full judge scores: $\dist(q,\GT)$, the target's displacement from the $q$--$C^\star$ axis, local density around $q$ and around the target, and $|G_1|,|G_2|,|G_3|$. \emph{Deployable features} use only what is available at query time: the similarity margin and spread of the top-$k$ list, local density around the top documents, the judge's (refined) verdict on the first document, agreement among the top documents, and question type.
+
+\paragraph{Failure prediction.}
+From the deployable features we will train simple, interpretable classifiers (logistic regression and gradient-boosted trees) to predict ``B1's first document is not the target''. We will compare them with classical query-performance predictors \citep{cronentownsend2002predicting,carmel2010estimating} using ROC-AUC and precision at fixed recall. The predictor is the trigger of the gated policies in WP4.
+
+\section{WP3: Finer-Grained Judging}
+
+The preliminary results show that ties at the top score, not ranking errors, limit the judge (H7). We will compare: (i) a sharper rubric that differentiates ``answers the question'' from ``on-topic''; (ii) a finer scale (0--100); (iii) expected relevance computed from the token probabilities of the label \citep{zhuang2024beyond}; (iv) pairwise or listwise comparison, applied only \emph{within} the tied top group, which bounds the extra cost; and (v) a stronger judge, including an open-weights model served on our cluster. Each variant is measured by the size of the top-score tie group, ROC-AUC and Kendall's $\tau$ against distance to the target, its accuracy as a first-document failure detector (WP2), and its cost per call.
+
+\section{WP4: Judge-Guided Search Policies}
+
+All policies are evaluated in the offline simulator, in both feedback regimes, against the same baselines.
+
+\paragraph{Baselines.}
+B1 (dense retrieval) and BM25 \citep{robertson2009bm25}; cross-encoder re-ranking of the top-$k$ \citep{nogueira2019passage}; LLM re-ranking of the top-$k$ with ties broken by query distance \citep{sun2023rankgpt}; Rocchio-style and ANCE-style pseudo-relevance feedback \citep{rocchio1971relevance,yu2021anceprf}; HyDE and Query2doc \citep{gao2023hyde,wang2023query2doc}, at one generation call each; and the oracle-centroid policies of Chapter~\ref{chapter:preliminary} as optimistic references.
+
+\paragraph{(a) Gated search (H5).}
+Judge B1's first document. If it is accepted, by the refined judge of WP3 and/or the failure predictor of WP2, stop after a single call. Otherwise, switch to one of the adaptive policies below. On the roughly 70\% of queries where B1 is right, gating preserves B1's cost, so the comparison effectively happens on the failed queries, as suggested in our last meeting.
+
+\paragraph{(b) Repulsive feedback (H4).}
+Generalise the adaptive rule to
+\begin{equation}
+  s_t(d) \;=\; \alpha\,\mathrm{sim}(q,d) \;+\; \beta\,\mathrm{sim}(C_t^{+},d) \;-\; \gamma\,\mathrm{sim}(C_t^{-},d),
+\end{equation}
+where $C_t^{+}$ is the online centroid of judged documents rated highly but rejected as the target, and $C_t^{-}$ is the centroid of documents rated low. The preliminary results correspond to $\beta>0,\gamma=0$. We will study $\beta<0$, a negative weight that pushes the search away from the cluster of relevant-but-non-target documents and towards the off-axis target, and $\gamma>0$, Rocchio's negative-feedback term. A diversity penalty against already-judged documents, in the spirit of maximal marginal relevance, will also be tested.
+
+\paragraph{(c) Trilateration from graded feedback (H6).}
+This is the original algorithmic idea of the project, made feasible by the judge validation of Chapter~\ref{chapter:preliminary}.
+\begin{enumerate}
+  \item \emph{Calibration.} Fit a monotone map $g$ from judge score to expected distance to the target (Table~\ref{tab:levels}) on a development split.
+  \item \emph{Initial anchors.} Judge a few anchors chosen by farthest-point sampling within the query's neighbourhood: start from the nearest document, then repeatedly add the document farthest from those already selected.
+  \item \emph{Localisation.} Estimate the target position either (A) as a weighted centroid $\hat x_t\propto\sum_i w(J_i)\,\phi(d_i)$, or (B) by metric least squares on the sphere,
+  \begin{equation}
+    \hat x_t \;=\; \arg\min_{x\in\mathbb{S}^{m-1}} \sum_{i\le t} \bigl(\dist(x,d_i)-g(J_i)\bigr)^2 \;+\; \lambda\,\dist(x,q).
+  \end{equation}
+  Because there are far fewer anchors than dimensions, $x$ is restricted to the subspace spanned by $q$ and the judged documents, which makes the problem well posed.
+  \item \emph{Step.} Retrieve the nearest unjudged neighbour of $\hat x_t$ from the vector database (querying by vector), judge it, and update.
+  \item \emph{Stopping.} Stop when a score exceeds a threshold, when there has been no improvement for a fixed number of iterations, or when the budget is reached. Return the best-judged document.
+\end{enumerate}
+Finer-grained judging (WP3) directly sharpens $g$, so WP3 and WP4 will be iterated together.
+
+\paragraph{(d) Query-adaptive weighting.}
+Since the benefit of the centroid varies strongly across queries (it correlates with $\dist(q,\GT)$), we will test choosing $(\alpha,\beta,\gamma)$ per query from the WP2 features.
+
+\section{WP5: Generalisation}
+
+We will repeat the geometric analysis (query outlier test, three groups, triangle, density controls) and the policy comparison with (i) other embedders: a biomedical retriever \citep{jin2023medcpt}, Contriever \citep{izacard2022contriever} and a stronger commercial embedding model; (ii) other judges; and (iii) other datasets with document-level ground truth: BioASQ \citep{tsatsaronis2015bioasq} in the biomedical domain, and MS~MARCO \citep{nguyen2016msmarco} or Natural Questions \citep{kwiatkowski2019nq} in the general domain. Pools will be built with the same recipe, so that retrieval is comparably challenging.
+
+\section{WP6: End-to-End RAG Evaluation}
+
+The best policies will be integrated into the modular RAG pipeline and evaluated on downstream answer accuracy, following the MIRAGE protocol \citep{xiong2024medrag} (PubMedQA yes/no/maybe and, where applicable, multiple-choice medical QA), together with total LLM calls, tokens and latency per question. This tests whether gains in retrieval cost and accuracy translate into better and cheaper answers.
+
+\section{Resources, Risks and Mitigation}
+
+\paragraph{Resources.}
+The existing codebase (pipeline, LLM gateway, staged scoring queue, offline simulator, analysis suite), the BGU compute cluster (SLURM) and on-demand cloud GPUs for embedding, and an LLM API budget. Offline replay keeps API usage concentrated in one-time scoring runs.
+
+\begin{table}[htbp]
+\centering
+\caption{Main risks and mitigations.}
+\label{tab:risks}
+\setstretch{1.15}\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4.6cm}X}
+\toprule
+Risk & Mitigation \\
+\midrule
+Judge ties cap every policy & WP3 (finer judging); soft metrics; verified regime isolates navigation from ties \\
+Too few failed queries for significance & Benchmark extension and power analysis (WP1) \\
+LLM API cost and rate limits & Offline replay, caching, on-demand scoring only; open-weights judge on the cluster \\
+Noisy or non-unique ground truth & Soft metrics; manual audit of a sample of disagreements \\
+Policies do not beat B1 & Gating alone already avoids judge calls on easy queries; failure characterisation and predictor remain standalone contributions \\
+\bottomrule
+\end{tabularx}
+\end{table}
