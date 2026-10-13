@@ -1,0 +1,546 @@
+% ============================================================
+% Research Proposal -- Bar Mordechai Damri
+% Ben-Gurion University of the Negev
+% Supervisors: Prof. Roni Stern, Prof. Rami Puzis
+% Compile with: xelatex research_proposal.tex
+% ============================================================
+
+\documentclass[12pt,a4paper]{article}
+
+% ---- Hebrew + English support (XeLaTeX) --------------------
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{english}
+\setotherlanguage{hebrew}
+\newfontfamily\hebrewfont[Script=Hebrew,BoldFont=Arial Hebrew Bold]{Arial Hebrew}
+
+% ---- Page geometry -----------------------------------------
+\usepackage{geometry}
+\geometry{a4paper, left=3cm, right=2.5cm, top=2.8cm, bottom=3cm}
+
+% ---- Typography --------------------------------------------
+\usepackage{microtype}
+\usepackage{setspace}
+\setstretch{1.45}
+
+% ---- Color and section formatting -------------------------
+\usepackage{xcolor}
+\definecolor{bgunavy}{RGB}{27,61,110}
+\usepackage{titlesec}
+\titleformat{\section}
+  {\large\bfseries\color{bgunavy}}{\thesection.}{0.7em}{}
+  [\vspace{-4pt}\color{bgunavy}\rule{\linewidth}{0.4pt}\vspace{4pt}]
+\titleformat{\subsection}
+  {\normalsize\bfseries\color{bgunavy}}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\itshape}{}{0em}{}
+
+\titlespacing*{\section}{0pt}{18pt}{8pt}
+\titlespacing*{\subsection}{0pt}{14pt}{5pt}
+\titlespacing*{\subsubsection}{0pt}{10pt}{4pt}
+
+% ---- Math --------------------------------------------------
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% ---- Tables ------------------------------------------------
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{multirow}
+
+% ---- Lists -------------------------------------------------
+\usepackage{enumitem}
+\setlist[itemize]{topsep=4pt,itemsep=2pt,parsep=0pt,leftmargin=1.4em}
+\setlist[enumerate]{topsep=4pt,itemsep=2pt,parsep=0pt,leftmargin=1.8em}
+
+% ---- Gantt chart -------------------------------------------
+\usepackage{pgfgantt}
+
+% ---- Hyperlinks -------------------------------------------
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=bgunavy,
+  citecolor=bgunavy,
+  urlcolor=bgunavy,
+  pdftitle={Research Proposal -- Bar Mordechai Damri},
+  pdfauthor={Bar Mordechai Damri},
+  pdfsubject={Embedding Geometric Heuristics for Improving RAG}
+}
+
+% ---- Paragraph spacing ------------------------------------
+\usepackage{parskip}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{7pt}
+
+% ---- Floats -----------------------------------------------
+\usepackage{float}
+\usepackage{caption}
+\captionsetup{font=small, labelfont=bf}
+
+% ============================================================
+\begin{document}
+
+% ============================================================
+% COVER PAGE
+% ============================================================
+
+\begin{titlepage}
+\centering\singlespacing
+
+\vspace*{0.8cm}
+
+{\large\bfseries Ben-Gurion University of the Negev}\\[5pt]
+{\normalsize The Faculty of Computer and Information Science}\\[3pt]
+{\normalsize The Institute of Information Systems Engineering}
+
+\vspace{2.8cm}
+
+{\LARGE\bfseries\color{bgunavy}\setstretch{1.2}
+Embedding Geometric Heuristics for\\
+Improving Retrieval-Augmented Generation
+}
+
+\vspace{0.8cm}
+
+\begin{otherlanguage*}{hebrew}
+{\Large\bfseries\setstretch{1.3}
+הטמעת יוריסטיקות גיאומטריות לשיפור מערכת אחזור מבוססת שליפה \textenglish{\LR{(RAG):}}\\[4pt]
+חקירת השפעת מבנה המרחב הווקטורי על איכות התשובה
+}
+\end{otherlanguage*}
+
+\vspace{2.2cm}
+
+{\large\itshape Research proposal}
+
+\vspace{2.8cm}
+
+{\large\bfseries Bar Mordechai Damri}\\[6pt]
+{\normalsize Student ID: 208915751}
+
+\vspace{2.4cm}
+
+{\normalsize Supervisors:}\\[8pt]
+{\large\bfseries Prof. Roni Stern \quad Prof. Rami Puzis}
+
+\vfill
+\end{titlepage}
+
+% ============================================================
+% ABSTRACT
+% ============================================================
+
+\setcounter{page}{2}
+
+\section*{Abstract}
+
+Retrieval-Augmented Generation (RAG) has become the dominant paradigm for grounding large language model outputs in external knowledge. The quality of RAG responses depends critically on whether the retrieval step recovers the ground-truth document: an LLM conditioned on irrelevant content cannot produce a correct answer regardless of its generative capability. Current dense retrieval methods rank documents by cosine distance from the query embedding, implicitly assuming that the query occupies the same region of the embedding space as its relevant documents. This assumption is routinely violated in specialized domains.
+
+This research investigates the geometric structure of the query-document embedding space in biomedical RAG systems, with three goals: (1) to characterize, through rigorous geometric measurement, why query-centric nearest-neighbor retrieval fails for a non-trivial fraction of queries; (2) to design and evaluate adaptive retrieval algorithms that exploit geometric structure and LLM relevance score gradients to find the ground-truth document with fewer expensive LLM calls; and (3) to determine whether hypothetical document generation bridges the query-to-document-space gap in the biomedical domain.
+
+Our preliminary work on a biomedical corpus of 5,035 documents and 196 queries reveals that query embeddings are consistent geometric outliers: for every query in the dataset, the cosine-distance neighborhood of the query contains zero pool documents within the radius defined by the distance to the ground-truth document. We further characterize the $Q$-$C$-$GT$ triangle on the unit hypersphere, finding it nearly isosceles (mean angles: $\angle Q \approx 45.7^{\circ}$, $\angle C \approx 70.8^{\circ}$, $\angle GT \approx 70.6^{\circ}$; spherical excess $\approx 7^{\circ}$), and show that LLM relevance scores form a reliable geometric gradient (ROC-AUC = 0.9974 for ground-truth identification). These findings motivate a new class of adaptive retrieval algorithms that interleave embedding-based candidate selection with incremental LLM scoring, using each score as a navigation signal to update the search anchor in embedding space.
+
+\newpage
+
+% ============================================================
+% SCIENTIFIC BACKGROUND
+% ============================================================
+
+\section{Scientific Background}
+
+\subsection{Retrieval-Augmented Generation}
+
+Large language models (LLMs) encode world knowledge in their parameters, but that knowledge is frozen at training time and cannot be updated without expensive retraining. For specialized domains such as biomedicine, law, and finance, the volume of domain-specific literature far exceeds what can be memorized at training time, and the knowledge evolves continuously. Retrieval-Augmented Generation (RAG) addresses both limitations by decoupling knowledge storage from language modeling: at inference time, relevant documents are retrieved from an external corpus and provided as context to the LLM, which generates a grounded response \cite{lewis2020rag,shi2024replug}.
+
+A standard RAG pipeline consists of three components. First, an \textit{indexer} pre-computes dense vector representations (embeddings) of all documents in the corpus. Second, a \textit{retriever} computes a query embedding and returns the top-$k$ documents by embedding similarity. Third, a \textit{reader/generator} conditions an LLM on the retrieved documents to produce the final response. The quality of the generated response is fundamentally bounded by retrieval accuracy: if the ground-truth document is not among the retrieved candidates, the LLM cannot produce a correct grounded response regardless of its language modeling capability \cite{shi2023distractors}.
+
+The practical impact of RAG extends well beyond academic benchmarks. Enterprise knowledge management systems, clinical decision support tools, and legal research assistants all rely on RAG to combine the fluency of LLMs with the factual grounding of a curated knowledge base. In biomedical applications, retrieval failures can have direct clinical consequences: an answer generated from an irrelevant document may confidently assert an incorrect drug dosage or contraindication. Improving retrieval accuracy in biomedical RAG is therefore both a scientific and a practical priority.
+
+\subsection{Dense Retrieval and the Embedding Space}
+
+Dense retrieval maps both queries and documents into a shared high-dimensional vector space, typically of 768 dimensions for BERT-based models, and ranks documents by cosine similarity to the query vector \cite{karpukhin2020dpr,reimers2019sbert}. The bi-encoder architecture introduced by Karpukhin et al.\ \cite{karpukhin2020dpr} uses separate encoders for queries and documents; document embeddings can be pre-computed offline and indexed for fast approximate nearest-neighbor retrieval at query time.
+
+Dense retrieval models fine-tuned on large QA datasets show strong in-domain performance, but their performance degrades in zero-shot and cross-domain settings. The BEIR benchmark \cite{thakur2021beir}, which evaluates retrieval across 18 heterogeneous datasets, demonstrates that out-of-domain performance is substantially lower than in-domain performance across all tested models. Biomedical retrieval tasks exhibit some of the largest performance gaps, motivating domain-specific investigation.
+
+A critical and underexplored property of bi-encoder systems is that the query encoder and document encoder may produce embeddings that systematically occupy different regions of the shared vector space. Unlike cross-encoder rerankers, which process query-document pairs jointly, bi-encoders independently encode each input, creating the possibility of a distributional shift between the query population and the document population in embedding space.
+
+\subsection{The Query-Document Gap: Anisotropy and Outlier Queries}
+
+High-dimensional embedding spaces produced by pre-trained language models are strongly anisotropic: rather than distributing representations uniformly across the hypersphere, models cluster them in narrow cones \cite{ethayarajh2019contextual}. Ethayarajh demonstrated that cosine similarities between random pairs of BERT representations are far higher than expected under a uniform distribution, with representations concentrated near a small number of dominant directions. This anisotropy has direct implications for retrieval: when embeddings cluster in a cone, cosine similarities become uniformly high and lose discriminative power.
+
+For bi-encoder retrieval, the relevant geometric structure is the relative position of query embeddings and document embeddings on the unit hypersphere. Hofst\"{a}tter et al.\ \cite{hofstatter2021tasb} showed that dense retrieval models fail to generalize across topically diverse queries when the training distribution does not cover all topics. Xiong et al.\ \cite{xiong2021ance} showed that hard negatives for dense retrieval are often documents that lie near the query in embedding space but are semantically different, suggesting that the embedding distance between query and relevant document can be large in practice.
+
+Our preliminary work provides the first direct measurement of this gap in a biomedical dataset. We define the \textit{query circle} (Q\_CIRCLE) as the set of pool documents with cosine distance to the query strictly less than $d(Q, GT)$. We find that Q\_CIRCLE is empty for 100\% of the 196 queries: the ground-truth document is always ranked first by $d(Q)$. However, the \textit{ground-truth circle} (GT\_CIRCLE), defined symmetrically, is empty for only 77\% of queries; for 23\% of queries, other pool documents lie within GT's neighborhood. This asymmetry confirms that query embeddings occupy a sparse, peripheral region of document embedding space. Despite the apparently favorable naive ranking (GT always ranked first), top-1 accuracy is only 70.4\%, because non-GT documents exist that are geometrically closer to the query than GT while being semantically irrelevant.
+
+\subsection{The Q--C--GT Triangle on the Unit Hypersphere}
+
+A central geometric object in this research is the triangle formed by three embeddings on the unit hypersphere: the query ($Q$), the oracle centroid ($C$), and the ground-truth document ($GT$). The oracle centroid is computed as the $\ell^2$-normalized mean of all documents the LLM scores at 1.0 (fully relevant), representing the center of mass of the relevant document cluster as identified by an oracle LLM.
+
+We measure the angles of this triangle using the spherical law of cosines. For three unit vectors with arc lengths $a = d(B,C)$, $b = d(A,C)$, $c = d(A,B)$, the angle at vertex $A$ satisfies:
+\begin{equation}
+  \cos(\angle A) = \frac{\cos(a) - \cos(b)\cos(c)}{\sin(b)\sin(c)}
+\end{equation}
+
+The key finding is that the $Q$-$C$-$GT$ triangle is nearly isosceles with the apex at $Q$:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Vertex & Mean angle & Interpretation \\
+\midrule
+$\angle Q$ (apex) & $45.7^{\circ}$ & \textit{C} and \textit{GT} diverge $\approx 46^{\circ}$ as seen from \textit{Q} \\
+$\angle C$        & $70.8^{\circ}$ & \textit{GT} is $\approx 71^{\circ}$ from \textit{Q} as seen from \textit{C} \\
+$\angle GT$       & $70.6^{\circ}$ & \textit{C} is $\approx 71^{\circ}$ from \textit{Q} as seen from \textit{GT} \\
+Sum               & $187.0^{\circ}$ & Spherical excess of $7^{\circ}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The isosceles structure implies that $Q$ is equidistant from $C$ and $GT$: $d(Q, C) \approx d(Q, GT) \approx 0.17$ in cosine distance. The short side of the triangle is $C$-$GT$, with mean $d(C, GT) \approx 0.10$; the centroid is 44\% closer to the ground-truth than the query. This geometric fact motivates centroid-guided retrieval. However, the off-axis position of $GT$ relative to the $Q$-$C$ line limits the effectiveness of pure centroid-based ranking, as detailed in the preliminary results section.
+
+\subsection{LLM-as-a-Judge: Graded Relevance as a Geometric Signal}
+
+The use of LLMs as judges for relevance assessment has emerged as a powerful paradigm in information retrieval and RAG evaluation \cite{zheng2023judging}. LLM judges produce graded relevance scores that reflect degrees of document-query alignment, providing richer supervision signal than traditional binary relevance labels.
+
+In this research, LLM relevance scores serve a dual role: they provide training-time supervision for offline analysis, and they serve as a runtime navigation signal for adaptive retrieval algorithms. A key empirical finding is that LLM scores in our dataset are distributed across six discrete values (0.1, 0.2, 0.4, 0.6, 0.8, 1.0) and are strongly correlated with embedding distance to the ground-truth document. The mapping is monotone:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{cc}
+\toprule
+LLM Score & Mean $d(GT)$ \\
+\midrule
+1.0 & 0.10 \\
+0.8 & 0.40 \\
+0.6 & 0.54 \\
+0.4 & 0.63 \\
+0.2 & 0.72 \\
+0.1 & 0.89 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The global ROC-AUC for using the LLM score to identify the ground-truth document is 0.9974, with a GT recovery rate of 99.5\% (GT receives the highest LLM score in 195 of 196 queries). This near-perfect discriminative power establishes the LLM judge as a highly reliable signal for GT identification. The monotone decrease of mean $d(GT)$ from score 0.1 to score 1.0 constitutes a consistent directional gradient in embedding space, motivating the use of LLM scores as a navigation compass in adaptive sequential search. However, LLM scoring is expensive relative to embedding similarity computation; efficient exploitation of the gradient signal while minimizing the number of scoring calls is a central challenge.
+
+\subsection{Pseudo-Relevance Feedback and Centroid-Based Expansion}
+
+Pseudo-relevance feedback (PRF) is a classical information retrieval technique that refines a query by assuming the top-$k$ retrieved documents are relevant \cite{robertson2009bm25}. In the dense retrieval setting, Mao et al.\ \cite{mao2021anceprf} proposed ANCE-PRF, which computes the centroid of the top-$k$ document embeddings and uses it as an updated query vector for a second retrieval pass.
+
+In our biomedical dataset, blind PRF (using all top-$k$ documents regardless of relevance) is harmful: at~$k=5$, top-1 accuracy drops from 70.4\% to 24\%. This collapse occurs because the top-5 documents by $d(Q)$ include on average 2 to 3 documents with LLM score $\geq 0.8$ and 2 to 3 documents with LLM score $\leq 0.2$. Including irrelevant documents in the centroid computation biases the centroid away from the relevant document cluster. Only when LLM filtering is applied (oracle PRF) does the centroid become a useful anchor (reaching $d(GT) \approx 0.10$ versus $d(Q, GT) \approx 0.17$). This asymmetry motivates \textit{adaptive PRF}: interleaving LLM scoring and centroid construction, updating the anchor vector incrementally after each scored document.
+
+\subsection{Hypothetical Document Embeddings}
+
+Hypothetical Document Embeddings (HyDE) \cite{gao2023hyde} address the query-document gap by generating a hypothetical relevant document using an LLM and using its embedding as the retrieval anchor. Since the hypothetical document is formatted like a corpus document rather than a question, its embedding should lie in document space, potentially bridging the gap between the query's outlier position and the relevant document cluster.
+
+HyDE has shown strong results on several zero-shot retrieval benchmarks. However, its effectiveness in the biomedical domain has not been fully evaluated. Biomedical queries often require precise factual knowledge (gene names, drug mechanisms, clinical trial outcomes) that general-purpose LLMs may not generate accurately. The trade-off between the geometric benefit of document-space embedding and the factual quality of the hypothetical document is a key research question that this proposal addresses directly.
+
+\subsection{Spherical Geometry in High-Dimensional Embedding Spaces}
+
+When embedding vectors are $\ell^2$-normalized to unit length, they lie on the surface of a unit hypersphere, and geometric relationships between them are governed by spherical geometry. The cosine distance between two unit vectors corresponds to the chord distance on the hypersphere, and the angle between them equals the arc length in radians. The triangle formed by three unit vectors obeys the spherical law of cosines (Equation~1), and its angle sum exceeds $180^{\circ}$ by the spherical excess, proportional to the area of the spherical triangle.
+
+In our $Q$-$C$-$GT$ triangle analysis, the mean spherical excess of $7^{\circ}$ confirms that the embedding space is non-Euclidean and that geometric analysis must use spherical rather than Euclidean formulas. The Pearson correlation between $\angle GT$ and $\angle C$ across 196 queries is $r = -0.668$, reflecting the geometric constraint that in a nearly isosceles triangle, these two angles are anti-correlated: queries where the centroid subtends a large angle at GT (suggesting C is far from the GT-Q line) tend to have a small angle at GT (meaning GT is close to the Q-C side of the triangle).
+
+\subsection{Biomedical Information Retrieval}
+
+Biomedical information retrieval presents unique challenges due to specialized vocabulary, the density of relevant information, and the high stakes of medical applications \cite{tsatsaronis2015bioasq,nentidis2023bioasq11}. Biomedical queries are typically concise clinical or scientific questions, while relevant documents are dense paragraphs from scientific papers or clinical guidelines, creating a pronounced asymmetry in length, style, and vocabulary that challenges general-purpose bi-encoders.
+
+The BioASQ challenge provides a standard evaluation framework for biomedical question answering and document retrieval over PubMed \cite{tsatsaronis2015bioasq}. Domain-specialized models such as BioBERT \cite{lee2020biobert} and PubMedBERT address part of this challenge through domain-adaptive pre-training on biomedical text, but the query-document gap persists even for these models. A biomedical question about a specific drug mechanism is stylistically and lexically different from the abstract of a pharmacology paper, even when both share technical vocabulary. Our research addresses this residual gap through geometric analysis and adaptive retrieval, complementary to the representational improvements achieved by domain-specific pre-training.
+
+\newpage
+
+% ============================================================
+% RESEARCH OBJECTIVES
+% ============================================================
+
+\section{Research Objectives and Expected Significance}
+
+\subsection{Research Questions}
+
+This research is organized around four primary research questions:
+
+\begin{enumerate}[label=\textbf{RQ\arabic*.}, leftmargin=2.5em]
+  \item What is the geometric structure of the query-document embedding space in biomedical RAG systems, and how does this structure explain the performance gap between oracle-guided and query-guided retrieval?
+
+  \item Can LLM relevance scores be used as a geometric navigation signal in embedding space to guide adaptive sequential search toward the ground-truth document with fewer LLM calls than standard reranking?
+
+  \item Does hypothetical document generation (HyDE) effectively bridge the query-to-document-space gap in the biomedical domain, and under what conditions does it outperform query-based retrieval?
+
+  \item Do the geometric findings and algorithmic improvements generalize beyond the biomedical domain to other specialized RAG applications?
+\end{enumerate}
+
+\subsection{Specific Objectives}
+
+The research will pursue the following specific objectives:
+
+\begin{enumerate}
+  \item \textbf{Complete geometric characterization.} Extend the preliminary $Q$-$C$-$GT$ triangle analysis to include per-query breakdowns by query difficulty (GT rank), analysis of the off-axis displacement of $GT$ relative to the $Q$-$C$ line, and correlation analysis between geometric features and retrieval performance. Replicate the characterization on a second biomedical dataset and a general-domain benchmark.
+
+  \item \textbf{Adaptive sequential search algorithm.} Design and implement an adaptive algorithm that selects the next document to score using the accumulated LLM score gradient: starting from $d(Q)$ ordering, updating a weighted centroid after each scored document with score above a threshold, and re-selecting the next candidate based on the updated anchor. Evaluate against the standard RAG baseline in terms of mean GT rank and LLM call budget required to reach target accuracy levels.
+
+  \item \textbf{HyDE evaluation in biomedicine.} Implement and evaluate HyDE with domain-specific prompting, comparing retrieval accuracy and cost to the baseline and adaptive search approaches. Analyze the geometric position of the hypothetical document embedding in the $Q$-$C$-$GT$ coordinate frame.
+
+  \item \textbf{Cross-domain generalization.} Replicate the geometric analysis and algorithmic evaluation on at least two non-biomedical RAG datasets to assess the generality of the findings and the transferability of the adaptive algorithms.
+
+  \item \textbf{Cost-accuracy trade-off characterization.} For all proposed algorithms, measure retrieval accuracy as a function of LLM call budget per query, enabling direct comparison of cost-accuracy trade-offs across methods.
+\end{enumerate}
+
+\subsection{Expected Contributions and Significance}
+
+The expected contributions of this research are:
+
+\begin{enumerate}
+  \item \textbf{Geometric theory of the query-document gap.} A rigorous characterization of the $Q$-$C$-$GT$ triangle geometry across multiple RAG datasets, providing theoretical grounding for the empirical observation that queries are outliers in document embedding space. This contribution advances the understanding of bi-encoder limitations and motivates a new class of geometry-aware retrieval algorithms.
+
+  \item \textbf{Adaptive sequential search algorithm.} A practical retrieval algorithm that exploits the LLM score gradient to navigate embedding space with fewer LLM calls than standard reranking. By treating each LLM score as a navigation signal rather than a final ranking criterion, the algorithm achieves higher accuracy at lower cost than existing approaches.
+
+  \item \textbf{HyDE effectiveness analysis for specialized domains.} The first systematic evaluation of HyDE in the biomedical domain, including geometric analysis of why and when it succeeds, contributing to the understanding of hypothetical document generation as a bridge between query and document embedding spaces.
+
+  \item \textbf{Practical guidelines for cost-efficient RAG.} A set of actionable recommendations for RAG system designers: when to use adaptive search versus static reranking, how to set LLM call budgets for target accuracy levels, and which geometric features predict query difficulty.
+\end{enumerate}
+
+The significance of this research lies at the intersection of theoretical embedding geometry and practical LLM system design. As RAG systems are deployed at scale in medical, legal, and enterprise applications, the cost of LLM-based retrieval augmentation becomes a dominant operational expense. Algorithms that reduce the number of LLM calls required to achieve a target retrieval accuracy directly reduce these costs, enabling higher-quality RAG at lower cost per query. The geometric analysis additionally provides a principled framework for diagnosing retrieval failures and designing targeted improvements.
+
+\newpage
+
+% ============================================================
+% DETAILED DESCRIPTION
+% ============================================================
+
+\section{Detailed Description of the Proposed Research}
+
+\subsection{Working Hypotheses}
+
+\subsubsection{Hypothesis 1: Query Geometric Outlier Status}
+
+Query embeddings in biomedical RAG systems are geometric outliers in the document embedding space: they lie in sparse regions of the unit hypersphere that contain few or no pool documents within the same radius as the ground-truth document. This outlier status is a systematic property of bi-encoder architectures applied to question-answering tasks.
+
+\textit{Preliminary support:} Q\_CIRCLE is empty for 100\% of 196 queries. GT\_CIRCLE is empty for only 77\% of the same queries, confirming the asymmetry between the sparse query neighborhood and the denser ground-truth neighborhood.
+
+\subsubsection{Hypothesis 2: LLM Score as Geometric Gradient}
+
+LLM relevance scores form a consistent directional gradient in embedding space: documents with higher scores lie closer to the ground-truth document than documents with lower scores, and the relationship is monotone across all six score levels used by the LLM judge. This gradient provides useful navigation signal for adaptive sequential search.
+
+\textit{Preliminary support:} ROC-AUC of 0.9974 for GT identification by LLM score; monotone decrease of mean $d(GT)$ from score 0.1 (dist = 0.89) to score 1.0 (dist = 0.10). The top-3 documents by $d(Q)$ contain an average of 2.72 documents with LLM score $\geq 0.8$.
+
+\subsubsection{Hypothesis 3: Adaptive Search Efficiency}
+
+An adaptive sequential search algorithm that updates the search anchor after each scored document will find the ground-truth in fewer LLM calls than a static top-$k$ reranking approach, particularly for queries where GT is not ranked first by $d(Q)$ (approximately 30\% of queries in our dataset). The improvement will be largest for queries where the first scored document has LLM score $\geq 0.8$, providing an early gradient signal that redirects the search.
+
+\subsubsection{Hypothesis 4: HyDE Trade-off in Biomedicine}
+
+HyDE will reduce the query-document gap by anchoring retrieval in document space, but its effectiveness in biomedicine will be constrained by the factual precision required: a hypothetical document that uses approximate or incorrect biomedical terminology will embed near the correct topical cluster but not specifically near the document with the correct precise fact. The improvement from HyDE will be largest for queries where GT is ranked poorly by $d(Q)$ and the relevant topic is broad enough that approximate hypothetical documents remain useful.
+
+\subsection{Preliminary Results}
+
+\subsubsection{Dataset and Experimental Setup}
+
+The preliminary experiments use a biomedical question-answering corpus consisting of 5,035 documents and 196 questions. Each query-document pair was scored by a Gemini-2.5-flash-lite judge, producing approximately 1,000,000 scored pairs. Document and query embeddings were computed using a 768-dimensional bi-encoder model. All experiments are conducted offline using pre-computed embeddings and LLM scores, enabling controlled and reproducible evaluation without incurring online LLM inference costs.
+
+\subsubsection{Baseline and Hybrid Retrieval Performance}
+
+Table~\ref{tab:results} reports the performance of the standard RAG baseline and the hybrid retrieval strategies evaluated in the preliminary experiments.
+
+\begin{table}[H]
+\centering
+\caption{Algorithm comparison on 196 biomedical queries, 5,035-document pool. B1 is the standard RAG baseline (rank by cosine distance to query $Q$). H1 hybrid score: $\text{score}(d) = \alpha \cdot \text{sim}(d,Q) + (1-\alpha) \cdot \text{sim}(d,C)$. H2 is identical to B1 because no ties exist in floating-point cosine distances. H3 restricts candidates to the top-$k$ by $d(Q)$, then reranks within the window by $d(C)$.}
+\label{tab:results}
+\setstretch{1.2}
+\begin{tabularx}{\textwidth}{Xcccc}
+\toprule
+Algorithm & Mean rank & Top-1 (\%) & Top-3 (\%) & Top-10 (\%) \\
+\midrule
+B1: dist($Q$) [RAG baseline]    & 3.29 & 70.4 & 83.2 & 91.8 \\
+B2: dist(Centroid)              & 9.87 & 14.8 & 36.2 & 62.8 \\
+H1: Hybrid $\alpha=0.93$        & 3.35 & \textbf{71.4} & 82.7 & 90.8 \\
+H1: Hybrid $\alpha=0.85$        & 3.40 & 70.9 & 82.7 & 90.8 \\
+H1: Hybrid $\alpha=0.70$        & 3.71 & 67.9 & 79.6 & 89.8 \\
+H2: Lexicographic tiebreaker    & 3.29 & 70.4 & 83.2 & 91.8 \\
+H3: Top-10 rerank by dist($C$)  & 5.05 & 17.9 & 43.9 & 91.8 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The following key findings emerge from Table~\ref{tab:results}:
+
+\begin{itemize}
+  \item The standard RAG baseline (B1) achieves top-1 accuracy of 70.4\%. For 29.6\% of queries, a non-GT document ranks above GT in embedding distance from $Q$, motivating the search for retrieval improvements.
+  \item Pure centroid ranking (B2) achieves only 14.8\% top-1 accuracy despite the centroid being geometrically closer to GT than $Q$ is. Proximity to the centroid does not imply proximity to GT for individual documents.
+  \item The best hybrid (H1, $\alpha = 0.93$) achieves a marginal +1 percentage point top-1 improvement over B1. A small centroid component provides a directional correction for the subset of queries where GT lies between $Q$ and $C$ geometrically.
+  \item H2 (lexicographic tiebreaker: sort by $d(Q)$, break ties by $d(C)$) is identical to B1 in all 196 queries because no ties exist in 64-bit floating-point cosine distances. The centroid tiebreaker never activates.
+  \item H3 (expand to top-$k$ by $d(Q)$, then rerank within the window by $d(C)$) collapses top-1 accuracy to 17.9\% at~$k=10$. At~$k=200$, it converges toward B2, confirming that expanding the window makes H3 degenerate into pure centroid ranking.
+\end{itemize}
+
+These results establish three sanity checks: (1) B1 equals the standard RAG retriever; (2) H1 with $\alpha \to 1.0$ converges to B1; (3) H2 is identical to B1 because no ties exist in the floating-point embedding distances.
+
+\subsubsection{Q--C--GT Geometric Analysis}
+
+The $Q$-$C$-$GT$ triangle analysis confirms the nearly isosceles structure. The strong negative Pearson correlation $r(\angle GT, \angle C) = -0.668$ reflects the geometric constraint that in a nearly isosceles triangle, large variation in $\angle C$ is anti-correlated with variation in $\angle GT$.
+
+The off-axis displacement of GT in the $Q$-$C$ coordinate frame (with $Q$~at~$-1$ and $C$~at~$+1$ on the $x$-axis) shows mean $x$-coordinate 0.45 and mean perpendicular distance 0.39. This perpendicular displacement explains why neither pure $d(Q)$ nor pure $d(C)$ is an optimal retrieval anchor: GT consistently lies off the $Q$-$C$ line, in a direction not captured by either endpoint alone.
+
+\subsection{Research Design and Methods}
+
+\subsubsection{Phase 1: Geometric Analysis Completion (Year 1, Semesters 1 and 2)}
+
+The preliminary geometric analysis will be extended along three dimensions:
+
+\begin{enumerate}
+  \item Per-query analysis of the off-axis displacement of GT relative to the $Q$-$C$ line, testing whether queries with higher perpendicular displacement are harder for centroid-guided methods.
+  \item A regression analysis of GT displacement against retrieval performance across all 196 queries, identifying geometric features that predict retrieval difficulty and enabling targeted budget allocation.
+  \item Replication of the Q\_CIRCLE/GT\_CIRCLE asymmetry and triangle characterization on a second biomedical dataset (e.g., TREC-COVID) and a general-domain dataset (e.g., MS MARCO), to assess the generality of the geometric findings.
+\end{enumerate}
+
+\subsubsection{Phase 2: HyDE Evaluation in Biomedicine (Year 1, Semesters 1 and 2)}
+
+We will implement HyDE using the same LLM used for relevance scoring in the preliminary experiments. For each of the 196 queries, we will generate a hypothetical biomedical answer passage (3 to 5 sentences) using a domain-specific prompt, embed it with the same encoder used for pool documents, and use the resulting vector as the retrieval anchor. We will report retrieval accuracy and cost (one additional LLM call per query for generation), comparing against B1.
+
+Additionally, we will analyze the geometric position of the HyDE embedding in the $Q$-$C$-$GT$ coordinate frame: does the hypothetical document lie closer to the $Q$-$C$ line than the original query? Does its $x$-coordinate in the $Q$-$C$ frame predict retrieval success? This geometric analysis will provide principled insight into why HyDE succeeds or fails for specific query types.
+
+In a second experiment, we will combine HyDE with the adaptive search (Phase 3): use the HyDE embedding as the initial anchor rather than the query embedding, and apply the adaptive centroid update procedure as LLM scores accumulate. This hybrid may combine the benefits of document-space anchoring with the gradient-following behavior of adaptive search.
+
+\subsubsection{Phase 3: Adaptive Sequential Search (Years 1 and 2, Semesters 2 and 3)}
+
+The adaptive sequential search algorithm will be designed and evaluated as follows. At each step $t$, the algorithm selects the next unscored document to send to the LLM judge, based on a dynamically updated scoring function:
+
+\begin{equation}
+  \text{score}(d, t) = \alpha(t) \cdot \text{sim}(d, Q) + (1 - \alpha(t)) \cdot \text{sim}(d, C_t)
+\end{equation}
+
+where $C_t$ is the $\ell^2$-normalized centroid of all documents found to have LLM score $\geq \theta$ in the first $t$ scoring calls, and $\alpha(t)$ transitions from 1.0 (pure $d(Q)$ ordering when no high-scored documents have been found) to a lower value as the centroid accumulates signal. The stopping criterion is the first document scoring 1.0, or a fixed LLM call budget exhausted.
+
+We will evaluate the algorithm using the offline simulation framework (all LLM scores pre-computed), measuring:
+\begin{itemize}
+  \item Mean LLM calls to find GT (calls until the first document scoring 1.0 is found)
+  \item Top-1 accuracy at budget $B \in \{1, 2, 3, 5, 10\}$ calls per query
+  \item Comparison to standard B1, which achieves mean rank 3.29 and top-1 = 70.4\%
+\end{itemize}
+
+We will additionally investigate query difficulty prediction: using geometric features (Q\_CIRCLE size, perpendicular displacement of the first scored document) to predict whether a query requires more than 3 LLM calls, enabling adaptive budget allocation across queries.
+
+\subsubsection{Phase 4: Cross-Domain Generalization and Publication (Year 2, Semesters 3 and 4)}
+
+The geometric analysis and adaptive algorithms will be replicated on at least two additional datasets: one from a specialized domain (legal, financial, or clinical notes) and one general-domain benchmark (MS MARCO or Natural Questions). The replication will test whether the Q\_CIRCLE asymmetry, the nearly isosceles $Q$-$C$-$GT$ triangle, and the LLM score gradient generalize across domains and document types.
+
+Results from all four phases will be submitted for publication at a venue appropriate to the combined information retrieval and LLM systems scope: SIGIR, ECIR, ACL, or EMNLP. The thesis will integrate the geometric theory, algorithmic contributions, experimental results, and cross-domain analysis into a unified narrative.
+
+\subsection{Time Schedule}
+
+The research is planned over four semesters spanning two academic years (October 2026 to September 2028). Table~\ref{tab:timeline} summarizes the phase-to-semester mapping, and Figure~\ref{fig:gantt} provides the Gantt chart.
+
+\begin{table}[H]
+\centering
+\caption{Research timeline. S1: Oct 2026 to Mar 2027; S2: Apr 2027 to Sep 2027; S3: Oct 2027 to Mar 2028; S4: Apr 2028 to Sep 2028.}
+\label{tab:timeline}
+\setstretch{1.2}
+\begin{tabular}{p{7.5cm}cccc}
+\toprule
+Phase & S1 & S2 & S3 & S4 \\
+\midrule
+Literature review and baseline setup           & \textbullet & & & \\
+Geometric analysis (extension and replication) & \textbullet & \textbullet & & \\
+HyDE evaluation (biomedical domain)            & \textbullet & \textbullet & & \\
+Adaptive sequential search development         & & \textbullet & \textbullet & \\
+Cross-domain generalization experiments        & & & \textbullet & \\
+Paper writing and submission                   & & & \textbullet & \textbullet \\
+Thesis writing and finalization                & & & & \textbullet \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\caption{Research timeline (Gantt chart). Each bar spans the semesters during which the corresponding phase is active. S1--S4 mark the four semesters across two academic years.}
+\label{fig:gantt}
+\vspace{6pt}
+\resizebox{\textwidth}{!}{%
+\begin{ganttchart}[
+  hgrid,
+  vgrid={*1{dashed,gray!35}},
+  x unit=1.35cm,
+  y unit title=0.72cm,
+  y unit chart=0.65cm,
+  title height=1,
+  title/.append style={fill=bgunavy!12, font=\small\bfseries},
+  title label font=\small,
+  bar label font=\small,
+  bar/.append style={fill=bgunavy!45, rounded corners=1pt},
+  bar height=0.55,
+]{1}{8}
+\gantttitle{Year 1 (2026--2027)}{4}
+\gantttitle{Year 2 (2027--2028)}{4} \\
+\gantttitle{S1}{2}\gantttitle{S2}{2}\gantttitle{S3}{2}\gantttitle{S4}{2} \\
+\ganttbar{1. Literature review and baseline}{1}{2} \\
+\ganttbar{2. Geometric analysis}{1}{3} \\
+\ganttbar[bar/.append style={fill=green!45}]{3. HyDE evaluation}{1}{3} \\
+\ganttbar[bar/.append style={fill=orange!55}]{4. Adaptive sequential search}{3}{6} \\
+\ganttbar[bar/.append style={fill=purple!45}]{5. Cross-domain generalization}{5}{6} \\
+\ganttbar[bar/.append style={fill=yellow!65,draw=gray}]{6. Paper writing and submission}{5}{7} \\
+\ganttbar[bar/.append style={fill=orange!55}]{7. Thesis writing and finalization}{7}{8} \\
+\end{ganttchart}%
+}
+\end{figure}
+
+\newpage
+
+% ============================================================
+% BIBLIOGRAPHY
+% ============================================================
+
+\section*{Bibliography}
+\begin{thebibliography}{25}\setstretch{1.2}
+
+\bibitem{lewis2020rag}
+Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., Kuttler, H., Lewis, M., Yih, W.-T., Rockt\"{a}schel, T., Riedel, S., and Kiela, D. (2020). Retrieval-augmented generation for knowledge-intensive NLP tasks. \textit{Advances in Neural Information Processing Systems, 33}, 9459--9474.
+
+\bibitem{karpukhin2020dpr}
+Karpukhin, V., Oguz, B., Min, S., Lewis, P., Wu, L., Edunov, S., Chen, D., and Yih, W.-T. (2020). Dense passage retrieval for open-domain question answering. In \textit{Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP)}, pp.~6769--6781.
+
+\bibitem{reimers2019sbert}
+Reimers, N. and Gurevych, I. (2019). Sentence-BERT: Sentence embeddings using siamese BERT-networks. In \textit{Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing (EMNLP)}, pp.~3982--3992.
+
+\bibitem{thakur2021beir}
+Thakur, N., Reimers, N., R\"{u}ckl\'{e}, A., Srivastava, A., and Gurevych, I. (2021). BEIR: A heterogeneous benchmark for zero-shot evaluation of information retrieval models. In \textit{Thirty-Fifth Conference on Neural Information Processing Systems Datasets and Benchmarks Track (NeurIPS)}.
+
+\bibitem{gao2023hyde}
+Gao, L., Ma, X., Lin, J., and Callan, J. (2023). Precise zero-shot dense retrieval without relevance labels. In \textit{Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics (ACL)}, pp.~1762--1777.
+
+\bibitem{ethayarajh2019contextual}
+Ethayarajh, K. (2019). How contextual are contextualized word representations? Comparing the geometry of BERT, ELMo, and GPT-2 representations. In \textit{Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing (EMNLP)}, pp.~55--65.
+
+\bibitem{zheng2023judging}
+Zheng, L., Chiang, W.-L., Sheng, Y., Zhuang, S., Wu, Z., Zhuang, Y., Lin, Z., Li, Z., Li, D., Xing, E., Zhang, H., Gonzalez, J., and Stoica, I. (2024). Judging LLM-as-a-judge with MT-Bench and Chatbot Arena. \textit{Advances in Neural Information Processing Systems, 36}.
+
+\bibitem{shi2023distractors}
+Shi, F., Chen, X., Misra, K., Scales, N., Dohan, D., Chi, E. H., Scharli, N., and Zhou, D. (2023). Large language models can be easily distracted by irrelevant context. In \textit{Proceedings of the 40th International Conference on Machine Learning (ICML)}, pp.~31210--31227.
+
+\bibitem{shi2024replug}
+Shi, W., Min, S., Yasunaga, M., Seo, M., James, R., Lewis, M., Zettlemoyer, L., and Yih, W.-T. (2024). REPLUG: Retrieval-augmented black-box language models. In \textit{Proceedings of the 2024 Conference of the North American Chapter of the Association for Computational Linguistics (NAACL)}, pp.~8364--8377.
+
+\bibitem{mao2021anceprf}
+Yu, H.-C., Xiong, C., and Callan, J. (2021). Improving query representations for dense retrieval with pseudo relevance feedback. In \textit{Proceedings of the 30th ACM International Conference on Information and Knowledge Management (CIKM '21)}. arXiv:2108.13454.
+
+\bibitem{xiong2021ance}
+Xiong, L., Xiong, C., Li, Y., Tang, K.-F., Liu, J., Bennett, P., Ahmed, J., and Overwijk, A. (2021). Approximate nearest neighbor negative contrastive estimation for dense text retrieval. In \textit{International Conference on Learning Representations (ICLR)}.
+
+\bibitem{hofstatter2021tasb}
+Hofst\"{a}tter, S., Lin, S.-C., Yang, J.-H., Lin, J., and Hanbury, A. (2021). Efficiently teaching an effective dense retriever with balanced topic aware sampling. In \textit{Proceedings of the 44th International ACM SIGIR Conference on Research and Development in Information Retrieval}, pp.~113--122.
+
+\bibitem{robertson2009bm25}
+Robertson, S. and Zaragoza, H. (2009). The probabilistic relevance framework: BM25 and beyond. \textit{Foundations and Trends in Information Retrieval, 3}(4), 333--389.
+
+
+\bibitem{tsatsaronis2015bioasq}
+Tsatsaronis, G., Balikas, G., Malakasiotis, P., Partalas, I., Zschunke, M., Alvers, M.~R., Weissenborn, D., Krithara, A., Petridis, S., Polychronopoulos, D., Almirantis, Y., Pavlopoulos, J., Baskiotis, N., Gallinari, P., Arti\`{e}res, T., Ngomo, A.-C.~N., Heino, N., Gaussier, E., Barrio-Alvers, L., and Ioannidis, Y. (2015). An overview of the BIOASQ large-scale biomedical semantic indexing and question answering competition. \textit{BMC Bioinformatics, 16}, 138.
+
+\bibitem{nentidis2023bioasq11}
+Nentidis, A., Katsimpras, G., Vandorou, E., Krithara, A., Gasco Mora, L., Merida, E., and Paliouras, G. (2023). Overview of BioASQ 2023: The eleventh biomedical semantic QA competition. In \textit{International Conference of the Cross-Language Evaluation Forum for European Languages (CLEF)}, pp.~227--250.
+
+\bibitem{lee2020biobert}
+Lee, J., Yoon, W., Kim, S., Kim, D., Kim, S., So, C.~H., and Kang, J. (2020). BioBERT: A pre-trained biomedical language representation model for biomedical text mining. \textit{Bioinformatics, 36}(4), 1234--1240.
+
+\end{thebibliography}
+
+\end{document}

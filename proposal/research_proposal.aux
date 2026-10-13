@@ -1,0 +1,80 @@
+\relax 
+\providecommand\zref@newlabel[2]{}
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand*\HyPL@Entry[1]{}
+\ProvideDocumentCommand \xpg@aux {mm}{}
+\HyPL@Entry{0<</S/D>>}
+\@writefile{toc}{\xpg@aux {}{english}}
+\citation{lewis2020rag}
+\citation{shi2024replug}
+\citation{shi2023distractors}
+\citation{karpukhin2020dpr}
+\citation{reimers2019sbert}
+\citation{karpukhin2020dpr}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Scientific Background}{3}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.1}Retrieval-Augmented Generation}{3}{subsection.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.2}Dense Retrieval and the Embedding Space}{3}{subsection.1.2}\protected@file@percent }
+\citation{thakur2021beir}
+\citation{ethayarajh2019contextual}
+\citation{hofstatter2021tasb}
+\citation{xiong2021ance}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.3}The Query-Document Gap: Anisotropy and Outlier Queries}{4}{subsection.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.4}The Q--C--GT Triangle on the Unit Hypersphere}{5}{subsection.1.4}\protected@file@percent }
+\citation{zheng2023judging}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.5}LLM-as-a-Judge: Graded Relevance as a Geometric Signal}{6}{subsection.1.5}\protected@file@percent }
+\citation{robertson2009bm25}
+\citation{mao2021anceprf}
+\citation{gao2023hyde}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.6}Pseudo-Relevance Feedback and Centroid-Based Expansion}{7}{subsection.1.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.7}Hypothetical Document Embeddings}{7}{subsection.1.7}\protected@file@percent }
+\citation{tsatsaronis2015bioasq}
+\citation{nentidis2023bioasq11}
+\citation{tsatsaronis2015bioasq}
+\citation{lee2020biobert}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.8}Spherical Geometry in High-Dimensional Embedding Spaces}{8}{subsection.1.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.9}Biomedical Information Retrieval}{8}{subsection.1.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Research Objectives and Expected Significance}{10}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Research Questions}{10}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Specific Objectives}{10}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Expected Contributions and Significance}{11}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Detailed Description of the Proposed Research}{13}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Working Hypotheses}{13}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}Hypothesis 1: Query Geometric Outlier Status}{13}{subsubsection.3.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.2}Hypothesis 2: LLM Score as Geometric Gradient}{13}{subsubsection.3.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.3}Hypothesis 3: Adaptive Search Efficiency}{13}{subsubsection.3.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.4}Hypothesis 4: HyDE Trade-off in Biomedicine}{14}{subsubsection.3.1.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Preliminary Results}{14}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}Dataset and Experimental Setup}{14}{subsubsection.3.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.2}Baseline and Hybrid Retrieval Performance}{14}{subsubsection.3.2.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces \xpg@aux {}{english}\ignorespaces Algorithm comparison on 196 biomedical queries, 5,035-document pool. B1 is the standard RAG baseline (rank by cosine distance to query $Q$). H1 hybrid score: $\text  {score}(d) = \alpha \cdot \text  {sim}(d,Q) + (1-\alpha ) \cdot \text  {sim}(d,C)$. H2 is identical to B1 because no ties exist in floating-point cosine distances. H3 restricts candidates to the top-$k$ by $d(Q)$, then reranks within the window by $d(C)$.}}{15}{table.caption.3}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{tab:results}{{1}{15}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Algorithm comparison on 196 biomedical queries, 5,035-document pool. B1 is the standard RAG baseline (rank by cosine distance to query $Q$). H1 hybrid score: $\text {score}(d) = \alpha \cdot \text {sim}(d,Q) + (1-\alpha ) \cdot \text {sim}(d,C)$. H2 is identical to B1 because no ties exist in floating-point cosine distances. H3 restricts candidates to the top-$k$ by $d(Q)$, then reranks within the window by $d(C)$}{table.caption.3}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.3}Q--C--GT Geometric Analysis}{16}{subsubsection.3.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Research Design and Methods}{16}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.1}Phase 1: Geometric Analysis Completion (Year 1, Semesters 1 and 2)}{16}{subsubsection.3.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.2}Phase 2: HyDE Evaluation in Biomedicine (Year 1, Semesters 1 and 2)}{16}{subsubsection.3.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.3}Phase 3: Adaptive Sequential Search (Years 1 and 2, Semesters 2 and 3)}{17}{subsubsection.3.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.4}Phase 4: Cross-Domain Generalization and Publication (Year 2, Semesters 3 and 4)}{18}{subsubsection.3.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Time Schedule}{18}{subsection.3.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces \xpg@aux {}{english}\ignorespaces Research timeline. S1: Oct 2026 to Mar 2027; S2: Apr 2027 to Sep 2027; S3: Oct 2027 to Mar 2028; S4: Apr 2028 to Sep 2028.}}{18}{table.caption.4}\protected@file@percent }
+\newlabel{tab:timeline}{{2}{18}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Research timeline. S1: Oct 2026 to Mar 2027; S2: Apr 2027 to Sep 2027; S3: Oct 2027 to Mar 2028; S4: Apr 2028 to Sep 2028}{table.caption.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces \xpg@aux {}{english}\ignorespaces Research timeline (Gantt chart). Each bar spans the semesters during which the corresponding phase is active. S1--S4 mark the four semesters across two academic years.}}{19}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:gantt}{{1}{19}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Research timeline (Gantt chart). Each bar spans the semesters during which the corresponding phase is active. S1--S4 mark the four semesters across two academic years}{figure.caption.5}{}}
+\gtt@chartextrasize{0}{167.95154pt}
+\bibcite{lewis2020rag}{1}
+\bibcite{karpukhin2020dpr}{2}
+\bibcite{reimers2019sbert}{3}
+\bibcite{thakur2021beir}{4}
+\bibcite{gao2023hyde}{5}
+\bibcite{ethayarajh2019contextual}{6}
+\bibcite{zheng2023judging}{7}
+\bibcite{shi2023distractors}{8}
+\bibcite{shi2024replug}{9}
+\bibcite{mao2021anceprf}{10}
+\bibcite{xiong2021ance}{11}
+\bibcite{hofstatter2021tasb}{12}
+\bibcite{robertson2009bm25}{13}
+\bibcite{tsatsaronis2015bioasq}{14}
+\bibcite{nentidis2023bioasq11}{15}
+\bibcite{lee2020biobert}{16}
+\gdef \@abspage@last{21}
