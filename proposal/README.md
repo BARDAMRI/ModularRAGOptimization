@@ -13,6 +13,10 @@ The proposal is split into files the same way as the department's CIS thesis tem
 
 `main.tex` is a local stand-in for the template's own `main.tex`. It provides the cover pages, the `\thesischapter` macro, the bibliography, and the Hebrew back matter (abstract, table of contents, cover), so the proposal also compiles outside Overleaf. It also defines two notation macros used in the chapters, `\GT` and `\dist`. Add these to the template's preamble when moving the files.
 
+## Length
+
+The department requires a proposal body of 4-6 pages. The body is four chapters, each starting on a new page as in the thesis template, and fills pages 1-6. Cover, abstracts, table of contents and bibliography are not counted.
+
 ## Build
 
 ```bash
@@ -26,4 +30,4 @@ The Hebrew font falls back from Arial Hebrew (macOS) to David CLM (Overleaf) and
 
 ## Sources of the numbers
 
-The preliminary results (Chapter 5) come from `results/cloud_runs/staged_run_2026-08-03_08-32-45/analysis/` and from `H2_results.xlsx`.
+The preliminary results (Chapter 3) come from `results/cloud_runs/staged_run_2026-08-03_08-32-45/analysis/` and from `H2_results.xlsx`.

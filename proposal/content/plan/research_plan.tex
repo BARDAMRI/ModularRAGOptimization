@@ -1,0 +1,50 @@
+% ============================================================
+% Chapter 4 -- Research Plan
+% ============================================================
+
+\section{Methodology}
+
+\paragraph{WP1 -- Benchmark and evaluation protocol.}
+We will extend the benchmark to the 1,000 expert-annotated PubMedQA questions with the same pool recipe, so that B1 still succeeds on 60--70\% of them; documents outside the pre-scored pool will be scored on demand and cached. A power analysis based on the preliminary variances will set the number of failed queries needed \citep{sakai2016statistical}. Policies are reported on all queries and separately on the failed ones, with paired significance tests \citep{smucker2007comparison}. Baselines: B1 and BM25 \citep{robertson2009bm25}; cross-encoder and LLM re-ranking of the top-$k$ \citep{nogueira2019passage,sun2023rankgpt}; pseudo-relevance feedback \citep{rocchio1971relevance,yu2021anceprf}; and HyDE \citep{gao2023hyde}.
+
+\paragraph{WP2 -- Characterising failure (RQ2).}
+We will analyse in depth every query on which B1 is not perfect and compare it with the successful ones, using geometric features (distance to the target, off-axis displacement, local density) and judge features (score of the first document, size of the top-score group). From features available at query time we will train a failure predictor, compare it with query-performance predictors \citep{carmel2010estimating}, and use it to trigger the gated policies of WP4.
+
+\paragraph{WP3 -- Finer-grained judging (RQ1).}
+To break ties we will compare a sharper rubric, a finer scale, expected relevance computed from label token probabilities \citep{zhuang2024beyond}, pairwise comparison applied only \emph{within} the tied top group, and a stronger judge. Each variant is measured by tie size, discrimination and cost per call.
+
+\paragraph{WP4 -- Judge-guided search policies (RQ3).}
+\emph{(a) Gated search (H5):} judge B1's first document and stop if it is accepted; otherwise, switch to an adaptive policy. \emph{(b) Repulsive feedback (H4):} select the next document by
+\begin{equation}
+  s_t(d)=\alpha\,\mathrm{sim}(q,d)+\beta\,\mathrm{sim}(C_t^{+},d)-\gamma\,\mathrm{sim}(C_t^{-},d),
+\end{equation}
+where $C_t^{+}$ is the centroid of the documents rated high but rejected as the target and $C_t^{-}$ is the centroid of the documents rated low. The preliminary policy is $\beta>0,\gamma=0$; we will study $\beta<0$, the negative weight from our last meeting, and Rocchio's $\gamma>0$. \emph{(c) Trilateration (H6):} the original idea of the project. We calibrate a monotone map $g$ from judge score to distance, judge a few anchors chosen by farthest-point sampling near the query, and estimate the target as a weighted centroid or as $\hat x=\arg\min_{x}\sum_i(\dist(x,d_i)-g(J_i))^2$, restricted to the span of $q$ and the judged documents. We then retrieve the nearest unjudged neighbour of $\hat x$ and repeat until a score threshold, stagnation or the budget is reached.
+
+\paragraph{WP5 -- Generalisation and end-to-end evaluation (RQ4).}
+We will repeat the geometric analysis and the policy comparison with other embedders \citep{jin2023medcpt} and judges, and on BioASQ \citep{tsatsaronis2015bioasq} and MS~MARCO \citep{nguyen2016msmarco}. The best policies will be integrated into the RAG pipeline and evaluated on answer accuracy and LLM cost, following the MIRAGE protocol \citep{xiong2024medrag}.
+
+\section{Expected Contributions}
+
+The research is expected to contribute (1) a formulation of LLM-judged retrieval as budget-constrained sequential search, with an offline evaluation protocol over a large pre-scored pool; (2) an empirical account of the query--document geometry that explains why simple centroid heuristics fail; (3) judge-guided search policies and a failure predictor that reduce the number of LLM calls needed to recover from retrieval failures; and (4) practical guidelines on when, and how much, to spend on an LLM judge in a RAG system.
+
+\section{Time Schedule}
+
+\begin{table}[H]
+\centering
+\caption{Work plan by semester (S1: Oct 2026--Mar 2027, S2: Apr--Sep 2027, S3: Oct 2027--Mar 2028, S4: Apr--Sep 2028).}
+\label{tab:timeline}
+\setstretch{1.1}\small
+\begin{tabular}{p{8.2cm}cccc}
+\toprule
+Task & S1 & S2 & S3 & S4 \\
+\midrule
+WP1: benchmark extension, power analysis & \textbullet & & & \\
+WP2: failure characterisation and prediction & \textbullet & \textbullet & & \\
+WP3: finer-grained judging & \textbullet & \textbullet & & \\
+WP4: judge-guided search policies & & \textbullet & \textbullet & \\
+WP5: generalisation and end-to-end evaluation & & & \textbullet & \textbullet \\
+Papers (judge and geometry; search policies) & & \textbullet & \textbullet & \\
+Thesis writing & & & & \textbullet \\
+\bottomrule
+\end{tabular}
+\end{table}
