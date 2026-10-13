@@ -63,7 +63,7 @@
 \includegraphics[height=2.1cm]{bgu_logo.png}\\[10pt]
 {\large\bfseries Ben-Gurion University of the Negev}\\[5pt]
 {\normalsize The Stein Faculty of Computer and Information Science}\\[3pt]
-{\normalsize The Institute of Information Systems Engineering}
+{\normalsize Department of Information Systems}
 
 \vspace{2.0cm}
 {\LARGE\bfseries\color{bgunavy}\setstretch{1.2}
@@ -91,7 +91,7 @@ Improving Retrieval-Augmented Generation
 {\large\bfseries Prof. Roni Stern \quad Prof. Rami Puzis}
 
 \vspace{1.2cm}
-{\normalsize October 2026}
+{\normalsize October 13, 2026}
 
 \vfill
 \begin{flushright}\normalsize
@@ -119,13 +119,13 @@ Retrieval-Augmented Generation (RAG) grounds large language model (LLM) answers 
 \section{Scientific Background}
 
 \subsection{RAG and Dense Retrieval}
-RAG decouples knowledge storage from language modeling: at inference time, documents are retrieved from an external corpus and given to the LLM as context \citep{lewis2020rag,shi2024replug}. If the GT document is not retrieved, the LLM cannot produce a correct grounded answer, and irrelevant context actively degrades it \citep{shi2023distractors}. Dense retrievers encode queries and documents independently with a bi-encoder and rank by cosine similarity \citep{karpukhin2020dpr,reimers2019sbert}. Their performance drops sharply outside the training domain \citep{thakur2021beir}, and biomedicine is among the hardest settings: questions are short and conversational while relevant documents are dense scientific abstracts \citep{tsatsaronis2015bioasq,nentidis2023bioasq11}. Domain pre-training such as BioBERT \citep{lee2020biobert} narrows but does not close this gap. For exactly this reason we use a biomedical corpus as the testbed throughout this work: it is where the gap is most pronounced and therefore easiest to measure.
+RAG decouples knowledge storage from language modeling: at inference time, documents are retrieved from an external corpus and given to the LLM as context \citep{lewis2020rag,shi2024replug}. If the GT document is not retrieved, the LLM cannot produce a correct grounded answer, and irrelevant context actively degrades it \citep{shi2023distractors}. Dense retrievers encode queries and documents independently with a bi-encoder and rank by inner-product or cosine similarity \citep{karpukhin2020dpr,reimers2019sbert}. Their performance drops sharply outside the training domain, and biomedical collections are among the hardest cases \citep{thakur2021beir}: questions are short and written by domain experts, while relevant documents are dense scientific abstracts \citep{tsatsaronis2015bioasq,nentidis2023bioasq11}. Domain pre-training such as BioBERT \citep{lee2020biobert} improves biomedical language understanding, but is not itself trained to place questions near the abstracts that answer them. For exactly this reason we use a biomedical corpus as the testbed throughout this work: it is where the gap is most pronounced and therefore easiest to measure.
 
 \subsection{The Query-Document Gap}
-Contextual embedding spaces are strongly anisotropic: representations concentrate in narrow cones, which compresses cosine similarities and reduces their discriminative power \citep{ethayarajh2019contextual}. Because a bi-encoder never sees the query and document together, the two populations can drift into different regions of the space; hard negatives that lie close to the query but are semantically wrong are a known consequence \citep{xiong2021ance,hofstatter2021tasb}. To our knowledge, the relative position of queries, relevant-document clusters, and GT documents on the unit hypersphere has not been measured directly. This is the starting point of this research.
+Contextual embedding spaces are strongly anisotropic: representations concentrate in narrow cones, which compresses cosine similarities and reduces their discriminative power \citep{ethayarajh2019contextual}. Because a bi-encoder never sees the query and document together, the two populations can drift into different regions of the space. Dense retrievers also place non-relevant documents close to the query, which is why they are trained with hard negatives mined from the embedding space \citep{xiong2021ance}. To our knowledge, the relative position of queries, relevant-document clusters, and GT documents on the unit hypersphere has not been measured directly. This is the starting point of this research.
 
 \subsection{LLM Relevance Judgments, PRF, and HyDE}
-LLMs are now widely used as relevance judges and produce graded rather than binary labels \citep{zheng2023judging}. We treat these grades both as an evaluation signal and as a runtime navigation signal. Two existing families of methods try to move the retrieval anchor away from the raw query. Pseudo-relevance feedback (PRF) replaces the query with the centroid of top-ranked documents; ANCE-PRF applies this to dense retrieval \citep{robertson2009bm25,mao2021anceprf}. Its weakness is that irrelevant top-ranked documents bias the centroid. HyDE \citep{gao2023hyde} lets an LLM write a hypothetical answer document and retrieves with its embedding, which lies in ``document space''; in biomedicine, however, the generated text may be topically right but factually imprecise. Our adaptive approach combines the two ideas: the centroid is built only from documents the LLM has confirmed as relevant, and it is updated incrementally.
+LLMs are now widely used as judges \citep{zheng2023judging}, including as relevance assessors whose graded labels agree closely with human judgments \citep{thomas2024llmjudge}. We treat these grades both as an evaluation signal and as a runtime navigation signal. Two existing families of methods try to move the retrieval anchor away from the raw query. Pseudo-relevance feedback (PRF) moves the query toward the top-ranked documents, assuming they are relevant \citep{rocchio1971relevance,robertson2009bm25}; ANCE-PRF instead learns a dense query encoder over them \citep{yu2021anceprf}. Its weakness is that irrelevant top-ranked documents pull the anchor away, so PRF tends to fail on hard queries \citep{robertson2009bm25}. HyDE \citep{gao2023hyde} lets an LLM write a hypothetical answer document and retrieves with its embedding, which lies in ``document space''. Its authors acknowledge that this document may contain false details, which matter more in biomedicine, where the target holds a precise fact. Our adaptive approach combines the two ideas: the centroid is built only from documents the LLM has confirmed as relevant, and it is updated incrementally.
 
 % ============================================================
 % 2. OBJECTIVES
@@ -155,11 +155,11 @@ LLMs are now widely used as relevance judges and produce graded rather than bina
 \end{itemize}
 
 \subsection{Preliminary Results}
-\textbf{Setup.} 196 biomedical questions, a pool of 5,035 documents, 768-dimensional bi-encoder embeddings, and $\sim$1M query-document pairs scored by a Gemini-2.5-flash-lite judge on six levels (0.1-1.0). All experiments run offline on pre-computed embeddings and scores. The oracle centroid $C$ is the normalized mean of the documents scored 1.0 for a query. The corpus is our measurement testbed, and the circle and triangle constructions below are instruments for probing the embedding space - not research goals in themselves.
+\textbf{Setup.} 196 biomedical questions, a pool of 5,035 documents, 768-dimensional bi-encoder embeddings, and $\sim$1M query-document pairs scored by a Gemini-2.5-flash-lite judge on a 1-10 scale (normalized to 0.1-1.0). All experiments run offline on pre-computed embeddings and scores. The oracle centroid $C$ is the normalized mean of the documents scored 1.0 for a query. The corpus is our measurement testbed, and the circle and triangle constructions below are instruments for probing the embedding space - not research goals in themselves.
 
 \textbf{Queries are outliers (Hyp.~A).} Around each query we draw a circle of radius $d(Q,GT)/2$, and an equal circle around the GT. The query circle contains no pool document for 100\% of queries, whereas the GT circle is empty for only 77\%. On average $d(Q,GT)\approx d(Q,C)\approx 0.17$ while $d(C,GT)\approx 0.10$: the relevant-document centroid is 44\% closer to the GT than the query is. Measuring the triangle with the spherical law of cosines (arc lengths $\theta = \arccos(1-d)$) gives mean angles $\angle Q\approx45.7^\circ$, $\angle C\approx70.8^\circ$, $\angle GT\approx70.6^\circ$: a nearly isosceles triangle with spherical excess $\approx7^\circ$. In a $Q$-$C$ coordinate frame, the GT lies off the $Q$-$C$ line (mean perpendicular offset 0.39), so neither $Q$ nor $C$ alone is an ideal anchor.
 
-\textbf{LLM scores are a gradient (Hyp.~B).} Mean distance to the GT decreases monotonically with the score: 0.89, 0.72, 0.63, 0.54, 0.40 and 0.10 for scores 0.1 to 1.0. The score identifies the GT with ROC-AUC $=0.9974$, and the GT gets the top score in 195 of 196 queries. Unfiltered PRF, in contrast, is harmful: using the top-5 documents as the new anchor drops top-1 accuracy from 70.4\% to 24\%.
+\textbf{LLM scores are a gradient (Hyp.~B).} Mean distance to the GT decreases monotonically with the score: 0.89, 0.84, 0.77, 0.63, 0.40 and 0.22 for scores 0.1, 0.2, 0.4, 0.6, 0.8 and 1.0. The score identifies the GT with ROC-AUC $=0.9974$, and the GT gets the top score in 186 of 187 scored queries. Even judge-filtered PRF is harmful: re-anchoring on the centroid of the top-5 documents scored 1.0 ($\geq0.5$) drops top-1 accuracy from 70.4\% to 31\% (24\%).
 
 \textbf{Static hybrids barely help (Hyp.~C).} Table~\ref{tab:results} compares the standard retriever with static combinations of query and centroid distance. A small centroid weight gains one point of top-1 accuracy; larger weights, tie-breaking, and window re-ranking do not help. However, the 58 queries where B1 misses the GT are mostly \emph{soft} failures: in 79\% of them the document B1 returns first is also scored 1.0 by the judge (88\% at $\geq0.8$), and every one of them has at least one document scored $\geq0.8$ in its top 10. These queries have more fully relevant documents than the others (on average 7.5 vs.\ 6.5 in the top 10), which suggests that many of them have several valid answers.
 
@@ -182,7 +182,7 @@ H3: top-10 by $d(Q)$, re-ranked by $d(C)$               & 5.05 & 17.9 & 43.9 & 9
 \end{table}
 
 \subsection{Research Design and Methods}
-\textbf{Phase 1 - Geometric analysis (S1).} Characterize the failing queries against the successful ones (GT offset from the $Q$-$C$ line, neighborhood density, number of relevant documents) and fit a model that predicts failure from geometric features. Replicate the outlier and triangle measurements on TREC-COVID and MS MARCO.
+\textbf{Phase 1 - Geometric analysis (S1).} Characterize the failing queries against the successful ones (GT offset from the $Q$-$C$ line, neighborhood density, number of relevant documents) and fit a model that predicts failure from geometric features. Replicate the outlier and triangle measurements on TREC-COVID \citep{roberts2020treccovid} and MS MARCO \citep{nguyen2016msmarco}.
 
 \textbf{Phase 2 - HyDE (S1-S2).} For each query, generate a 3-5 sentence hypothetical biomedical passage with the judge LLM, embed it with the same encoder, and use it as the anchor. Report accuracy and cost against B1, locate the HyDE embedding in the $Q$-$C$-$GT$ frame, and test HyDE as the starting anchor for Phase~3.
 
