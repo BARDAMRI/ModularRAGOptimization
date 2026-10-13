@@ -1,0 +1,231 @@
+% ============================================================
+% Research Proposal (short version, 4-6 pages) - Bar Mordechai Damri
+% Ben-Gurion University of the Negev
+% Supervisors: Prof. Roni Stern, Prof. Rami Puzis
+% Compile with: xelatex research_proposal_short.tex
+% ============================================================
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{english}
+\setotherlanguage{hebrew}
+\newfontfamily\hebrewfont[Script=Hebrew,BoldFont=Arial Hebrew Bold]{Arial Hebrew}
+
+\usepackage{geometry}
+\geometry{a4paper, left=2.5cm, right=2.5cm, top=2.3cm, bottom=2.5cm}
+
+\usepackage{microtype}
+\usepackage{setspace}
+\setstretch{1.15}
+
+\usepackage{xcolor}
+\definecolor{bgunavy}{RGB}{27,61,110}
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries\color{bgunavy}}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{bgunavy}}{\thesubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{12pt}{4pt}
+\titlespacing*{\subsection}{0pt}{8pt}{2pt}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\setlist[itemize]{topsep=2pt,itemsep=1pt,parsep=0pt,leftmargin=1.3em}
+\setlist[enumerate]{topsep=2pt,itemsep=1pt,parsep=0pt,leftmargin=1.6em}
+
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=bgunavy, citecolor=bgunavy, urlcolor=bgunavy,
+  pdftitle={Research Proposal - Bar Mordechai Damri}, pdfauthor={Bar Mordechai Damri}}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+
+\usepackage{float}
+\usepackage{caption}
+\captionsetup{font=small, labelfont=bf, skip=3pt}
+\usepackage{multicol}
+\setlength{\columnsep}{18pt}
+\usepackage{graphicx}
+\usepackage[round]{natbib}
+\setlength{\bibsep}{2pt}
+
+\begin{document}
+
+% ============================================================
+% COVER PAGE
+% ============================================================
+\begin{titlepage}
+\centering\singlespacing
+\vspace*{0.1cm}
+\includegraphics[height=2.1cm]{bgu_logo.png}\\[10pt]
+{\large\bfseries Ben-Gurion University of the Negev}\\[5pt]
+{\normalsize The Stein Faculty of Computer and Information Science}\\[3pt]
+{\normalsize The Institute of Information Systems Engineering}
+
+\vspace{2.0cm}
+{\LARGE\bfseries\color{bgunavy}\setstretch{1.2}
+Embedding Geometric Heuristics for\\
+Improving Retrieval-Augmented Generation
+}
+
+\vspace{0.8cm}
+\begin{otherlanguage*}{hebrew}
+{\Large\bfseries\setstretch{1.3}
+הטמעת יוריסטיקות גיאומטריות לשיפור מערכת אחזור מבוססת שליפה \textenglish{\LR{(RAG):}}\\[4pt]
+חקירת השפעת מבנה המרחב הווקטורי על איכות התשובה
+}
+\end{otherlanguage*}
+
+\vspace{1.6cm}
+{\large\itshape Research proposal}
+
+\vspace{1.8cm}
+{\large\bfseries Bar Mordechai Damri \,\texthebrew{בר מרדכי דמרי}}\\[6pt]
+{\normalsize Student ID: 208915751}
+
+\vspace{1.6cm}
+{\normalsize Supervisors:}\\[8pt]
+{\large\bfseries Prof. Roni Stern \quad Prof. Rami Puzis}
+
+\vspace{1.2cm}
+{\normalsize October 2026}
+
+\vfill
+\begin{flushright}\normalsize
+Supervisor approval: \rule{4.2cm}{0.4pt}\\[14pt]
+Chair, Graduate Teaching Committee: \rule{4.2cm}{0.4pt}
+\end{flushright}
+\end{titlepage}
+
+% ============================================================
+% ABSTRACT
+% ============================================================
+\setcounter{page}{2}
+\section*{Abstract}
+
+Retrieval-Augmented Generation (RAG) grounds large language model (LLM) answers in retrieved documents, so answer quality is bounded by whether retrieval recovers the ground-truth (GT) document. Dense retrievers rank documents by cosine distance to the query embedding, implicitly assuming that queries and their relevant documents occupy the same region of the embedding space. This research studies the geometric structure of the query-document embedding space in RAG and, as its overarching goal, develops geometric heuristics that exploit this structure to improve retrieval. Three goals: (1) characterize the geometry of the space and explain why query-centric retrieval fails for a non-trivial fraction of queries; (2) develop and evaluate geometric retrieval heuristics that relocate the search anchor in the space - centroid-based anchoring, adaptive anchor updates, and document-space anchors such as hypothetical documents (HyDE) - where auxiliary signals such as LLM relevance judgments serve as instruments within the heuristics, not as the object of study; and (3) test whether the findings generalize beyond the testbed. The biomedical corpus we use is a measurement testbed, chosen because the query-document gap is most pronounced there and because prior RAG research on this domain provides a basis for comparison; the geometric constructions we employ (neighborhood circles, the query-centroid-ground-truth triangle) are likewise means of probing the space, not research goals.
+
+\begin{otherlanguage*}{hebrew}
+\subsection*{\texthebrew{תקציר}}
+מערכות \textenglish{\LR{Retrieval-Augmented Generation (RAG)}} מעגנות את תשובות מודל השפה במסמכים מאוחזרים, ולכן איכות התשובה חסומה על־ידי יכולת שלב האחזור למצוא את מסמך האמת \textenglish{\LR{(GT)}}. מאחזרים צפופים מדרגים מסמכים לפי מרחק קוסינוס מהטמעת השאילתה, מתוך הנחה סמויה שהשאילתה והמסמכים הרלוונטיים לה שוכנים באותו אזור של מרחב ההטמעה. מחקר זה בוחן את המבנה הגיאומטרי של מרחב ההטמעה שאילתה-מסמך במערכות \textenglish{\LR{RAG}}, ומטרת־העל שלו היא פיתוח יוריסטיקות גיאומטריות המנצלות מבנה זה לשיפור האחזור. שלוש מטרות: (1) לאפיין את הגיאומטריה של המרחב ולהסביר מדוע אחזור ממוקד־שאילתה נכשל בחלק לא מבוטל מהשאילתות; (2) לפתח ולהעריך יוריסטיקות אחזור גיאומטריות המזיזות את עוגן החיפוש במרחב - עיגון מבוסס־צנטרואיד, עדכון אדפטיבי של העוגן, ועוגנים במרחב המסמכים כדוגמת מסמכים היפותטיים \textenglish{\LR{(HyDE)}} - כאשר אותות עזר כגון שיפוטי רלוונטיות של מודל שפה משמשים ככלי עזר בתוך היוריסטיקות בלבד; (3) לבדוק את הכללת הממצאים מעבר למגרש הניסוי. הקורפוס הביו־רפואי שבו אנו משתמשים הוא מגרש מדידה, שנבחר משום שפער השאילתה-מסמך בולט בו במיוחד ומשום שמחקר \textenglish{\LR{RAG}} קודם בתחום זה מספק בסיס להשוואה; המבנים הגיאומטריים שבהם אנו משתמשים (מעגלי שכנות, משולש השאילתה-צנטרואיד-מסמך האמת) הם אף הם אמצעים לחקירת המרחב ולא מושא המחקר.
+\end{otherlanguage*}
+
+% ============================================================
+% 1. BACKGROUND
+% ============================================================
+\section{Scientific Background}
+
+\subsection{RAG and Dense Retrieval}
+RAG decouples knowledge storage from language modeling: at inference time, documents are retrieved from an external corpus and given to the LLM as context \citep{lewis2020rag,shi2024replug}. If the GT document is not retrieved, the LLM cannot produce a correct grounded answer, and irrelevant context actively degrades it \citep{shi2023distractors}. Dense retrievers encode queries and documents independently with a bi-encoder and rank by cosine similarity \citep{karpukhin2020dpr,reimers2019sbert}. Their performance drops sharply outside the training domain \citep{thakur2021beir}, and biomedicine is among the hardest settings: questions are short and conversational while relevant documents are dense scientific abstracts \citep{tsatsaronis2015bioasq,nentidis2023bioasq11}. Domain pre-training such as BioBERT \citep{lee2020biobert} narrows but does not close this gap. For exactly this reason we use a biomedical corpus as the testbed throughout this work: it is where the gap is most pronounced and therefore easiest to measure.
+
+\subsection{The Query-Document Gap}
+Contextual embedding spaces are strongly anisotropic: representations concentrate in narrow cones, which compresses cosine similarities and reduces their discriminative power \citep{ethayarajh2019contextual}. Because a bi-encoder never sees the query and document together, the two populations can drift into different regions of the space; hard negatives that lie close to the query but are semantically wrong are a known consequence \citep{xiong2021ance,hofstatter2021tasb}. To our knowledge, the relative position of queries, relevant-document clusters, and GT documents on the unit hypersphere has not been measured directly. This is the starting point of this research.
+
+\subsection{LLM Relevance Judgments, PRF, and HyDE}
+LLMs are now widely used as relevance judges and produce graded rather than binary labels \citep{zheng2023judging}. We treat these grades both as an evaluation signal and as a runtime navigation signal. Two existing families of methods try to move the retrieval anchor away from the raw query. Pseudo-relevance feedback (PRF) replaces the query with the centroid of top-ranked documents; ANCE-PRF applies this to dense retrieval \citep{robertson2009bm25,mao2021anceprf}. Its weakness is that irrelevant top-ranked documents bias the centroid. HyDE \citep{gao2023hyde} lets an LLM write a hypothetical answer document and retrieves with its embedding, which lies in ``document space''; in biomedicine, however, the generated text may be topically right but factually imprecise. Our adaptive approach combines the two ideas: the centroid is built only from documents the LLM has confirmed as relevant, and it is updated incrementally.
+
+% ============================================================
+% 2. OBJECTIVES
+% ============================================================
+\section{Research Objectives and Expected Significance}
+
+\begin{enumerate}[label=\textbf{RQ\arabic*.}, leftmargin=2.6em]
+  \item \textbf{Geometry.} What is the geometric structure of the query-document embedding space in RAG systems, and how does it explain the gap between oracle-guided and query-guided retrieval? \textit{Contribution:} a characterization of the $Q$-$C$-$GT$ triangle and of the features that predict retrieval failure.
+  \item \textbf{Geometric anchoring.} Can geometric heuristics that relocate the search anchor - e.g., an adaptively updated centroid of documents confirmed relevant - reach the GT more efficiently than query-only retrieval? Auxiliary signals such as LLM relevance judgments serve as instruments within the heuristic, not as its subject. \textit{Contribution:} an adaptive geometric retrieval algorithm and its cost-accuracy curve.
+  \item \textbf{Document-space anchoring.} Does moving the search anchor into document space - hypothetical document generation (HyDE) being one realization - close the query-document gap, and when does it beat query-based anchoring? \textit{Contribution:} a geometric account of when document-space anchors succeed.
+  \item \textbf{Generalization.} Do the geometric findings and heuristics transfer beyond the biomedical testbed - chosen for its pronounced gap and its established RAG literature - to other specialized and general-domain datasets? \textit{Contribution:} practical guidelines for when geometry-aware retrieval is worth its cost.
+\end{enumerate}
+
+\textbf{Motivation and significance.} LLM calls are a dominant operational cost of deployed RAG systems. Methods that reach a target retrieval accuracy with fewer calls make high-quality RAG cheaper, and a geometric account of failures gives a principled way to diagnose and target them. In biomedical applications the stakes are concrete: an answer generated from an irrelevant document can assert an incorrect mechanism or contraindication.
+
+% ============================================================
+% 3. PROPOSED RESEARCH
+% ============================================================
+\section{Detailed Description of the Proposed Research}
+
+\subsection{Working Hypotheses}
+\begin{itemize}
+  \item[\textbf{A.}] \textbf{Queries are geometric outliers.} Query embeddings lie in sparse regions of document space, further from their relevant documents than those documents are from each other.
+  \item[\textbf{B.}] \textbf{LLM scores form a geometric gradient.} Documents with higher LLM scores lie monotonically closer to the GT, so scores can steer a search.
+  \item[\textbf{C.}] \textbf{Adaptive search is cheaper.} Updating the search anchor after each scored document reaches the GT in fewer LLM calls than static top-$k$ reranking, especially for the $\sim$30\% of queries where the GT is not ranked first.
+  \item[\textbf{D.}] \textbf{HyDE has a precision trade-off in biomedicine.} HyDE moves the anchor toward the right topical cluster but not necessarily toward the document holding the precise fact.
+\end{itemize}
+
+\subsection{Preliminary Results}
+\textbf{Setup.} 196 biomedical questions, a pool of 5,035 documents, 768-dimensional bi-encoder embeddings, and $\sim$1M query-document pairs scored by a Gemini-2.5-flash-lite judge on six levels (0.1-1.0). All experiments run offline on pre-computed embeddings and scores. The oracle centroid $C$ is the normalized mean of the documents scored 1.0 for a query. The corpus is our measurement testbed, and the circle and triangle constructions below are instruments for probing the embedding space - not research goals in themselves.
+
+\textbf{Queries are outliers (Hyp.~A).} Around each query we draw a circle of radius $d(Q,GT)/2$, and an equal circle around the GT. The query circle contains no pool document for 100\% of queries, whereas the GT circle is empty for only 77\%. On average $d(Q,GT)\approx d(Q,C)\approx 0.17$ while $d(C,GT)\approx 0.10$: the relevant-document centroid is 44\% closer to the GT than the query is. Measuring the triangle with the spherical law of cosines (arc lengths $\theta = \arccos(1-d)$) gives mean angles $\angle Q\approx45.7^\circ$, $\angle C\approx70.8^\circ$, $\angle GT\approx70.6^\circ$: a nearly isosceles triangle with spherical excess $\approx7^\circ$. In a $Q$-$C$ coordinate frame, the GT lies off the $Q$-$C$ line (mean perpendicular offset 0.39), so neither $Q$ nor $C$ alone is an ideal anchor.
+
+\textbf{LLM scores are a gradient (Hyp.~B).} Mean distance to the GT decreases monotonically with the score: 0.89, 0.72, 0.63, 0.54, 0.40 and 0.10 for scores 0.1 to 1.0. The score identifies the GT with ROC-AUC $=0.9974$, and the GT gets the top score in 195 of 196 queries. Unfiltered PRF, in contrast, is harmful: using the top-5 documents as the new anchor drops top-1 accuracy from 70.4\% to 24\%.
+
+\textbf{Static hybrids barely help (Hyp.~C).} Table~\ref{tab:results} compares the standard retriever with static combinations of query and centroid distance. A small centroid weight gains one point of top-1 accuracy; larger weights, tie-breaking, and window re-ranking do not help. However, the 58 queries where B1 misses the GT are mostly \emph{soft} failures: in 79\% of them the document B1 returns first is also scored 1.0 by the judge (88\% at $\geq0.8$), and every one of them has at least one document scored $\geq0.8$ in its top 10. These queries have more fully relevant documents than the others (on average 7.5 vs.\ 6.5 in the top 10), which suggests that many of them have several valid answers.
+
+\begin{table}[H]
+\centering\small
+\caption{GT rank statistics on 196 queries. $d(\cdot)$ is cosine distance; $C$ is the oracle centroid.}
+\label{tab:results}
+\setstretch{1.05}
+\begin{tabularx}{\textwidth}{Xcccc}
+\toprule
+Algorithm & Mean rank & Top-1 (\%) & Top-3 (\%) & Top-10 (\%) \\
+\midrule
+B1: rank by $d(Q)$ (standard RAG)                      & 3.29 & 70.4 & 83.2 & 91.8 \\
+B2: rank by $d(C)$                                      & 9.87 & 14.8 & 36.2 & 62.8 \\
+H1: $0.93\,d(Q) + 0.07\,d(C)$                           & 3.35 & \textbf{71.4} & 82.7 & 90.8 \\
+H2: $d(Q)$, ties broken by $d(C)$ (no ties occur, $\equiv$ B1) & 3.29 & 70.4 & 83.2 & 91.8 \\
+H3: top-10 by $d(Q)$, re-ranked by $d(C)$               & 5.05 & 17.9 & 43.9 & 91.8 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Research Design and Methods}
+\textbf{Phase 1 - Geometric analysis (S1).} Characterize the failing queries against the successful ones (GT offset from the $Q$-$C$ line, neighborhood density, number of relevant documents) and fit a model that predicts failure from geometric features. Replicate the outlier and triangle measurements on TREC-COVID and MS MARCO.
+
+\textbf{Phase 2 - HyDE (S1-S2).} For each query, generate a 3-5 sentence hypothetical biomedical passage with the judge LLM, embed it with the same encoder, and use it as the anchor. Report accuracy and cost against B1, locate the HyDE embedding in the $Q$-$C$-$GT$ frame, and test HyDE as the starting anchor for Phase~3.
+
+\textbf{Phase 3 - Adaptive geometric anchoring (S1-S2).} At step $t$ the next document to send to the judge is chosen by
+\begin{equation}
+  \text{score}(d,t) = \alpha(t)\,\text{sim}(d,Q) + \bigl(1-\alpha(t)\bigr)\,\text{sim}(d,C_t),
+\end{equation}
+where $C_t$ is the normalized centroid of the documents scored $\geq\theta$ so far and $\alpha(t)$ starts at 1 (pure $d(Q)$). We will also test $\alpha>1$ (pushing away from the centroid) and triggering the adaptive step only when the first retrieved document is judged not relevant. The search stops at the first document scored 1.0 or when the budget is exhausted.
+
+\textbf{Evaluation.} All algorithms are evaluated on the offline simulation framework (pre-computed embeddings and LLM scores) by: mean LLM calls to reach the GT; top-1/top-10 accuracy at call budgets $B\in\{1,2,3,5,10\}$; a soft-success rate (first document judged fully relevant, motivated by the finding that most B1 failures are soft); and the full cost-accuracy curve per method, against the B1 baseline (mean rank 3.29, top-1 70.4\%).
+
+\textbf{Phase 4 - Generalization and publication (S2-S3).} Repeat Phases 1 and 3 on one specialized-domain and one general-domain dataset, and submit to SIGIR, ECIR, ACL, or EMNLP.
+
+\subsection{Time Schedule}
+The phases overlap deliberately: all of them reuse the existing offline framework (pre-computed embeddings and $\sim$1M LLM scores), which is what makes the three-semester schedule feasible.
+\begin{table}[H]
+\centering\small
+\caption{Timeline, October 2026 - March 2028 (three semesters). S1: Oct 2026-Mar 2027; S2: Apr-Sep 2027; S3: Oct 2027-Mar 2028.}
+\setstretch{1.05}
+\begin{tabular}{p{8cm}ccc}
+\toprule
+Phase & S1 & S2 & S3 \\
+\midrule
+Literature review and baseline setup        & \textbullet &             &             \\
+Phase 1: geometric analysis and replication & \textbullet &             &             \\
+Phase 2: HyDE evaluation                    & \textbullet & \textbullet &             \\
+Phase 3: adaptive geometric anchoring       & \textbullet & \textbullet &             \\
+Phase 4: cross-domain generalization        &             & \textbullet & \textbullet \\
+Paper writing and submission                &             & \textbullet & \textbullet \\
+Thesis writing and finalization             &             &             & \textbullet \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+% BIBLIOGRAPHY
+% ============================================================
+\section*{Bibliography}
+\renewcommand{\bibsection}{}
+\begin{multicols}{2}
+\footnotesize\setstretch{0.9}\setlength{\bibsep}{1.5pt}
+\bibliographystyle{plainnat}
+\bibliography{references}
+\end{multicols}
+
+\end{document}
