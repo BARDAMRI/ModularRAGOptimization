@@ -5,76 +5,242 @@
 \ProvideDocumentCommand \xpg@aux {mm}{}
 \HyPL@Entry{0<</S/D>>}
 \@writefile{toc}{\xpg@aux {}{english}}
+\citation{xiong2024medrag}
 \citation{lewis2020rag}
-\citation{shi2024replug}
+\citation{izacard2021fid}
+\citation{borgeaud2022retro}
+\citation{ram2023ralm}
+\citation{gao2023ragsurvey}
+\citation{jiang2023flare}
+\citation{trivedi2023ircot}
+\citation{asai2024selfrag}
+\citation{jeong2024adaptiverag}
+\citation{yan2024crag}
+\citation{edge2024graphrag}
 \citation{shi2023distractors}
+\citation{liu2024lost}
 \citation{karpukhin2020dpr}
-\citation{reimers2019sbert}
-\citation{karpukhin2020dpr}
-\@writefile{toc}{\contentsline {section}{\numberline {1}Scientific Background}{3}{section.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {1.1}Retrieval-Augmented Generation}{3}{subsection.1.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {1.2}Dense Retrieval and the Embedding Space}{3}{subsection.1.2}\protected@file@percent }
-\citation{thakur2021beir}
-\citation{ethayarajh2019contextual}
-\citation{hofstatter2021tasb}
+\citation{zhao2024densesurvey}
+\citation{izacard2022contriever}
+\citation{wang2022e5}
+\citation{su2023instructor}
+\citation{qu2021rocketqa}
 \citation{xiong2021ance}
-\@writefile{toc}{\contentsline {subsection}{\numberline {1.3}The Query-Document Gap: Anisotropy and Outlier Queries}{4}{subsection.1.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {1.4}The Q--C--GT Triangle on the Unit Hypersphere}{5}{subsection.1.4}\protected@file@percent }
-\citation{zheng2023judging}
-\@writefile{toc}{\contentsline {subsection}{\numberline {1.5}LLM-as-a-Judge: Graded Relevance as a Geometric Signal}{6}{subsection.1.5}\protected@file@percent }
-\citation{robertson2009bm25}
-\citation{mao2021anceprf}
+\citation{zhan2021hardneg}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Scientific background}{3}{section.1}\protected@file@percent }
+\newlabel{sec:background}{{1}{3}{Scientific background}{section.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.1}Retrieval-augmented generation: pipelines and where they fail}{3}{subsection.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.2}Finding relevant documents: the state of the art}{3}{subsection.1.2}\protected@file@percent }
+\newlabel{sec:sota}{{1.2}{3}{Finding relevant documents: the state of the art}{subsection.1.2}{}}
+\citation{khattab2020colbert,santhanam2022colbertv2}
+\citation{formal2021splade}
+\citation{luan2021sparse}
+\citation{nogueira2020monot5}
+\citation{sun2023rankgpt}
+\citation{thomas2024llmjudge}
+\citation{wang2023query2doc}
+\citation{ma2023rewrite}
 \citation{gao2023hyde}
-\@writefile{toc}{\contentsline {subsection}{\numberline {1.6}Pseudo-Relevance Feedback and Centroid-Based Expansion}{7}{subsection.1.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {1.7}Hypothetical Document Embeddings}{7}{subsection.1.7}\protected@file@percent }
-\citation{tsatsaronis2015bioasq}
-\citation{nentidis2023bioasq11}
+\citation{rocchio1971relevance}
+\citation{li2023vectorprf}
+\citation{li2025llmvprf}
+\citation{prfllm2026}
+\citation{wang2023colbertprf}
+\citation{mao2021anceprf}
+\citation{li2022corocchio}
+\citation{li2022prfquality}
+\citation{mackie2023grf,mackie2023grfdense,zhang2024mugi}
+\citation{lei2024csqe}
+\citation{thakur2021beir}
 \citation{tsatsaronis2015bioasq}
 \citation{lee2020biobert}
-\@writefile{toc}{\contentsline {subsection}{\numberline {1.8}Spherical Geometry in High-Dimensional Embedding Spaces}{8}{subsection.1.8}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {1.9}Biomedical Information Retrieval}{8}{subsection.1.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2}Research Objectives and Expected Significance}{10}{section.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Research Questions}{10}{subsection.2.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Specific Objectives}{10}{subsection.2.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Expected Contributions and Significance}{11}{subsection.2.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3}Detailed Description of the Proposed Research}{13}{section.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Working Hypotheses}{13}{subsection.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}Hypothesis 1: Query Geometric Outlier Status}{13}{subsubsection.3.1.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.2}Hypothesis 2: LLM Score as Geometric Gradient}{13}{subsubsection.3.1.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.3}Hypothesis 3: Adaptive Search Efficiency}{13}{subsubsection.3.1.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.4}Hypothesis 4: HyDE Trade-off in Biomedicine}{14}{subsubsection.3.1.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Preliminary Results}{14}{subsection.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}Dataset and Experimental Setup}{14}{subsubsection.3.2.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.2}Baseline and Hybrid Retrieval Performance}{14}{subsubsection.3.2.2}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces \xpg@aux {}{english}\ignorespaces Algorithm comparison on 196 biomedical queries, 5,035-document pool. B1 is the standard RAG baseline (rank by cosine distance to query $Q$). H1 hybrid score: $\text  {score}(d) = \alpha \cdot \text  {sim}(d,Q) + (1-\alpha ) \cdot \text  {sim}(d,C)$. H2 is identical to B1 because no ties exist in floating-point cosine distances. H3 restricts candidates to the top-$k$ by $d(Q)$, then reranks within the window by $d(C)$.}}{15}{table.caption.3}\protected@file@percent }
+\citation{jin2023medcpt}
+\citation{xiong2024medrag}
+\citation{sung2023tour}
+\citation{jataria2024rederf}
+\citation{bagel2026}
+\citation{embsurgery2026}
+\citation{shao2023iterretgen}
+\citation{feedback2025survey}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.3}Moving the search anchor at test time}{5}{subsection.1.3}\protected@file@percent }
+\newlabel{sec:anchor-lit}{{1.3}{5}{Moving the search anchor at test time}{subsection.1.3}{}}
+\citation{thomas2024llmjudge}
+\citation{upadhyay2024umbrela}
+\citation{upadhyay2024trecrag}
+\citation{soboroff2024cantreplace,rahmani2025benchmarking}
+\citation{rahmani2025llmjudge}
+\citation{yu2025rageval}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.4}Measuring relevance: LLM judges and their limits}{6}{subsection.1.4}\protected@file@percent }
+\newlabel{sec:judges}{{1.4}{6}{Measuring relevance: LLM judges and their limits}{subsection.1.4}{}}
+\citation{ethayarajh2019contextual}
+\citation{gao2019degeneration}
+\citation{timkey2021rogue}
+\citation{mu2018allbutthetop}
+\citation{li2020bertflow}
+\citation{su2021whitening}
+\citation{jung2023isotropic}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.5}What these methods do not account for}{7}{subsection.1.5}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces \xpg@aux {}{english}\ignorespaces Families of retrieval methods and the mechanism each one changes. ``Anchor'' is the point in embedding space from which nearest-neighbor search is run.}}{7}{table.caption.1}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
-\newlabel{tab:results}{{1}{15}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Algorithm comparison on 196 biomedical queries, 5,035-document pool. B1 is the standard RAG baseline (rank by cosine distance to query $Q$). H1 hybrid score: $\text {score}(d) = \alpha \cdot \text {sim}(d,Q) + (1-\alpha ) \cdot \text {sim}(d,C)$. H2 is identical to B1 because no ties exist in floating-point cosine distances. H3 restricts candidates to the top-$k$ by $d(Q)$, then reranks within the window by $d(C)$}{table.caption.3}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.3}Q--C--GT Geometric Analysis}{16}{subsubsection.3.2.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Research Design and Methods}{16}{subsection.3.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.1}Phase 1: Geometric Analysis Completion (Year 1, Semesters 1 and 2)}{16}{subsubsection.3.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.2}Phase 2: HyDE Evaluation in Biomedicine (Year 1, Semesters 1 and 2)}{16}{subsubsection.3.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.3}Phase 3: Adaptive Sequential Search (Years 1 and 2, Semesters 2 and 3)}{17}{subsubsection.3.3.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.4}Phase 4: Cross-Domain Generalization and Publication (Year 2, Semesters 3 and 4)}{18}{subsubsection.3.3.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Time Schedule}{18}{subsection.3.4}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces \xpg@aux {}{english}\ignorespaces Research timeline. S1: Oct 2026 to Mar 2027; S2: Apr 2027 to Sep 2027; S3: Oct 2027 to Mar 2028; S4: Apr 2028 to Sep 2028.}}{18}{table.caption.4}\protected@file@percent }
-\newlabel{tab:timeline}{{2}{18}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Research timeline. S1: Oct 2026 to Mar 2027; S2: Apr 2027 to Sep 2027; S3: Oct 2027 to Mar 2028; S4: Apr 2028 to Sep 2028}{table.caption.4}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces \xpg@aux {}{english}\ignorespaces Research timeline (Gantt chart). Each bar spans the semesters during which the corresponding phase is active. S1--S4 mark the four semesters across two academic years.}}{19}{figure.caption.5}\protected@file@percent }
-\newlabel{fig:gantt}{{1}{19}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Research timeline (Gantt chart). Each bar spans the semesters during which the corresponding phase is active. S1--S4 mark the four semesters across two academic years}{figure.caption.5}{}}
-\gtt@chartextrasize{0}{167.95154pt}
-\bibcite{lewis2020rag}{1}
-\bibcite{karpukhin2020dpr}{2}
-\bibcite{reimers2019sbert}{3}
-\bibcite{thakur2021beir}{4}
-\bibcite{gao2023hyde}{5}
-\bibcite{ethayarajh2019contextual}{6}
-\bibcite{zheng2023judging}{7}
-\bibcite{shi2023distractors}{8}
-\bibcite{shi2024replug}{9}
-\bibcite{mao2021anceprf}{10}
-\bibcite{xiong2021ance}{11}
-\bibcite{hofstatter2021tasb}{12}
-\bibcite{robertson2009bm25}{13}
-\bibcite{tsatsaronis2015bioasq}{14}
-\bibcite{nentidis2023bioasq11}{15}
-\bibcite{lee2020biobert}{16}
-\gdef \@abspage@last{21}
+\newlabel{tab:families}{{1}{7}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Families of retrieval methods and the mechanism each one changes. ``Anchor'' is the point in embedding space from which nearest-neighbor search is run}{table.caption.1}{}}
+\citation{wang2020alignment}
+\citation{gao2021simcse}
+\citation{jing2022collapse}
+\citation{radovanovic2010hubs}
+\citation{lanzen2023hubness}
+\citation{reimers2021curse}
+\citation{luan2021sparse}
+\citation{steck2024cosine}
+\citation{mickus2024isotropy}
+\citation{faggioli2024dime,eclipse2024}
+\citation{vlachou2023coherence}
+\citation{dong2022dualencoder}
+\citation{dualgeom2026}
+\citation{pcaquery2026}
+\citation{li2021dance}
+\citation{liang2022modalitygap}
+\citation{sciavolino2021entity}
+\citation{xiong2021ance,zhan2021hardneg}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.6}The geometry of embedding spaces}{8}{subsection.1.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Research objectives and expected significance}{9}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Detailed description of the proposed research}{10}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Working hypotheses}{10}{subsection.3.1}\protected@file@percent }
+\citation{vlachou2023coherence}
+\citation{roberts2020treccovid}
+\citation{nguyen2016msmarco}
+\citation{jataria2024rederf}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Research design and methods}{11}{subsection.3.2}\protected@file@percent }
+\newlabel{sec:methods}{{3.2}{11}{Research design and methods}{subsection.3.2}{}}
+\newlabel{eq:score}{{1}{11}{Research design and methods}{equation.1}{}}
+\citation{li2023vectorprf}
+\citation{jataria2024rederf}
+\citation{sung2023tour}
+\citation{sun2023rankgpt}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces \xpg@aux {}{english}\ignorespaces Adaptive geometric anchoring (proposed; Phase 3)}}{12}{algorithm.1}\protected@file@percent }
+\newlabel{alg:adaptive}{{1}{12}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Adaptive geometric anchoring (proposed; Phase 3)}{algorithm.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Preliminary results}{13}{subsection.3.3}\protected@file@percent }
+\newlabel{sec:prelim}{{3.3}{13}{Preliminary results}{subsection.3.3}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.1}Testbed and measurement instruments}{13}{subsubsection.3.3.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces \xpg@aux {}{english}\ignorespaces Trilateration views of two queries. Axes are exact cosine distances along and perpendicular to the $Q$-$GT$ axis; grey points are the remaining pool, orange are $G_3$ documents, blue are documents inside the centroid circle only.}}{14}{figure.caption.2}\protected@file@percent }
+\newlabel{fig:trilateration}{{1}{14}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Trilateration views of two queries. Axes are exact cosine distances along and perpendicular to the $Q$-$GT$ axis; grey points are the remaining pool, orange are $G_3$ documents, blue are documents inside the centroid circle only}{figure.caption.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.2}Finding A: queries are geometric outliers}{14}{subsubsection.3.3.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces \xpg@aux {}{english}\ignorespaces Neighborhood circles over 196 queries. $G_1$ is anchored at the query, $G_2$ at the oracle centroid, $G_3$ is the set of documents judged fully relevant; ``B1 ok'' / ``B1 failed'' split queries by whether B1 ranks the GT first. Mean Jaccard overlaps: $G_1{\cap }G_2$ 0.33, $G_2{\cap }G_3$ 0.34, $G_1{\cap }G_3$ 0.12. Random anchors placed at distance $d(C,GT)$ from the GT capture 0.8 documents on average.}}{15}{table.caption.3}\protected@file@percent }
+\newlabel{tab:groups}{{2}{15}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Neighborhood circles over 196 queries. $G_1$ is anchored at the query, $G_2$ at the oracle centroid, $G_3$ is the set of documents judged fully relevant; ``B1 ok'' / ``B1 failed'' split queries by whether B1 ranks the GT first. Mean Jaccard overlaps: $G_1{\cap }G_2$ 0.33, $G_2{\cap }G_3$ 0.34, $G_1{\cap }G_3$ 0.12. Random anchors placed at distance $\dist (C,GT)$ from the GT capture 0.8 documents on average}{table.caption.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces \xpg@aux {}{english}\ignorespaces The ten queries with the largest $|G_2|-|G_1|$ gap. $r_1=d(Q,GT)$, $r_2=d(C,GT)$. Mechanism B: the centroid is closer to the GT than the query; mechanism A: it is not, but the GT's neighborhood is dense.}}{15}{table.caption.4}\protected@file@percent }
+\newlabel{tab:extreme}{{3}{15}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces The ten queries with the largest $|G_2|-|G_1|$ gap. $r_1=\dist (Q,GT)$, $r_2=\dist (C,GT)$. Mechanism B: the centroid is closer to the GT than the query; mechanism A: it is not, but the GT's neighborhood is dense}{table.caption.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces \xpg@aux {}{english}\ignorespaces The $Q$-$C$-$GT$ triangle over 196 queries. (a) Vertex angles: the apex at $Q$ is sharp and the two base angles are nearly equal. (b) Position of the GT in the $Q$-$C$ frame: it lies on the centroid's side of the midpoint but consistently off the axis.}}{16}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:triangle}{{2}{16}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces The $Q$-$C$-$GT$ triangle over 196 queries. (a) Vertex angles: the apex at $Q$ is sharp and the two base angles are nearly equal. (b) Position of the GT in the $Q$-$C$ frame: it lies on the centroid's side of the midpoint but consistently off the axis}{figure.caption.5}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.3}Finding B: relevance is graded geometrically around the GT}{16}{subsubsection.3.3.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces \xpg@aux {}{english}\ignorespaces Mean cosine distance to the GT of non-GT documents, by LLM relevance score ($\sim $985k judged pairs). The relationship is monotone at every level.}}{16}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:gradient}{{3}{16}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Mean cosine distance to the GT of non-GT documents, by LLM relevance score ($\sim $985k judged pairs). The relationship is monotone at every level}{figure.caption.6}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces \xpg@aux {}{english}\ignorespaces Re-ranking B1's top-$k$ by the judge's relevance score (ties keep B1 order). The GT is inside the window for the share of queries shown; re-ranking still cannot place it first.}}{17}{table.caption.7}\protected@file@percent }
+\newlabel{tab:rerank}{{4}{17}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Re-ranking B1's top-$k$ by the judge's relevance score (ties keep B1 order). The GT is inside the window for the share of queries shown; re-ranking still cannot place it first}{table.caption.7}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.4}Finding C: static anchoring heuristics barely help}{17}{subsubsection.3.3.4}\protected@file@percent }
+\newlabel{sec:prelim-static}{{3.3.4}{17}{Finding C: static anchoring heuristics barely help}{subsubsection.3.3.4}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {2}{\ignorespaces \xpg@aux {}{english}\ignorespaces Static anchoring family (Table~\ref {tab:results})}}{17}{algorithm.2}\protected@file@percent }
+\newlabel{alg:static}{{2}{17}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Static anchoring family (Table~\ref {tab:results})}{algorithm.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces \xpg@aux {}{english}\ignorespaces GT rank statistics on 196 queries. $d(\cdot )$ is cosine distance; $C$ is the oracle centroid.}}{17}{table.caption.8}\protected@file@percent }
+\newlabel{tab:results}{{5}{17}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces GT rank statistics on 196 queries. $\dist (\cdot )$ is cosine distance; $C$ is the oracle centroid}{table.caption.8}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces \xpg@aux {}{english}\ignorespaces Iterative LLM-filtered PRF: top-1 accuracy (\%) after re-ranking the pool by the centroid of the top-$k$ documents judged above the threshold, for one to three feedback rounds. B1 is 70.4\%.}}{18}{table.caption.9}\protected@file@percent }
+\newlabel{tab:prf}{{6}{18}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Iterative LLM-filtered PRF: top-1 accuracy (\%) after re-ranking the pool by the centroid of the top-$k$ documents judged above the threshold, for one to three feedback rounds. B1 is 70.4\%}{table.caption.9}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.5}Finding D: a first adaptive prototype, and what it teaches}{18}{subsubsection.3.3.5}\protected@file@percent }
+\newlabel{sec:prelim-adaptive}{{3.3.5}{18}{Finding D: a first adaptive prototype, and what it teaches}{subsubsection.3.3.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces \xpg@aux {}{english}\ignorespaces (a) H1 top-1 accuracy as a function of the query weight $\alpha $. (b) H3 top-1 accuracy as a function of the re-ranked window $k$. (c) The adaptive prototype with a fixed $\alpha $: documents inspected until the GT, averaged over 196 queries; $\alpha =1$ is B1.}}{19}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:sweeps}{{4}{19}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces (a) H1 top-1 accuracy as a function of the query weight $\alpha $. (b) H3 top-1 accuracy as a function of the re-ranked window $k$. (c) The adaptive prototype with a fixed $\alpha $: documents inspected until the GT, averaged over 196 queries; $\alpha =1$ is B1}{figure.caption.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Status of the work and plan for the thesis}{19}{subsection.3.4}\protected@file@percent }
+\newlabel{sec:thesis}{{3.4}{19}{Status of the work and plan for the thesis}{subsection.3.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces \xpg@aux {}{english}\ignorespaces Status of the work by research question.}}{20}{table.caption.11}\protected@file@percent }
+\newlabel{tab:status}{{7}{20}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Status of the work by research question}{table.caption.11}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces \xpg@aux {}{english}\ignorespaces Risks to the plan and the fallback each one leaves.}}{21}{table.caption.12}\protected@file@percent }
+\newlabel{tab:risks}{{8}{21}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Risks to the plan and the fallback each one leaves}{table.caption.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}Time schedule}{21}{subsection.3.5}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces \xpg@aux {}{english}\ignorespaces Gantt chart. S1: Oct 2026-Mar 2027; S2: Apr-Sep 2027; S3: Oct 2027-Mar 2028.}}{21}{table.caption.13}\protected@file@percent }
+\bibstyle{plainnat-hyphen}
+\bibdata{references,refs_rag,refs_geometry,refs_new}
+\bibcite{embsurgery2026}{{1}{2026}{{Amendola et~al.}}{{Amendola, Mallia, and Perego}}}
+\bibcite{rahmani2025benchmarking}{{2}{2025}{{Arabzadeh and Clarke}}{{}}}
+\bibcite{asai2024selfrag}{{3}{2024}{{Asai et~al.}}{{Asai, Wu, Wang, Sil, and Hajishirzi}}}
+\bibcite{borgeaud2022retro}{{4}{2022}{{Borgeaud et~al.}}{{Borgeaud, Mensch, Hoffmann, et~al.}}}
+\bibcite{soboroff2024cantreplace}{{5}{2025}{{Clarke and Dietz}}{{}}}
+\bibcite{eclipse2024}{{6}{2025}{{D'Erasmo et~al.}}{{D'Erasmo, Trappolini, Silvestri, and Tonellotto}}}
+\bibcite{dong2022dualencoder}{{7}{2022}{{Dong et~al.}}{{Dong, Ni, Bikel, et~al.}}}
+\bibcite{edge2024graphrag}{{8}{2024}{{Edge et~al.}}{{Edge, Trinh, Cheng, et~al.}}}
+\bibcite{ethayarajh2019contextual}{{9}{2019}{{Ethayarajh}}{{}}}
+\bibcite{faggioli2024dime}{{10}{2024}{{Faggioli et~al.}}{{Faggioli, Ferro, Perego, and Tonellotto}}}
+\bibcite{formal2021splade}{{11}{2021}{{Formal et~al.}}{{Formal, Piwowarski, and Clinchant}}}
+\bibcite{yu2025rageval}{{12}{2025}{{Gan et~al.}}{{Gan, Yu, Zhang, et~al.}}}
+\bibcite{gao2019degeneration}{{13}{2019}{{Gao et~al.}}{{Gao, He, Tan, Qin, Wang, and Liu}}}
+\bibcite{gao2023hyde}{{14}{2023{a}}{{Gao et~al.}}{{Gao, Ma, Lin, and Callan}}}
+\bibcite{gao2021simcse}{{15}{2021}{{Gao et~al.}}{{Gao, Yao, and Chen}}}
+\bibcite{gao2023ragsurvey}{{16}{2023{b}}{{Gao et~al.}}{{Gao, Xiong, Gao, et~al.}}}
+\bibcite{izacard2021fid}{{17}{2021}{{Izacard and Grave}}{{}}}
+\bibcite{izacard2022contriever}{{18}{2022}{{Izacard et~al.}}{{Izacard, Caron, Hosseini, et~al.}}}
+\bibcite{prfllm2026}{{19}{2026}{{Jedidi and Lin}}{{}}}
+\bibcite{jataria2024rederf}{{20}{2024}{{Jedidi et~al.}}{{Jedidi, Chuang, Shing, and Glass}}}
+\bibcite{jeong2024adaptiverag}{{21}{2024}{{Jeong et~al.}}{{Jeong, Baek, Cho, Hwang, and Park}}}
+\bibcite{jiang2023flare}{{22}{2023}{{Jiang et~al.}}{{Jiang, Xu, Gao, et~al.}}}
+\bibcite{jin2023medcpt}{{23}{2023}{{Jin et~al.}}{{Jin, Kim, Chen, et~al.}}}
+\bibcite{jing2022collapse}{{24}{2022}{{Jing et~al.}}{{Jing, Vincent, LeCun, and Tian}}}
+\bibcite{jung2023isotropic}{{25}{2023}{{Jung et~al.}}{{Jung, Park, Choi, Kim, and Rhee}}}
+\bibcite{karpukhin2020dpr}{{26}{2020}{{Karpukhin et~al.}}{{Karpukhin, O{\u {g}}uz, Min, et~al.}}}
+\bibcite{khattab2020colbert}{{27}{2020}{{Khattab and Zaharia}}{{}}}
+\bibcite{bagel2026}{{28}{2026}{{Kim et~al.}}{{Kim, Korikov, Liang, et~al.}}}
+\bibcite{lee2020biobert}{{29}{2020}{{Lee et~al.}}{{Lee, Yoon, Kim, et~al.}}}
+\bibcite{lei2024csqe}{{30}{2024}{{Lei et~al.}}{{Lei, Cao, Zhou, Shen, and Yates}}}
+\bibcite{lewis2020rag}{{31}{2020}{{Lewis et~al.}}{{Lewis, Perez, Piktus, et~al.}}}
+\bibcite{li2020bertflow}{{32}{2020}{{Li et~al.}}{{Li, Zhou, He, Wang, Yang, and Li}}}
+\bibcite{li2022prfquality}{{33}{2022}{{Li et~al.}}{{Li, Mourad, Koopman, and Zuccon}}}
+\bibcite{li2023vectorprf}{{34}{2023}{{Li et~al.}}{{Li, Mourad, Zhuang, Koopman, and Zuccon}}}
+\bibcite{li2025llmvprf}{{35}{2025}{{Li et~al.}}{{Li, Zhuang, Koopman, and Zuccon}}}
+\bibcite{li2021dance}{{36}{2021}{{Li et~al.}}{{Li, Liu, Xiong, and Liu}}}
+\bibcite{liang2022modalitygap}{{37}{2022}{{Liang et~al.}}{{Liang, Zhang, Kwon, Yeung, and Zou}}}
+\bibcite{liu2024lost}{{38}{2024}{{Liu et~al.}}{{Liu, Lin, Hewitt, et~al.}}}
+\bibcite{luan2021sparse}{{39}{2021}{{Luan et~al.}}{{Luan, Eisenstein, Toutanova, and Collins}}}
+\bibcite{ma2023rewrite}{{40}{2023}{{Ma et~al.}}{{Ma, Gong, He, Zhao, and Duan}}}
+\bibcite{mackie2023grf}{{41}{2023{a}}{{Mackie et~al.}}{{Mackie, Chatterjee, and Dalton}}}
+\bibcite{mackie2023grfdense}{{42}{2023{b}}{{Mackie et~al.}}{{Mackie, Chatterjee, and Dalton}}}
+\bibcite{mickus2024isotropy}{{43}{2024}{{Mickus et~al.}}{{Mickus, Gr{\"o}nroos, and Attieh}}}
+\bibcite{mu2018allbutthetop}{{44}{2018}{{Mu and Viswanath}}{{}}}
+\bibcite{nguyen2016msmarco}{{45}{2016}{{Nguyen et~al.}}{{Nguyen, Rosenberg, Song, et~al.}}}
+\bibcite{lanzen2023hubness}{{46}{2024}{{Nielsen and Hansen}}{{}}}
+\bibcite{nogueira2020monot5}{{47}{2020}{{Nogueira et~al.}}{{Nogueira, Jiang, Pradeep, and Lin}}}
+\bibcite{qu2021rocketqa}{{48}{2021}{{Qu et~al.}}{{Qu, Ding, Liu, et~al.}}}
+\bibcite{radovanovic2010hubs}{{49}{2010}{{Radovanovi{\'c} et~al.}}{{Radovanovi{\'c}, Nanopoulos, and Ivanovi{\'c}}}}
+\bibcite{rahmani2025llmjudge}{{50}{2025}{{Rahmani et~al.}}{{Rahmani, Siro, Aliannejadi, et~al.}}}
+\bibcite{ram2023ralm}{{51}{2023}{{Ram et~al.}}{{Ram, Levine, Dalmedigos, et~al.}}}
+\bibcite{feedback2025survey}{{52}{2026}{{Rathee et~al.}}{{Rathee, V, MacAvaney, and Anand}}}
+\bibcite{reimers2021curse}{{53}{2021}{{Reimers and Gurevych}}{{}}}
+\bibcite{roberts2020treccovid}{{54}{2020}{{Roberts et~al.}}{{Roberts, Alam, Bedrick, et~al.}}}
+\bibcite{rocchio1971relevance}{{55}{1971}{{Rocchio}}{{}}}
+\bibcite{santhanam2022colbertv2}{{56}{2022}{{Santhanam et~al.}}{{Santhanam, Khattab, Saad-Falcon, Potts, and Zaharia}}}
+\bibcite{sciavolino2021entity}{{57}{2021}{{Sciavolino et~al.}}{{Sciavolino, Zhong, Lee, and Chen}}}
+\bibcite{shao2023iterretgen}{{58}{2023}{{Shao et~al.}}{{Shao, Gong, Shen, Huang, Duan, and Chen}}}
+\bibcite{shi2023distractors}{{59}{2023}{{Shi et~al.}}{{Shi, Chen, Misra, et~al.}}}
+\bibcite{steck2024cosine}{{60}{2024}{{Steck et~al.}}{{Steck, Ekanadham, and Kallus}}}
+\bibcite{su2023instructor}{{61}{2023}{{Su et~al.}}{{Su, Shi, Kasai, et~al.}}}
+\bibcite{su2021whitening}{{62}{2021}{{Su et~al.}}{{Su, Cao, Liu, and Ou}}}
+\bibcite{dualgeom2026}{{63}{2026}{{Sun et~al.}}{{Sun, Yuan, Huang, and Han}}}
+\bibcite{sun2023rankgpt}{{64}{2023}{{Sun et~al.}}{{Sun, Yan, Ma, et~al.}}}
+\bibcite{sung2023tour}{{65}{2023}{{Sung et~al.}}{{Sung, Park, Kang, Chen, and Lee}}}
+\bibcite{thakur2021beir}{{66}{2021}{{Thakur et~al.}}{{Thakur, Reimers, R{\"u}ckl{\'e}, Srivastava, and Gurevych}}}
+\bibcite{thomas2024llmjudge}{{67}{2024}{{Thomas et~al.}}{{Thomas, Spielman, Craswell, and Mitra}}}
+\bibcite{timkey2021rogue}{{68}{2021}{{Timkey and van Schijndel}}{{}}}
+\bibcite{trivedi2023ircot}{{69}{2023}{{Trivedi et~al.}}{{Trivedi, Balasubramanian, Khot, and Sabharwal}}}
+\bibcite{tsatsaronis2015bioasq}{{70}{2015}{{Tsatsaronis et~al.}}{{Tsatsaronis, Balikas, Malakasiotis, et~al.}}}
+\bibcite{upadhyay2024umbrela}{{71}{2024}{{Upadhyay et~al.}}{{Upadhyay, Pradeep, Thakur, Craswell, and Lin}}}
+\bibcite{upadhyay2024trecrag}{{72}{2025}{{Upadhyay et~al.}}{{Upadhyay, Pradeep, Thakur, et~al.}}}
+\bibcite{vlachou2023coherence}{{73}{2024}{{Vlachou and Macdonald}}{{}}}
+\bibcite{wang2022e5}{{74}{2022}{{Wang et~al.}}{{Wang, Yang, Huang, et~al.}}}
+\bibcite{wang2023query2doc}{{75}{2023{a}}{{Wang et~al.}}{{Wang, Yang, and Wei}}}
+\bibcite{wang2020alignment}{{76}{2020}{{Wang and Isola}}{{}}}
+\bibcite{wang2023colbertprf}{{77}{2023{b}}{{Wang et~al.}}{{Wang, Macdonald, Tonellotto, and Ounis}}}
+\bibcite{xiong2024medrag}{{78}{2024}{{Xiong et~al.}}{{Xiong, Jin, Lu, and Zhang}}}
+\bibcite{xiong2021ance}{{79}{2021}{{Xiong et~al.}}{{Xiong, Xiong, Li, et~al.}}}
+\bibcite{yan2024crag}{{80}{2024}{{Yan et~al.}}{{Yan, Gu, Zhu, and Ling}}}
+\bibcite{mao2021anceprf}{{81}{2021}{{Yu et~al.}}{{Yu, Xiong, and Callan}}}
+\bibcite{zhan2021hardneg}{{82}{2021}{{Zhan et~al.}}{{Zhan, Mao, Liu, Guo, Zhang, and Ma}}}
+\bibcite{zhang2024mugi}{{83}{2024}{{Zhang et~al.}}{{Zhang, Wu, Yang, and Nie}}}
+\bibcite{zhao2024densesurvey}{{84}{2024}{{Zhao et~al.}}{{Zhao, Liu, Ren, and Wen}}}
+\bibcite{li2022corocchio}{{85}{2022}{{Zhuang et~al.}}{{Zhuang, Li, and Zuccon}}}
+\bibcite{pcaquery2026}{{86}{2026}{{Zuo and Khashabi}}{{}}}
+\gdef \@abspage@last{25}

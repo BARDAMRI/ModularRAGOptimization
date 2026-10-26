@@ -196,7 +196,12 @@ for i, (_, qrow) in enumerate(queries_meta.iterrows()):
     # Hybrid 1: f = alpha * dist(Q) + beta * dist(Centroid),  alpha > beta
     for alpha in ALPHAS_H1:
         beta = 1.0 - alpha
-        f = alpha * dist_q + beta * dist_c if have_centroid else dist_q
+        # in case centroid wasnt found we need to skip this hybrid and in the results we would like to see that this hybrid was not computed for this query
+        if not have_centroid:
+            row2[f"rank_weighted_a{int(round(alpha*100)):03d}"] = None
+            print(f"  [SKIP] query {q_idx}: no centroid for hybrid 1 with alpha={alpha:.2f}")
+            continue
+        f = alpha * dist_q + beta * dist_c if have_centroid else None
         col = f"rank_weighted_a{int(round(alpha*100)):03d}"
         row2[col] = rank_of(f, gt_idx)
 
