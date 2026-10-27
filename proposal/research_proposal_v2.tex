@@ -34,7 +34,6 @@
 \usepackage{amssymb}
 \usepackage{booktabs}
 \usepackage{tabularx}
-\usepackage{longtable}
 \usepackage{array}
 \usepackage{enumitem}
 \setlist[itemize]{topsep=2pt,itemsep=1pt,parsep=0pt,leftmargin=1.3em}
@@ -124,39 +123,34 @@ The research has three goals. The first is to study the geometric properties of 
 % ============================================================
 % GLOSSARY
 % ============================================================
+\enlargethispage{3\baselineskip}
 \section*{Terms used in this proposal}
 
-{\footnotesize\setstretch{1.0}
-\setlength{\LTpre}{4pt}\setlength{\LTpost}{4pt}
-\begin{longtable}{>{\raggedright\arraybackslash}p{3.7cm}>{\raggedright\arraybackslash}p{\dimexpr\textwidth-3.7cm-4\tabcolsep\relax}}
+\noindent\begin{minipage}{\textwidth}
+\footnotesize\setstretch{1.0}\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.7cm}>{\raggedright\arraybackslash}X}
 \toprule
 Term & Meaning in this proposal \\
 \midrule
-\endfirsthead
-\toprule
-Term (continued) & Meaning in this proposal \\
-\midrule
-\endhead
-\bottomrule
-\endlastfoot
 Large language model (LLM) & A neural network trained on very large amounts of text that can read a prompt and write fluent text in response (for example, GPT or Gemini). \\
 Embedding & A list of numbers (a vector) that a neural network produces to represent a piece of text. Texts with similar meaning get similar vectors. \\
-Embedding space & The high-dimensional space in which these vectors live. Each question and each document is one point in it. In this work the space has 768 dimensions. \\
+Embedding space & The high-dimensional space in which these vectors live. Each question and document is one point in it (768 dimensions in this work). \\
 Normalized vector & A vector scaled so that its length is exactly 1. All embeddings in this work are normalized, so that only their direction matters. \\
 Cosine similarity / distance & The standard way to compare two embeddings: the cosine of the angle between the two vectors (1 = same direction, 0 = unrelated). Distance is $1 - \text{similarity}$, so smaller means closer. \\
-Retriever & The component that returns, for a question, the documents it considers most relevant. \\
+Retriever & The component that returns, for a question, the documents it finds most relevant. \\
 Bi-encoder & The common retriever design: one network turns the question into an embedding, one turns each document into an embedding, and the two are compared only afterwards. \\
-Nearest-neighbor search & Returning the documents whose embeddings are closest to a given point. \\
+Nearest-neighbor search & Returning the documents whose embeddings are closest to a given point. The \emph{pool} is the set of documents searched. \\
 Search anchor & The point from which nearest-neighbor search is run. In a standard retriever it is the question's embedding; the central idea of this proposal is to move it. \\
-Pool & The set of documents the retriever searches. \\
 Rank, Top-$k$ & The position of a document in a method's output list (1 = returned first); the top-$k$ are the $k$ documents ranked highest. \\
-Ground truth (GT) & The one document that the benchmark marks as the correct answer to a question. \\
+Ground truth (GT) & The one document the benchmark marks as the correct answer to a question. \\
 Relevance judgment & A score saying how relevant a document is to a question. Here the scores come from an LLM acting as a judge, on a scale from 0.1 (irrelevant) to 1.0 (fully relevant). \\
 Centroid & The average of a set of embeddings, scaled back to length 1: the ``center of mass'' of a group of documents. \\
-Oracle & A quantity that uses information a real system would not have at run time (for example, a centroid built from all relevance judgments). Used to measure what is possible, not as a method. \\
-Inspection budget & The number of documents a method is allowed to send to the judge before it must stop. \\
-Benchmark & A fixed collection of questions, documents, and correct answers on which different methods are run so that they can be compared fairly. \\
-\end{longtable}}
+Oracle & A quantity that uses information a real system would not have at run time (for example, a centroid built from all relevance judgments); used to measure what is possible. \\
+Inspection budget & How many documents a method may send to the judge before it must stop. \\
+Benchmark & A fixed set of questions, documents and answers on which methods are compared fairly. \\
+\bottomrule
+\end{tabularx}
+\end{minipage}
 
 
 % ============================================================
@@ -210,9 +204,9 @@ Each goal already has a first result behind it. For the first, we measured the s
 The three goals correspond to three research questions.
 
 \begin{enumerate}[label=\textbf{RQ\arabic*.}, leftmargin=2.6em]
-  \item \textbf{What does the retriever's embedding space look like around a question, and does that geometry tell us when the retriever will fail?} Concretely: where does a question's point sit relative to its relevant documents and its correct answer, which measurable properties of the neighborhood separate solved questions from failed ones, and can a model built from those properties alone predict failure before any document is inspected? \textit{Expected contribution:} a measured description of the space and a failure predictor that needs no relevance labels at run time.
-  \item \textbf{Can a geometric heuristic that moves the search anchor improve retrieval?} If the anchor is moved from the question toward the relevant region, by an amount chosen from the geometry measured for RQ1, does the retriever find the correct document, or a fully relevant one, after inspecting fewer documents than the standard retriever? \textit{Expected contribution:} a one-shot anchor heuristic and the conditions under which it helps.
-  \item \textbf{For the questions on which the retriever fails, does an iterative search that keeps moving the anchor do better?} If the anchor is updated after every inspected document, using the judge's answer, does the search reach a relevant document faster than the one-shot heuristic and than existing feedback methods, at the same inspection budget? \textit{Expected contribution:} an iterative algorithm, its cost-accuracy curve, and a comparison with the closest published methods.
+  \item \textbf{What does the retriever's embedding space look like around a question, and does that geometry tell us when the retriever will fail?} Concretely: where does a question's point sit relative to its relevant documents and its correct answer, which measurable properties of the neighborhood separate solved questions from failed ones, and can a model built from those properties alone predict failure before any document is inspected?\\[2pt] \textit{Expected contribution:} a measured description of the space and a failure predictor that needs no relevance labels at run time.
+  \item \textbf{Can a geometric heuristic that moves the search anchor improve retrieval?} If the anchor is moved from the question toward the relevant region, by an amount chosen from the geometry measured for RQ1, does the retriever find the correct document, or a fully relevant one, after inspecting fewer documents than the standard retriever?\\[2pt] \textit{Expected contribution:} a one-shot anchor heuristic and the conditions under which it helps.
+  \item \textbf{For the questions on which the retriever fails, does an iterative search that keeps moving the anchor do better?} If the anchor is updated after every inspected document, using the judge's answer, does the search reach a relevant document faster than the one-shot heuristic and than existing feedback methods, at the same inspection budget?\\[2pt] \textit{Expected contribution:} an iterative algorithm, its cost-accuracy curve, and a comparison with the closest published methods.
 \end{enumerate}
 
 \textbf{Significance.} Retrieval quality bounds every RAG answer, yet the standard retriever rests on an assumption, that a question lands near its answers, that is not checked. Answering RQ1 gives a way to know in advance when that assumption fails for a given question. Answering RQ2 and RQ3 gives a way to act on it without retraining the encoder or re-indexing the collection: the heuristics operate on the vectors any bi-encoder already produces, so they can be added to an existing system. The biomedical benchmark is the place where the methods are compared, chosen because the gap between questions and documents is known to be large there; the findings are then validated on two public collections from other domains, so that the conclusions are about retrievers in general and not about one dataset.
@@ -235,7 +229,7 @@ Every question and every document in the benchmark was embedded with the same pu
 
 \textbf{Baseline retrievers.} A new method is only as convincing as the methods it is compared against, so Phase~1 fixes a set of baselines that spans the design space of Section~1.2 and can all be simulated on the benchmark. The first and most important is \textbf{B1}, the standard retriever, which ranks the pool by distance to the question, $\dist(d,Q)$; every other method must beat it. The second, \textbf{B2}, ranks the pool by distance to the oracle centroid, $\dist(d,C)$; it is not a deployable method, but it shows what searching from the center of the relevant region would give if that center were known. Between these two we placed three fixed blends, \textbf{H1-H3}: a weighted sum of the two distances, $\alpha\,\dist(d,Q)+(1-\alpha)\,\dist(d,C)$ for several values of $\alpha$; the question's order with the centroid breaking ties; and B1's top-$k$ re-ordered by distance to the centroid. These map out what a rule fixed in advance can do, and they are the reference point for the geometry-guided rules of Phases 3 and 4. Two baselines represent the feedback family: classic \textbf{relevance feedback}, in which B1's top-$k$ are judged and the anchor is moved to the centroid of those judged relevant \citep{li2023vectorprf}, and \textbf{LLM re-ranking}, in which B1's top-$k$ are re-ordered by the judge's score \citep{sun2023rankgpt}. All of these are implemented. The remaining baselines are the published anchor-moving methods, ReDE-RF \citep{jataria2024rederf} and TOUR \citep{sung2023tour}, and the hypothetical-document anchor of HyDE \citep{gao2023hyde}; implementing them on the benchmark is the open item of Phase~1.
 
-\textbf{What the benchmark shows.} Table~\ref{tab:results} gives the main numbers and Figure~\ref{fig:trilateration} shows the geometry of two questions. Three observations drive the rest of the proposal.
+\textbf{What the benchmark shows.} Table~\ref{tab:results} gives the main numbers and Figure~\ref{fig:trilateration} shows the geometry of two questions. Three results drive the rest of the proposal.
 
 \begin{table}[H]
 \centering\small
@@ -248,7 +242,7 @@ Method & Mean rank & Top-1 (\%) & Top-3 (\%) & Top-10 (\%) \\
 \midrule
 B1: distance to the question (standard retriever) & 3.29 & 70.4 & 83.2 & 91.8 \\
 B2: distance to the oracle centroid & 9.87 & 14.8 & 36.2 & 62.8 \\
-H1: $0.93\,\dist(d,Q) + 0.07\,\dist(d,C)$                & 3.35 & \textbf{71.4} & 82.7 & 90.8 \\
+H1: $0.93\,\dist(d,Q) + 0.07\,\dist(d,C)$                & 3.35 & 71.4 & 82.7 & 90.8 \\
 H2: B1 order, centroid breaks ties & 3.29 & 70.4 & 83.2 & 91.8 \\
 H3: B1's top-10 re-ordered by centroid & 5.05 & 17.9 & 43.9 & 91.8 \\
 Relevance feedback (top-5, threshold 1.0) & 4.90 & 31.1 & -    & -    \\
@@ -271,11 +265,11 @@ LLM re-ranking of B1's top-5                             & 2.35 & 40.8 & -    & 
 \label{fig:trilateration}
 \end{figure}
 
-\emph{First, questions are outliers.} Draw a circle around the question whose radius is the distance to the correct answer: every document inside it is returned before the correct answer. On average that circle holds 3.1 documents (median 1). The same circle drawn around the centroid $C$ holds 9.7 (median 6), and random points placed at the same distance from the correct answer hold only 0.8, so the density around $C$ is real and not an artifact of the radius. On average $\dist(Q,GT)\approx\dist(Q,C)\approx0.17$ while $\dist(C,GT)\approx0.10$: the centroid is 44\% closer to the correct answer than the question is. Yet the correct answer is not on the straight line between $Q$ and $C$; it sits off that line by a perpendicular offset of 0.39 on average. So neither the question nor the centroid is, by itself, the right place to search from.
+\textbf{Result 1: questions are outliers.} For each question we draw a circle around it whose radius is its distance to the correct answer; every document inside that circle is returned before the correct answer. The circle holds 3.1 documents on average (median 1). The same circle drawn around the centroid $C$ holds 9.7 (median 6), while random points at the same distance from the correct answer hold 0.8, so the density around $C$ is real and not an artifact of the radius. The mean distances are $\dist(Q,GT)\approx\dist(Q,C)\approx0.17$ and $\dist(C,GT)\approx0.10$: the centroid is 44\% closer to the correct answer than the question is. The correct answer is not on the straight line between $Q$ and $C$ either; its mean perpendicular offset from that line is 0.39. The implication is that neither the question nor the centroid is, by itself, the right place to search from.
 
-\emph{Second, relevance is graded by distance.} Documents the judge scores 0.1 lie at distance 0.89 from the correct answer on average, and the distance falls step by step with the score: 0.84, 0.77, 0.63, 0.40, and 0.22 for score 1.0. The relation holds within every one of the 196 questions. This means two things. The judge is a reliable instrument: when it says ``fully relevant'', the document is geometrically near the answer. And the judge cannot replace geometry: re-ordering B1's top-5 purely by the judge's score lowers Top-1 from 70.4\% to 40.8\%, because many documents share the top score and the labeled answer is only one of them.
+\textbf{Result 2: relevance is graded by distance.} Documents the judge scores 0.1 lie at mean distance 0.89 from the correct answer, and the distance falls step by step with the score: 0.84, 0.77, 0.63, 0.40, and 0.22 for score 1.0. The relation holds within every one of the 196 questions. The implication is twofold. The judge is a reliable instrument: when it says ``fully relevant'', the document is geometrically near the answer. But the judge cannot replace geometry: re-ordering B1's top-5 purely by the judge's score lowers Top-1 from 70.4\% to 40.8\%, because many documents share the top score and the labeled answer is only one of them.
 
-\emph{Third, fixed rules barely help, and most failures are soft.} A small fixed pull toward the centroid (H1) gains one point; stronger pulls, tie-breaking, and re-ordering a window all lose, and replacing the question by a feedback centroid loses badly (31.1\%). Among the 58 questions where B1 does not rank the correct answer first, in 46 (79\%) the document it returns first is itself scored 1.0 by the judge, and every one of the 58 has a fully relevant document in its top 10. This is why exact and soft success are reported side by side throughout.
+\textbf{Result 3: fixed rules barely help, and most failures are soft.} In Table~\ref{tab:results}, a small fixed pull toward the centroid (H1) gains one point of Top-1 over B1; stronger pulls, tie-breaking, and re-ordering a window all lose, and replacing the question by a feedback centroid loses badly (31.1\%). Among the 58 questions where B1 does not rank the correct answer first, in 46 (79\%) the document it returns first is itself scored 1.0 by the judge, and every one of the 58 has a fully relevant document in its top 10. The implication is that a rule fixed in advance is not enough, and that exact and soft success must be reported side by side, as they are throughout this proposal.
 
 \subsection{Phase 2. Characterizing the geometry and predicting retriever failure}
 
