@@ -20,7 +20,7 @@
 \usepackage{setspace}
 \setstretch{1.5}
 
-\usepackage{xcolor}
+\usepackage[table]{xcolor}
 \definecolor{bgunavy}{RGB}{27,61,110}
 \usepackage{titlesec}
 \titleformat{\section}{\large\bfseries\color{bgunavy}}{\thesection.}{0.6em}{}
@@ -123,11 +123,12 @@ The research has three goals. The first is to study the geometric properties of 
 % ============================================================
 % GLOSSARY
 % ============================================================
-\enlargethispage{3\baselineskip}
+\enlargethispage{1\baselineskip}
 \section*{Terms used in this proposal}
 
 \noindent\begin{minipage}{\textwidth}
 \footnotesize\setstretch{1.0}\renewcommand{\arraystretch}{1.18}
+\rowcolors{2}{bgunavy!7}{white}
 \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.7cm}>{\raggedright\arraybackslash}X}
 \toprule
 Term & Meaning in this proposal \\
@@ -137,17 +138,17 @@ Embedding & A list of numbers (a vector) that a neural network produces to repre
 Embedding space & The high-dimensional space in which these vectors live. Each question and document is one point in it (768 dimensions in this work). \\
 Normalized vector & A vector scaled so that its length is exactly 1. All embeddings in this work are normalized, so that only their direction matters; cosine similarity then reduces to a plain dot product, which is also cheaper to compute. \\
 Cosine similarity / distance & The standard way to compare two embeddings: the cosine of the angle between the two vectors (1 = same direction, 0 = unrelated). Distance is $1 - \text{similarity}$, so smaller means closer. \\
-Retriever & The component that returns, for a question, the documents it finds most relevant. \\
+Retriever & The component that returns the documents it finds most relevant to a question. \\
 Bi-encoder & The common retriever design: one network turns the question into an embedding, one turns each document into an embedding, and the two are compared only afterwards. \\
 Nearest-neighbor search & Returning the documents whose embeddings are closest to a given point. The \emph{pool} is the set of documents searched. \\
 Search anchor & The point from which nearest-neighbor search is run. In a standard retriever it is the question's embedding; the central idea of this proposal is to move it. \\
 Rank, Top-$k$ & The position of a document in a method's output list (1 = returned first); the top-$k$ are the $k$ documents ranked highest. \\
-Ground truth (GT) & The one document the benchmark marks as the correct answer to a question. \\
+Ground truth (GT) & The one document the benchmark marks as the correct answer. \\
 Relevance judgment & A score saying how relevant a document is to a question. Here the scores come from an LLM acting as a judge, on a scale from 0.1 (irrelevant) to 1.0 (fully relevant). \\
 Centroid & The average of a set of embeddings, scaled back to length 1: the ``center of mass'' of a group of documents. \\
 Oracle & A quantity that uses information a real system would not have at run time (for example, a centroid built from all relevance judgments); used to measure what is possible. \\
-Inspection budget & How many documents a method may send to the judge before it must stop. \\
-Benchmark & A fixed set of questions, documents and answers on which methods are compared fairly. \\
+Inspection budget & How many documents a method may send to the judge before stopping. \\
+Benchmark & A fixed set of questions, documents and answers used to compare methods fairly. \\
 \bottomrule
 \end{tabularx}
 \end{minipage}
