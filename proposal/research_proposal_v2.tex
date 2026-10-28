@@ -292,34 +292,39 @@ LLM re-ranking of B1's top-5                             & 2.35 & 40.8 & -    & 
 
 \textbf{Problem definition.} Phase~3 moves the anchor once, after $k$ inspections. For the questions on which the retriever fails, one move may not be enough: the first inspected documents may all be irrelevant, or relevant but scattered, so that no single new anchor is clearly right. The iterative version therefore moves the anchor after \emph{every} inspection. At step $t$ it chooses the next document to inspect, receives the judge's score, updates the anchor, and chooses again, until it reaches a fully relevant document or exhausts a budget of $B$ inspections. Formally, the method is a policy that maps the history of inspected documents and their scores to the next document to inspect, and the task is to minimize the expected number of inspections until success. The published methods closest to this are the iterative feedback loops surveyed by \citet{feedback2025survey} and the budgeted exploration of BAGEL \citep{bagel2026}.
 
-\textbf{Proposed approach.} It helps to first follow one question through the algorithm in words. The search starts exactly like B1: the anchor is the question, and the first document inspected is B1's top-1. If the judge scores it 1.0, the search is over and nothing was lost. If not, the algorithm now knows that the question's own neighborhood is misleading, and it switches on anchor movement. From then on, every document the judge scores above a threshold $\theta$ is added to a set $R$ of relevant documents, and the running centroid $C_t$ of that set is recomputed. The next document to inspect is the one that scores highest under a blend of two similarities,
+\textbf{Proposed approach.} It helps to first follow one question through the algorithm in words. The search starts exactly like B1: the anchor is the question, and the first document inspected is the one nearest to it. If the judge scores that document 1.0, the search is over and nothing was lost. If not, the algorithm now knows that the question's own neighborhood is misleading, and from this point on the anchor is allowed to move. Every document the judge scores at least $\theta$ joins a set $R$ of relevant documents. Once $R$ holds at least $m$ documents, the anchor is moved to a point between the question and the centroid of $R$,
 \begin{equation}
-  \text{score}(d,t) = \alpha(t)\,\simf(d,Q) + \bigl(1-\alpha(t)\bigr)\,\simf(d,C_t),
-  \label{eq:score}
+  A = \mathrm{normalize}\bigl(a\,Q + (1-a)\,\mathrm{centroid}(R)\bigr), \qquad a = \alpha(|R|),
+  \label{eq:anchor}
 \end{equation}
-where $\alpha(t)$ starts at 1 (search only from the question) and decreases as more relevant documents accumulate, so that the anchor slides from the question toward the relevant region at a pace set by the evidence. The search stops at the first document scored 1.0, or when the budget runs out.
-
-Algorithm~\ref{alg:adaptive} states this precisely. Its design follows directly from the failed prototype described in Section~\ref{sec:approach}. That prototype used a fixed $\alpha$, began moving the anchor after the first relevant hit, and rebuilt the centroid from whatever it had; its average number of inspections rose from 3.29 (B1) to 4.55 as $\alpha$ decreased. Each of its flaws becomes a design decision here: (i) the anchor starts moving only after an inspected document is judged \emph{not} relevant, so questions that B1 solves immediately are never disturbed; (ii) it moves only once the centroid rests on at least $m$ relevant documents; (iii) $\alpha(t)$ is a schedule that decreases with the support rather than a constant; and (iv) the algorithm records both the step at which it reaches a fully relevant document and the step at which it reaches the labeled one, so that exact and soft success are measured in the same run.
+where the weight $a$ starts near 1 (stay close to the question) and decreases as $R$ grows, so that the anchor slides from the question toward the relevant region at a pace set by the evidence. Each new document to inspect is simply the uninspected document nearest to the current anchor. The search stops at the first document scored 1.0, or when the budget of $B$ inspections runs out. Algorithm~\ref{alg:adaptive} states this precisely. Two thresholds appear in it on purpose: $\theta$ decides which documents count as evidence for moving the anchor, and the score 1.0 decides when the search has succeeded.
 
 \begin{algorithm}[H]
 \caption{Iterative geometry-guided anchoring (Phase 4)}
 \label{alg:adaptive}
 \begin{algorithmic}[1]
-\Require question $Q$, pool $\mathcal{D}$, judge $J$, relevance threshold $\theta$, minimum support $m$, schedule $\alpha(\cdot)$, budget $B$
-\State $U \gets \mathcal{D}$ (uninspected);\; $R \gets \emptyset$ (judged relevant);\; $C \gets Q$;\; moving $\gets$ false
+\Require question $Q$, pool $\mathcal{D}$, judge $J$, budget $B$; parameters $\theta$, $m$, schedule $\alpha(\cdot)$
+\State $A \gets Q$ \Comment{anchor: start from the question, exactly like B1}
+\State $R \gets \emptyset$;\; move $\gets$ false
 \For{$t = 1,\dots,B$}
-  \State $a \gets \alpha(t,|R|)$ \textbf{if} moving \textbf{and} $|R|\ge m$ \textbf{else} $1$ \Comment{$a=1$: search from $Q$}
-  \State $d^\ast \gets \arg\max_{d\in U}\; a\,\simf(d,Q) + (1-a)\,\simf(d,C)$
-  \State $s \gets J(d^\ast)$;\; $U \gets U\setminus\{d^\ast\}$ \Comment{one inspection}
-  \If{$s \ge \theta$} $R \gets R\cup\{d^\ast\}$;\; $C \gets \mathrm{normalize}(\mathrm{mean}(R))$ \Else\ moving $\gets$ true \EndIf
-  \If{$s = 1.0$} record soft success at step $t$ \EndIf
-  \If{$d^\ast = GT$} \Return $t$ \Comment{exact success} \EndIf
+  \State $d \gets$ the uninspected document nearest to $A$
+  \State $s \gets J(d)$ \Comment{one inspection}
+  \If{$s = 1.0$} \Return $d$ after $t$ inspections \Comment{success} \EndIf
+  \If{$s \ge \theta$} add $d$ to $R$ \Comment{evidence}
+  \Else\ move $\gets$ true \Comment{a miss unlocks movement}
+  \EndIf
+  \If{move \textbf{and} $|R| \ge m$}
+    \State $a \gets \alpha(|R|)$ \Comment{less weight on $Q$ as $R$ grows}
+    \State $A \gets \mathrm{normalize}\bigl(a\,Q + (1-a)\,\mathrm{centroid}(R)\bigr)$ \Comment{move the anchor}
+  \EndIf
 \EndFor
-\State \Return $B{+}1$ \Comment{not reached within budget}
+\State \Return failure after $B$ inspections
 \end{algorithmic}
 \end{algorithm}
 
-\textbf{Evaluation.} The same measures and the same offline simulation as Phase~3, now as a function of the budget $B$ (1, 2, 3, 5 and 10 inspections): mean inspections to exact and to soft success, success rates at each budget, and the cost-accuracy curve. Comparisons are against B1, the one-shot heuristic of Phase~3 (to isolate the value of iterating), iterative Rocchio feedback, TOUR, and BAGEL, all under the same budget. Because every judgment is pre-computed, a variant of Algorithm~\ref{alg:adaptive} runs on all 196 questions in seconds, so the parameters $\theta$, $m$ and the schedule can be swept exhaustively and the sweep itself reported, including the settings that do \emph{not} work. As in the previous phases, results are split by whether B1 solves the question, which is where this phase is expected to matter, and the best variant is validated on TREC-COVID and MS MARCO. Where those collections need graded judgments to simulate the loop, the volume (a few hundred questions against pools of a few thousand documents) is of the same order as the one million pairs already judged for the benchmark.
+The design follows directly from the failed prototype described in Section~\ref{sec:approach}. That prototype used a fixed weight, began moving the anchor after the first relevant hit, and rebuilt the centroid from whatever it had; its average number of inspections rose from 3.29 (B1) to 4.55 as the weight on the question decreased. Each of its flaws becomes a design decision here: (i) the anchor starts moving only after an inspected document is judged \emph{not} relevant, so questions that B1 solves immediately are never disturbed; (ii) it moves only once the centroid rests on at least $m$ relevant documents; and (iii) the weight is a schedule that decreases with the evidence rather than a constant. In the offline simulation the loop is also allowed to continue past its first success, so that the step at which it reaches the labeled answer (exact success) is recorded in the same run as the step at which it reaches a fully relevant document (soft success).
+
+\textbf{Evaluation.} The same measures and the same offline simulation as Phase~3, now as a function of the budget $B$ (1, 2, 3, 5 and 10 inspections): mean inspections to exact and to soft success, success rates at each budget, and the cost-accuracy curve. Comparisons are against B1, the one-shot heuristic of Phase~3 (to isolate the value of iterating), iterative Rocchio feedback, TOUR, and BAGEL, all under the same budget. Because every judgment is pre-computed, one setting of Algorithm~\ref{alg:adaptive} runs on all 196 questions in seconds, so the parameters $\theta$, $m$ and the schedule can be swept exhaustively and the sweep itself reported, including the settings that do \emph{not} work. As in the previous phases, results are split by whether B1 solves the question, which is where this phase is expected to matter, and the best variant is validated on TREC-COVID and MS MARCO. Where those collections need graded judgments to simulate the loop, the volume (a few hundred questions against pools of a few thousand documents) is of the same order as the one million pairs already judged for the benchmark.
 
 \subsection{Time schedule}
 
