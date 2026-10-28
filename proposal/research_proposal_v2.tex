@@ -135,7 +135,7 @@ Term & Meaning in this proposal \\
 Large language model (LLM) & A neural network trained on very large amounts of text that can read a prompt and write fluent text in response (for example, GPT or Gemini). \\
 Embedding & A list of numbers (a vector) that a neural network produces to represent a piece of text. Texts with similar meaning get similar vectors. \\
 Embedding space & The high-dimensional space in which these vectors live. Each question and document is one point in it (768 dimensions in this work). \\
-Normalized vector & A vector scaled so that its length is exactly 1. All embeddings in this work are normalized, so that only their direction matters. \\
+Normalized vector & A vector scaled so that its length is exactly 1. All embeddings in this work are normalized, so that only their direction matters; cosine similarity then reduces to a plain dot product, which is also cheaper to compute. \\
 Cosine similarity / distance & The standard way to compare two embeddings: the cosine of the angle between the two vectors (1 = same direction, 0 = unrelated). Distance is $1 - \text{similarity}$, so smaller means closer. \\
 Retriever & The component that returns, for a question, the documents it finds most relevant. \\
 Bi-encoder & The common retriever design: one network turns the question into an embedding, one turns each document into an embedding, and the two are compared only afterwards. \\
